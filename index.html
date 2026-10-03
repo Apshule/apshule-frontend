@@ -1,0 +1,1321 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=yes, viewport-fit=cover">
+    <title>APSHULE - Learn With Ease</title>
+    <link rel="icon" type="image/png" href="https://i.ibb.co/YFrCtRW8/IMG-20260328-WA0041-9.jpg">
+    <link rel="apple-touch-icon" href="https://i.ibb.co/YFrCtRW8/IMG-20260328-WA0041-9.jpg">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { font-family: system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif; background: linear-gradient(180deg, #4B2E9E 0%, #7B5FCF 100%); min-height: 100vh; }
+        .logo--responsive { max-width: 100%; height: auto; display: block; }
+        .logo--desktop { max-width: 280px; }
+        @media (max-width: 768px) { .logo--tablet { max-width: 220px; } }
+        @media (max-width: 480px) { .logo--mobile { max-width: 180px; } }
+        .login-logo-img { display: block; margin-left: auto; margin-right: auto; }
+        .app-container, .login-screen { max-width: 500px; margin: 0 auto; background: linear-gradient(180deg, #4B2E9E 0%, #6B55C5 100%); min-height: 100vh; padding-bottom: 70px; position: relative; }
+        .login-screen { display: flex; align-items: center; justify-content: center; padding: 20px; }
+        .login-card { background: white; border-radius: 40px; padding: 40px 24px; width: 100%; text-align: center; box-shadow: 0 20px 40px rgba(0,0,0,0.2); }
+        .login-logo-img { max-width: 180px; width: 100%; margin-bottom: 16px; border-radius: 20px; object-fit: contain; }
+        .login-title { font-size: 28px; font-weight: bold; color: #4B2E9E; margin-top: 8px; }
+        .login-subtitle { color: #666; margin-bottom: 32px; }
+        .login-tabs { display: flex; gap: 16px; margin-bottom: 24px; border-bottom: 1px solid #eee; }
+        .login-tab { flex: 1; padding: 12px; color: #999; font-weight: 500; cursor: pointer; }
+        .login-tab.active { color: #4B2E9E; border-bottom: 2px solid #4B2E9E; }
+        .login-form { display: none; }
+        .login-form.active { display: block; }
+        .login-input { width: 100%; padding: 14px; margin-bottom: 16px; border: 1px solid #ddd; border-radius: 30px; font-size: 16px; }
+        .login-btn { width: 100%; padding: 14px; background: #4B2E9E; color: white; border: none; border-radius: 30px; font-size: 16px; font-weight: bold; cursor: pointer; margin-bottom: 10px; }
+        .error-message { color: red; margin-top: 16px; font-size: 14px; }
+        .success-message { color: green; margin-top: 16px; font-size: 14px; }
+        .reset-section { margin-top: 20px; padding-top: 20px; border-top: 1px solid #eee; display: none; }
+        .reset-input { width: 100%; padding: 12px; margin-bottom: 10px; border: 1px solid #ddd; border-radius: 25px; }
+        .reset-btn { background: #FF8C42; color: white; border: none; padding: 10px; border-radius: 25px; width: 100%; cursor: pointer; font-weight: bold; }
+        .hidden { display: none; }
+        .header { background: #5B4FCF; padding: 20px 16px; display: flex; justify-content: space-between; align-items: center; gap: 12px; }
+        .header-left { display: flex; align-items: center; gap: 12px; flex: 1; }
+        .header-logo-img { width: 48px; height: 48px; object-fit: contain; border-radius: 12px; background: white; padding: 2px; }
+        .app-title { color: white; font-weight: bold; font-size: 16px; }
+        .tagline { color: rgba(255,255,255,0.8); font-size: 12px; }
+        .greeting { color: white; font-weight: bold; font-size: 14px; margin-top: 4px; }
+        .header-right { display: flex; align-items: center; gap: 12px; position: relative; }
+        .ai-icon-btn, .more-menu-btn { background: rgba(255,255,255,0.2); border: none; width: 40px; height: 40px; border-radius: 50%; cursor: pointer; }
+        .ai-icon-btn i, .more-menu-btn i { font-size: 20px; color: white; }
+        .more-dropdown { position: absolute; top: 60px; right: 0; background: white; border-radius: 16px; min-width: 200px; z-index: 1000; display: none; overflow: hidden; }
+        .more-dropdown.show { display: block; }
+        .dropdown-item { padding: 14px 18px; display: flex; align-items: center; gap: 12px; color: #333; cursor: pointer; }
+        .dropdown-item:hover { background: #f5f5f5; }
+        .dropdown-item i { width: 24px; color: #4B2E9E; }
+        .main-content { padding: 20px 16px; padding-bottom: 80px; }
+        .section-title { color: white; font-weight: bold; font-size: 20px; margin-bottom: 16px; }
+        .education-level { display: flex; gap: 16px; margin-bottom: 20px; }
+        .level-btn { flex: 1; padding: 15px; border: none; border-radius: 30px; font-weight: bold; cursor: pointer; background: rgba(255,255,255,0.2); color: white; }
+        .level-btn.active { background: white; color: #4B2E9E; }
+        .class-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(110px, 1fr)); gap: 16px; margin-top: 16px; }
+        .class-card { background: white; border-radius: 20px; padding: 20px 8px; text-align: center; cursor: pointer; transition: all 0.3s ease; box-shadow: 0 4px 15px rgba(0,0,0,0.1); }
+        .class-card:hover { transform: translateY(-5px); box-shadow: 0 8px 25px rgba(0,0,0,0.15); }
+        .class-card i { font-size: 48px; margin-bottom: 12px; display: block; }
+        .class-name { font-weight: bold; font-size: 14px; color: #333; margin-top: 8px; }
+        .class-details { font-size: 11px; color: #999; margin-top: 4px; }
+        .subjects-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); gap: 16px; max-height: 500px; overflow-y: auto; }
+        .subject-card { background: white; border-radius: 20px; padding: 20px 12px; text-align: center; cursor: pointer; transition: transform 0.2s; }
+        .subject-card:hover { transform: translateY(-3px); }
+        .subject-icon { width: 60px; height: 60px; border-radius: 30px; display: flex; align-items: center; justify-content: center; margin: 0 auto 12px; }
+        .subject-icon i { font-size: 28px; color: white; }
+        .subject-name { font-weight: 600; font-size: 14px; }
+        .back-btn { background: rgba(255,255,255,0.2); border: none; padding: 10px 16px; border-radius: 30px; color: white; margin-bottom: 20px; cursor: pointer; display: inline-flex; align-items: center; gap: 8px; }
+        .welcome-card { background: rgba(255,255,255,0.15); backdrop-filter: blur(10px); border-radius: 24px; padding: 40px 20px; text-align: center; margin-bottom: 20px; }
+        .welcome-title { color: white; font-size: 22px; }
+        .welcome-subtitle { color: rgba(255,255,255,0.9); font-size: 14px; margin-top: 8px; }
+        .announcements-section { background: linear-gradient(135deg, #FF8C42, #FF6B35); border-radius: 20px; margin: 20px 0; overflow: hidden; box-shadow: 0 4px 15px rgba(0,0,0,0.2); }
+        .announcements-header { background: rgba(0,0,0,0.2); padding: 12px 16px; color: white; font-weight: bold; font-size: 14px; display: flex; align-items: center; justify-content: space-between; border-bottom: 1px solid rgba(255,255,255,0.3); }
+        .announcements-header i { font-size: 18px; }
+        .announcements-header span { flex: 1; text-align: center; letter-spacing: 1px; }
+        .announcements-ticker { background: #FF8C42; padding: 12px 0; overflow: hidden; position: relative; }
+        .ticker-wrap { width: 100%; overflow: hidden; white-space: nowrap; }
+        .ticker { display: inline-block; animation: ticker-scroll 25s linear infinite; white-space: nowrap; }
+        .ticker-item { display: inline-block; padding: 0 30px; color: white; font-size: 14px; font-weight: 500; letter-spacing: 0.5px; }
+        .ticker-item strong { color: #FFF9C4; font-weight: bold; }
+        @keyframes ticker-scroll { 0% { transform: translateX(0); } 100% { transform: translateX(-50%); } }
+        .announcements-ticker:hover .ticker { animation-play-state: paused; }
+        @media (max-width: 600px) { .ticker-item { font-size: 11px; padding: 0 20px; } .announcements-header span { font-size: 11px; } }
+        .materials-folder { background: white; border-radius: 20px; margin-bottom: 20px; overflow: hidden; }
+        .folder-header { background: #4B2E9E; padding: 16px; color: white; display: flex; align-items: center; gap: 12px; cursor: pointer; }
+        .folder-header i:last-child { margin-left: auto; transition: transform 0.2s; }
+        .folder-content { padding: 16px; display: none; background: #f9f9f9; }
+        .folder-content.show { display: block; }
+        .material-item { padding: 12px; border-bottom: 1px solid #eee; display: flex; align-items: center; gap: 12px; cursor: pointer; text-decoration: none; color: #333; }
+        .payment-plans-section { background: white; border-radius: 20px; padding: 20px; margin-top: 20px; }
+        .payment-plans-grid { display: grid; grid-template-columns: repeat(2,1fr); gap: 12px; }
+        .payment-card { border-radius: 16px; padding: 12px; text-align: center; color: white; }
+        .payment-card.daily { background: linear-gradient(135deg,#2196F3,#1976D2); }
+        .payment-card.weekly { background: linear-gradient(135deg,#4CAF50,#388E3C); }
+        .payment-card.monthly { background: linear-gradient(135deg,#FF9800,#F57C00); }
+        .payment-card.half { background: linear-gradient(135deg,#9C27B0,#7B1FA2); }
+        .payment-card.full { background: linear-gradient(135deg,#F44336,#D32F2F); }
+        .subscribe-btn-small { background: white; color: #4B2E9E; border: none; padding: 6px 12px; border-radius: 20px; font-size: 11px; font-weight: bold; margin-top: 8px; cursor: pointer; width: 100%; }
+        .account-card, .about-card { background: white; border-radius: 20px; padding: 24px; }
+        .account-field { padding: 12px; background: #f5f5f5; border-radius: 12px; margin-bottom: 12px; }
+        .bottom-nav { position: fixed; bottom: 0; left: 0; right: 0; max-width: 500px; margin: 0 auto; background: white; display: flex; justify-content: space-around; padding: 12px 16px; border-top-left-radius: 20px; border-top-right-radius: 20px; z-index: 1000; }
+        .nav-item { display: flex; flex-direction: column; align-items: center; gap: 4px; color: #999; font-size: 12px; cursor: pointer; }
+        .nav-item i { font-size: 22px; }
+        .nav-item.active { color: #FF8C42; }
+        .page { display: none; }
+        .page.active-page { display: block; }
+        .notification { position: fixed; top: 20px; right: 20px; background: #4B2E9E; color: white; padding: 15px 20px; border-radius: 10px; display: none; z-index: 4000; animation: slideIn 0.3s ease; max-width: 300px; }
+        .notification.success { background: #2E7D32; }
+        .notification.info { background: #FF8C42; }
+        @keyframes slideIn { from { transform: translateX(100%); } to { transform: translateX(0); } }
+        .video-modal { position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.95); z-index: 5000; display: none; align-items: center; justify-content: center; padding: 20px; }
+        .video-modal.show { display: flex; }
+        .video-content { background: #1a1a2e; border-radius: 20px; width: 100%; max-width: 800px; overflow: hidden; position: relative; }
+        .video-content:fullscreen { max-width: none; border-radius: 0; background: #000; }
+        .video-content:fullscreen .video-header { position: absolute; top: 0; left: 0; right: 0; z-index: 10; background: rgba(0,0,0,0.7); }
+        .video-header { background: #4B2E9E; padding: 15px; color: white; display: flex; justify-content: space-between; align-items: center; }
+        .video-header button { background: none; border: none; color: white; font-size: 24px; cursor: pointer; margin-left: 12px; }
+        .youtube-player-container { position: relative; width: 100%; padding-bottom: 56.25%; background: #000; }
+        .youtube-player-container iframe { position: absolute; top: 0; left: 0; width: 100%; height: 100%; border: 0; }
+        .video-title { padding: 12px; color: white; text-align: center; background: #2a2a3e; font-weight: 500; }
+        .feedback-section { background: white; padding: 20px; margin-top: 0; border-radius: 0 0 20px 20px; display: none; }
+        .feedback-section h4 { color: #4B2E9E; margin-bottom: 12px; }
+        #starRating { margin-bottom: 12px; }
+        #starRating i { font-size: 28px; cursor: pointer; margin-right: 5px; color: #FFD700; }
+        #starRating i.far { color: #ccc; }
+        #feedbackComment { width: 100%; padding: 12px; border: 1px solid #ddd; border-radius: 12px; margin: 10px 0; resize: vertical; }
+        .feedback-buttons { display: flex; gap: 10px; }
+        .feedback-buttons button { flex: 1; padding: 12px; border: none; border-radius: 25px; cursor: pointer; font-weight: bold; }
+        .submit-feedback { background: #4B2E9E; color: white; }
+        .skip-feedback { background: #ccc; color: #333; }
+        .attendance-modal { position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.9); z-index: 3000; display: none; align-items: center; justify-content: center; padding: 20px; }
+        .attendance-modal.show { display: flex; }
+        .attendance-modal-content { background: white; border-radius: 24px; width: 100%; max-width: 500px; max-height: 90vh; overflow-y: auto; padding: 20px; }
+        .attendance-tabs { display: flex; gap: 10px; margin-bottom: 15px; flex-wrap: wrap; }
+        .attendance-tab { flex: 1; padding: 10px; text-align: center; background: #e0e0e0; border: none; border-radius: 30px; cursor: pointer; font-weight: bold; }
+        .attendance-tab.active { background: #FF8C42; color: white; }
+        .attendance-tab-content { display: none; }
+        .attendance-tab-content.active { display: block; }
+        .camera-container { background: #2E7D32; border-radius: 16px; overflow: hidden; margin-bottom: 15px; }
+        #attendanceVideo, #enrollVideo { width: 100%; background: #1B5E20; }
+        .btn-primary { background: #FF8C42; color: white; padding: 12px; border-radius: 30px; border: none; cursor: pointer; flex: 1; }
+        .btn-secondary { background: #2E7D32; color: white; padding: 12px; border-radius: 30px; border: none; cursor: pointer; flex: 1; }
+        .btn-danger { background: #dc3545; color: white; padding: 12px; border-radius: 30px; border: none; cursor: pointer; }
+        .recognition-result { background: #E8F5E9; padding: 15px; border-radius: 12px; margin: 15px 0; }
+        .recent-attendance-list, .enrolled-list { max-height: 200px; overflow-y: auto; }
+        .attendance-item, .enrolled-person { background: white; padding: 10px; border-radius: 10px; margin-bottom: 8px; display: flex; justify-content: space-between; align-items: center; border: 1px solid #eee; }
+        .preview-image { max-width: 100px; border-radius: 10px; margin-top: 10px; border: 2px solid #FF8C42; }
+        .file-input-label { background: #FF8C42; color: white; padding: 10px 15px; border-radius: 25px; cursor: pointer; display: inline-block; font-size: 12px; }
+        #faceImageUpload { display: none; }
+        .form-group { margin-bottom: 15px; }
+        .form-group input, .form-group select { width: 100%; padding: 12px; border: 2px solid #FF8C42; border-radius: 10px; }
+        .ai-drawer { position: fixed; top: 0; right: -100%; width: 100%; max-width: 400px; height: 100vh; background: white; z-index: 2000; transition: right 0.3s ease; display: flex; flex-direction: column; }
+        .ai-drawer.open { right: 0; }
+        .ai-drawer-header { background: linear-gradient(135deg, #4B2E9E, #7B5FCF); color: white; padding: 20px; display: flex; justify-content: space-between; }
+        .ai-chat-messages { flex: 1; overflow-y: auto; padding: 16px; background: #f5f5f5; }
+        .message { margin-bottom: 16px; display: flex; gap: 10px; }
+        .message.user { justify-content: flex-end; }
+        .message.user .message-bubble { background: #4B2E9E; color: white; border-radius: 20px 20px 5px 20px; }
+        .message.ai .message-bubble { background: white; color: #333; border-radius: 20px 20px 20px 5px; }
+        .message-bubble { max-width: 80%; padding: 12px 16px; }
+        .message-avatar { width: 32px; height: 32px; border-radius: 50%; background: #FF8C42; display: flex; align-items: center; justify-content: center; color: white; }
+        .ai-chat-input { display: flex; padding: 12px; gap: 10px; background: white; border-top: 1px solid #eee; }
+        .ai-chat-input input { flex: 1; padding: 12px; border: 1px solid #ddd; border-radius: 25px; }
+        .ai-chat-input button { background: #4B2E9E; color: white; border: none; padding: 12px 20px; border-radius: 25px; cursor: pointer; }
+        .overlay { position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.5); z-index: 1999; display: none; }
+        .overlay.show { display: block; }
+        .vision-box, .mission-box { background: linear-gradient(135deg, #4B2E9E, #7B5FCF); color: white; padding: 20px; border-radius: 16px; margin-bottom: 20px; text-align: center; }
+        .core-value { padding: 12px; background: #f0f0f0; border-radius: 12px; margin-bottom: 8px; display: flex; align-items: center; gap: 12px; }
+        .team-member { display: flex; align-items: center; gap: 16px; padding: 12px; background: #f9f9f9; border-radius: 12px; margin-bottom: 10px; }
+        .team-avatar { width: 50px; height: 50px; background: linear-gradient(135deg, #4B2E9E, #7B5FCF); border-radius: 50%; display: flex; align-items: center; justify-content: center; color: white; overflow: hidden; }
+        .team-avatar img { width: 100%; height: 100%; object-fit: cover; }
+        .whatsapp-btn { background: #25D366; color: white; padding: 12px; border-radius: 30px; text-align: center; text-decoration: none; display: block; margin-top: 12px; font-weight: bold; }
+        .contact-info { display: flex; align-items: center; gap: 12px; padding: 12px; background: #f5f5f5; border-radius: 12px; margin-bottom: 12px; }
+        @media (orientation: landscape) { .video-modal { padding: 0; } .video-content { max-width: 100%; height: 100%; border-radius: 0; } }
+        .admin-panel { background: white; border-radius: 20px; padding: 20px; margin-top: 20px; display: none; }
+        .admin-panel.show { display: block; }
+        .admin-panel h3 { color: #4B2E9E; margin-bottom: 15px; }
+        .admin-section { margin-bottom: 30px; border-top: 1px solid #ddd; padding-top: 15px; }
+        .admin-section h4 { color: #4B2E9E; margin-bottom: 10px; }
+        .admin-subject { margin-bottom: 20px; border: 1px solid #ddd; border-radius: 16px; padding: 12px; }
+        .admin-subject label { font-weight: bold; display: block; margin-bottom: 5px; }
+        .admin-subject input { width: 100%; padding: 10px; border: 1px solid #ccc; border-radius: 25px; margin-bottom: 8px; }
+        .admin-subject button { background: #FF8C42; color: white; border: none; padding: 8px 16px; border-radius: 25px; cursor: pointer; margin-right: 8px; }
+        .admin-subject .status { font-size: 12px; color: green; margin-top: 5px; }
+        .admin-toggle { background: #FF8C42; color: white; border: none; padding: 10px 20px; border-radius: 30px; margin: 10px 0; cursor: pointer; font-weight: bold; }
+        .pdf-item { display: flex; justify-content: space-between; align-items: center; background: #f9f9f9; margin-bottom: 8px; padding: 10px; border-radius: 12px; }
+        .pdf-item a { text-decoration: none; color: #4B2E9E; flex: 1; }
+        .pdf-item button { background: #dc3545; color: white; border: none; padding: 5px 10px; border-radius: 20px; cursor: pointer; }
+        .add-pdf-form { background: #f0f0f0; padding: 15px; border-radius: 16px; margin-top: 20px; }
+        .add-pdf-form input { margin: 5px 0; padding: 8px; width: 100%; border-radius: 20px; border: 1px solid #ccc; }
+        .add-subject-form { background: #f0f0f0; padding: 15px; border-radius: 16px; margin-top: 20px; }
+        .add-subject-form input, .add-subject-form select { margin: 5px 0; padding: 8px; width: 100%; border-radius: 20px; border: 1px solid #ccc; }
+        .analytics-table { width: 100%; border-collapse: collapse; margin-top: 15px; font-size: 12px; }
+        .analytics-table th, .analytics-table td { border: 1px solid #ddd; padding: 8px; text-align: left; }
+        .analytics-table th { background: #4B2E9E; color: white; }
+        .most-watched-list { list-style: none; padding: 0; }
+        .most-watched-list li { background: #f5f5f5; margin: 8px 0; padding: 10px; border-radius: 12px; display: flex; justify-content: space-between; }
+        .school-item, .event-item { background: #f9f9f9; border-radius: 12px; padding: 12px; margin-bottom: 10px; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; }
+        .school-actions button, .event-actions button { margin-left: 8px; background: #FF8C42; border: none; padding: 6px 12px; border-radius: 20px; color: white; cursor: pointer; }
+        .school-actions button.delete, .event-actions button.delete { background: #dc3545; }
+        .school-logo { width: 50px; height: 50px; object-fit: cover; border-radius: 12px; margin-right: 12px; }
+        .video-mapping-form { background: #f0f0f0; padding: 20px; border-radius: 20px; margin-bottom: 20px; }
+        .video-mapping-form select, .video-mapping-form input { width: 100%; padding: 12px; margin-bottom: 12px; border-radius: 30px; border: 1px solid #ccc; }
+        .form-row { display: flex; gap: 10px; align-items: center; }
+        .form-row button { flex: 1; }
+        .profile-pic-upload { background: white; border-radius: 20px; padding: 20px; margin-top: 16px; text-align: center; }
+        .profile-pic-preview { width: 80px; height: 80px; border-radius: 50%; object-fit: cover; margin-bottom: 10px; border: 2px solid #4B2E9E; background: #f0f0f0; }
+        .payment-loading { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.7); z-index: 10000; display: flex; align-items: center; justify-content: center; color: white; font-size: 20px; flex-direction: column; gap: 15px; }
+        .default-avatar { background: #ccc; display: flex; align-items: center; justify-content: center; font-size: 40px; color: white; }
+        .demo-notice { background: rgba(0,0,0,0.85); color: white; font-size: 13px; padding: 8px 16px; position: fixed; bottom: 80px; right: 10px; border-radius: 30px; z-index: 999; pointer-events: none; backdrop-filter: blur(6px); font-family: monospace; white-space: nowrap; }
+        @media (max-width: 480px) { .demo-notice { font-size: 10px; bottom: 70px; } }
+    </style>
+</head>
+<body>
+
+<div class="demo-notice" id="responsiveDemoNotice">
+    🖥️ Desktop | 🖥️ Tablet | 📱 Phone
+</div>
+
+<!-- LOGIN SCREEN -->
+<div id="loginScreen" class="login-screen">
+    <div class="login-card">
+        <img class="login-logo-img logo--responsive logo--desktop logo--tablet logo--mobile"
+             src="https://i.ibb.co/YFrCtRW8/IMG-20260328-WA0041-9.jpg"
+             alt="APSHULE Logo - SHU Let's learn with ease">
+        <div class="login-title">APSHULE</div>
+        <div class="login-subtitle">Let's Learn With Ease From Anywhere at Anytime</div>
+        <div class="login-tabs">
+            <div class="login-tab active" data-tab="login">Login</div>
+            <div class="login-tab" data-tab="signup">Sign Up</div>
+        </div>
+        <div id="loginFormDiv" class="login-form active">
+            <div style="position: relative;"><input type="email" id="loginEmail" placeholder="Email" class="login-input"><span onclick="togglePassword('loginPassword')" style="position: absolute; right: 20px; top: 12px; cursor: pointer;">👁️</span></div>
+            <div style="position: relative;"><input type="password" id="loginPassword" placeholder="Password" class="login-input"><span onclick="togglePassword('loginPassword')" style=" position: absolute; right: 20px; top: 12px; cursor: pointer;">👁️</span></div>
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px;"><label style="display: flex; align-items: center; gap: 8px; color: #666; font-size: 14px;"><input type="checkbox" id="rememberMeCheckbox"> Remember Me</label><span id="forgotPasswordLink" style="color: #FF8C42; font-size: 14px; cursor: pointer;">Forgot Password?</span></div>
+            <button id="loginBtn" class="login-btn">Login</button>
+        </div>
+        <div id="signupFormDiv" class="login-form">
+            <input type="text" id="signupName" placeholder="Full Name" class="login-input">
+            <input type="email" id="signupEmail" placeholder="Email" class="login-input">
+            <input type="tel" id="signupPhone" placeholder="Phone Number" class="login-input">
+            <div style="position: relative;"><input type="password" id="signupPassword" placeholder="Password (min 6 characters)" class="login-input"><span onclick="togglePassword('signupPassword')" style="position: absolute; right: 20px; top: 12px; cursor: pointer;">👁️</span></div>
+            <select id="signupEducationLevel" class="login-input"><option value="">Select Education Level</option><option value="Primary">Primary School</option><option value="Secondary">Secondary School</option></select>
+            <button id="signupBtn" class="login-btn">Create Account</button>
+        </div>
+        <div id="loginError" class="error-message"></div>
+        <div class="reset-section" id="resetSection" style="display:none;"><h4><i class="fas fa-key"></i> Forgot Password?</h4><input type="email" id="resetEmail" placeholder="Email" class="reset-input"><div id="resetMessage" class="success-message"></div><button id="sendResetEmailBtn" class="reset-btn">Send Reset Email</button></div>
+    </div>
+</div>
+
+<!-- MAIN APP -->
+<div id="appScreen" class="app-container hidden">
+    <div class="header">
+        <div class="header-left">
+            <img id="headerLogoImg" class="header-logo-img logo--responsive logo--desktop logo--tablet logo--mobile"
+                 src="https://i.ibb.co/YFrCtRW8/IMG-20260328-WA0041-9.jpg"
+                 alt="Logo SHU Learn">
+            <div><div class="app-title">APSHULE</div><div class="tagline">Let's Learn With Ease From Anywhere at Anytime</div><div class="greeting">Hello, <span id="userName">Student</span>!</div></div>
+        </div>
+        <div class="header-right"><button class="ai-icon-btn" id="openAIDrawerBtn"><i class="fas fa-robot"></i></button><div style="position: relative;"><button class="more-menu-btn" id="moreMenuBtn"><i class="fas fa-ellipsis-v"></i></button><div class="more-dropdown" id="moreDropdown"><div class="dropdown-item" id="attendanceMenuItem" style="display: none;"><i class="fas fa-camera"></i><span>📸 Facial Attendance</span></div><div class="dropdown-item" id="adminMenuItem" style="display: none;"><i class="fas fa-user-cog"></i><span>Admin Panel</span></div><div class="dropdown-item" id="logoutBtn"><i class="fas fa-sign-out-alt"></i><span>Logout</span></div></div></div></div>
+    </div>
+
+    <div id="videoModal" class="video-modal"><div class="video-content" id="videoContent"><div class="video-header"><span id="videoTitle"><i class="fab fa-youtube"></i> Lesson</span><div><button id="fullscreenBtn"><i class="fas fa-expand"></i></button><button id="closeVideoBtn">&times;</button></div></div><div class="youtube-player-container"><iframe id="youtubeIframe" src="" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" allowfullscreen></iframe></div><div class="video-title" id="currentVideoTitle"></div><div class="feedback-section" id="feedbackSection"><h4>⭐ Rate this lesson</h4><div id="starRating"><i class="far fa-star" data-rating="1"></i><i class="far fa-star" data-rating="2"></i><i class="far fa-star" data-rating="3"></i><i class="far fa-star" data-rating="4"></i><i class="far fa-star" data-rating="5"></i></div><textarea id="feedbackComment" placeholder="Your feedback (optional)" rows="3"></textarea><div class="feedback-buttons"><button id="submitFeedbackBtn" class="submit-feedback">Submit & Continue</button><button id="closeFeedbackBtn" class="skip-feedback">Skip</button></div></div></div></div>
+
+    <div id="attendanceModal" class="attendance-modal"><div class="attendance-modal-content"><div style="display: flex; justify-content: space-between; margin-bottom: 20px;"><h3><i class="fas fa-face-recognition"></i> Facial Attendance <span id="attendanceSchoolName"></span></h3><button id="closeAttendanceModal" style="background:none; border:none; font-size:28px; cursor:pointer;">&times;</button></div><div class="attendance-tabs"><button class="attendance-tab active" data-attendance-tab="mark">📝 Mark Attendance</button><button class="attendance-tab" data-attendance-tab="enroll">👤 Enroll Person</button><button class="attendance-tab" data-attendance-tab="manage">📋 Manage</button></div><div id="markTab" class="attendance-tab-content active"><div class="camera-container"><video id="attendanceVideo" autoplay playsinline style="width:100%"></video></div><div class="attendance-controls" style="display:flex; gap:10px; margin:15px 0;"><button id="switchAttendanceCamera" class="btn-secondary"><i class="fas fa-sync-alt"></i> Switch Camera</button><button id="markAttendanceBtn" class="btn-primary"><i class="fas fa-face-smile"></i> Mark Attendance</button></div><div id="attendanceResult" class="recognition-result" style="display:none;"></div><h4>📋 Today's Attendance</h4><div id="recentAttendanceList" class="recent-attendance-list"></div></div><div id="enrollTab" class="attendance-tab-content"><div class="camera-container"><video id="enrollVideo" autoplay playsinline style="width:100%"></video></div><div class="attendance-controls" style="display:flex; gap:10px; margin:15px 0;"><button id="switchEnrollCamera" class="btn-secondary"><i class="fas fa-sync-alt"></i> Switch Camera</button><button id="captureEnrollBtn" class="btn-primary"><i class="fas fa-camera"></i> Capture Face</button></div><div style="text-align:center;"><label class="file-input-label" for="faceImageUpload"><i class="fas fa-folder-open"></i> 📁 Import Image</label><input type="file" id="faceImageUpload" accept="image/*"></div><div id="enrollPreview" style="text-align:center;"></div><div class="form-group"><label>Full Name</label><input type="text" id="enrollName" placeholder="Enter full name"></div><div class="form-group"><label>Category</label><select id="enrollCategory"><option>Student</option><option>Teacher</option><option>Staff</option><option>Visitor</option></select></div><div class="form-group"><label>Phone</label><input type="tel" id="enrollPhone" placeholder="Phone number"></div><button id="saveEnrolledPersonBtn" class="btn-primary">✅ Save Person</button></div><div id="manageTab" class="attendance-tab-content"><h4>📋 Enrolled Persons</h4><div id="enrolledPersonsList" class="enrolled-list"></div><button id="clearAllAttendanceBtn" class="btn-danger" style="width:100%; margin-top:15px;">🗑️ Clear All Records</button></div></div></div>
+
+    <div class="overlay" id="drawerOverlay"></div>
+    <div class="ai-drawer" id="aiDrawer"><div class="ai-drawer-header"><h3><i class="fas fa-robot"></i> AI Tutor</h3><button id="closeDrawerBtn" style="background:none; border:none; color:white; font-size:24px;">&times;</button></div><div class="ai-chat-messages" id="chatMessages"><div class="message ai"><div class="message-avatar"><i class="fas fa-robot"></i></div><div class="message-bubble">Hello! I'm your APSHULE AI Tutor. Ask me anything! 📚</div></div></div><div class="ai-chat-input"><input type="text" id="chatInput" placeholder="Ask me..."><button id="sendBtn">Send</button></div></div>
+
+    <div class="main-content">
+        <div id="homePage" class="page active-page">
+            <div class="education-level"><button class="level-btn active" data-level="primary">🏫 Primary School</button><button class="level-btn" data-level="secondary">🎓 Secondary School</button></div>
+            <div id="classSelectionSection"><div class="section-title">📚 Select Your Class</div><div id="classGrid" class="class-grid"></div></div>
+            <div id="subjectsSection" style="display:none;"><button id="backToClasses" class="back-btn"><i class="fas fa-arrow-left"></i> Back to Classes</button><div class="section-title">📖 Available Subjects</div><div id="subjectsGrid" class="subjects-grid"></div></div>
+            <div class="welcome-card"><div class="welcome-title">Welcome to APSHULE</div><div class="welcome-subtitle">Let's Learn With Ease From Anywhere at Anytime</div></div>
+            <div class="announcements-section"><div class="announcements-header"><i class="fas fa-bullhorn"></i> <span>📢 UPCOMING SEMINARS & EVENTS</span><i class="fas fa-volume-up"></i></div><div class="announcements-ticker"><div class="ticker-wrap"><div class="ticker" id="eventsTicker"></div></div></div></div>
+            <div class="materials-folder"><div class="folder-header" id="folderHeader"><i class="fas fa-folder"></i><span>📚 Learning Materials (PDFs)</span><i class="fas fa-chevron-down"></i></div><div class="folder-content" id="folderContent"><div id="pdfListContainer"></div></div></div>
+            <div class="payment-plans-section"><div class="payment-plans-title">🎯 Subscription Plans</div><div class="payment-plans-grid"><div class="payment-card daily"><div>Daily</div><div class="payment-plan-price">UGX 500</div><button class="subscribe-btn-small" data-plan="Daily" data-price="500">Subscribe</button></div><div class="payment-card weekly"><div>Weekly</div><div class="payment-plan-price">UGX 3,000</div><button class="subscribe-btn-small" data-plan="Weekly" data-price="3000">Subscribe</button></div><div class="payment-card monthly"><div>Monthly</div><div class="payment-plan-price">UGX 10,000</div><button class="subscribe-btn-small" data-plan="Monthly" data-price="10000">Subscribe</button></div><div class="payment-card half"><div>Term Plan</div><div class="payment-plan-price">UGX 50,000</div><button class="subscribe-btn-small" data-plan="Term" data-price="50000">Subscribe</button></div><div class="payment-card half"><div>Half Year</div><div class="payment-plan-price">UGX 80,000</div><button class="subscribe-btn-small" data-plan="Half Year" data-price="80000">Subscribe</button></div><div class="payment-card full"><div>Full Year</div><div class="payment-plan-price">UGX 150,000</div><button class="subscribe-btn-small" data-plan="Full Year" data-price="150000">Subscribe</button></div></div></div>
+
+            <div id="adminPanel" class="admin-panel">
+                <h3><i class="fas fa-lock"></i> Admin Panel</h3>
+                <div id="superAdminSection" class="admin-section" style="display:none;">
+                    <h4>🏢 Manage Schools</h4>
+                    <div class="add-subject-form" style="background:#f0f0f0; padding:15px; border-radius:16px;">
+                        <input type="text" id="schoolName" placeholder="School Name">
+                        <input type="text" id="schoolContact" placeholder="Contact (phone/email)">
+                        <input type="text" id="schoolLocation" placeholder="Location">
+                        <input type="text" id="schoolLogoUrl" placeholder="Logo URL">
+                        <input type="email" id="schoolLoginEmail" placeholder="School Login Email">
+                        <input type="password" id="schoolLoginPassword" placeholder="School Login Password">
+                        <button id="addSchoolBtn" class="admin-toggle">➕ Add School Account</button>
+                    </div>
+                    <div id="schoolsAdminList"></div>
+                    <div class="admin-section">
+                        <h4>🖼️ Upload / Change Brand Logo</h4>
+                        <div class="add-pdf-form" style="background:#f0f0f0; padding:15px; border-radius:16px;">
+                            <input type="file" id="logoUploadInput" accept="image/jpeg,image/png">
+                            <button id="uploadLogoBtn" class="admin-toggle">Upload Logo</button>
+                            <div id="logoUploadStatus" style="margin-top:8px; font-size:12px;"></div>
+                        </div>
+                    </div>
+                    <h4>📊 Global Analytics</h4>
+                    <p><strong>Total Users:</strong> <span id="totalUsersCount">0</span></p>
+                    <div class="admin-section"><h4>🎬 Most Watched Videos (Global)</h4><ul id="globalMostWatchedList" class="most-watched-list"></ul></div>
+                    <div class="admin-section"><h4>📝 User Feedback (for improvement)</h4><div id="feedbackAdminList"></div></div>
+                    <div class="admin-section"><h4>🎥 Map Video Lessons (Subject + Class)</h4>
+                        <div class="video-mapping-form">
+                            <select id="videoSubjectSelect"><option value="">Select Subject</option></select>
+                            <select id="videoClassSelect"><option value="">Select Class</option></select>
+                            <input type="text" id="videoYoutubeId" placeholder="YouTube URL or Video ID">
+                            <div class="form-row">
+                                <button id="testVideoBtn" class="admin-toggle">▶ Test Video</button>
+                                <button id="saveVideoMappingBtn" class="admin-toggle">💾 Save Mapping</button>
+                            </div>
+                        </div>
+                        <div id="existingMappingsList" style="font-size: 13px; margin-top: 10px;"></div>
+                    </div>
+                    <div class="admin-section">
+                        <h4>👥 Manage All Users</h4>
+                        <div id="allUsersList"></div>
+                        <button id="refreshUsersBtn" class="admin-toggle">Refresh Users</button>
+                    </div>
+                    <div class="admin-section">
+                        <h4>📝 Edit About Page Content</h4>
+                        <button id="editAboutBtn" class="admin-toggle">Edit About Content</button>
+                        <div id="aboutEditor" style="display:none; margin-top:15px; background:#f9f9f9; padding:15px; border-radius:16px;">
+                            <label>Vision</label><textarea id="editVision" rows="2" style="width:100%"></textarea>
+                            <label>Mission</label><textarea id="editMission" rows="2" style="width:100%"></textarea>
+                            <label>Core Values (comma separated)</label><input id="editCoreValues" style="width:100%">
+                            <label>Team Members</label><div id="teamMembersEditor"></div><button id="addTeamMemberBtn" class="admin-toggle">➕ Add Member</button>
+                            <label>Contact</label><input id="editContactPhone" placeholder="Phone"><input id="editContactEmail" placeholder="Email"><input id="editContactAddress" placeholder="Address"><input id="editWhatsapp" placeholder="WhatsApp">
+                            <button id="saveAboutBtn" class="admin-toggle">💾 Save</button>
+                        </div>
+                    </div>
+                    <div class="admin-section">
+                        <h4>🎥 Live Lesson (Jitsi - Free)</h4>
+                        <button id="startJitsiLessonBtn" class="admin-toggle">Start Live Lesson</button>
+                        <div id="liveLessonContainer" style="display:none; margin-top:20px;"></div>
+                    </div>
+                </div>
+                <div class="admin-section" id="schoolEventsSection" style="display:none;">
+                    <h4>📅 Manage School Events (Only your school)</h4>
+                    <div class="add-pdf-form"><input type="text" id="schoolEventTitle" placeholder="Event Title"><input type="text" id="schoolEventDate" placeholder="Date"><input type="text" id="schoolEventFee" placeholder="Fee"><button id="addSchoolEventBtn" class="admin-toggle">➕ Add Event</button></div>
+                    <div id="schoolEventsList"></div>
+                </div>
+                <div class="admin-section" id="globalEventsSection" style="display:none;">
+                    <h4>📅 Manage Global Events (Super Admin)</h4>
+                    <div class="add-pdf-form"><input type="text" id="eventTitle" placeholder="Event Title"><input type="text" id="eventDate" placeholder="Date"><input type="text" id="eventFee" placeholder="Fee"><button id="addEventBtn" class="admin-toggle">➕ Add Event</button></div>
+                    <div id="eventsAdminList"></div>
+                </div>
+                <div class="admin-section" id="addSubjectSection" style="display:none;"><h4>➕ Add New Subject</h4><div class="add-subject-form"><input type="text" id="newSubjectName" placeholder="Subject name"><select id="newSubjectLevel"><option value="primary">Primary</option><option value="secondary">Secondary</option></select><input type="text" id="newSubjectVideo" placeholder="YouTube URL or Video ID"><button id="addNewSubjectBtn" class="admin-toggle">➕ Add Subject</button></div></div>
+                <div class="admin-section" id="pdfManagementSection" style="display:none;"><h4>📄 Manage PDFs</h4><div class="add-pdf-form"><input type="text" id="pdfTitle" placeholder="PDF Title"><input type="text" id="pdfUrl" placeholder="PDF URL"><button id="addPdfBtn" class="admin-toggle">➕ Add PDF</button></div><div id="pdfAdminList"></div></div>
+            </div>
+        </div>
+        <div id="myListPage" class="page"><div class="section-title">❤️ My Saved Lessons</div><div id="myListContainer" style="background:white; border-radius:20px; padding:20px; text-align:center; color:#999;">Coming soon – save your favourite lessons!</div></div>
+        <div id="notificationsPage" class="page"><div class="section-title">🔔 Notifications</div><div id="notificationsContainer" style="background:white; border-radius:20px; padding:20px; text-align:center; color:#999;">No new notifications</div></div>
+        <div id="accountPage" class="page">
+            <div class="section-title">👤 My Account</div>
+            <div id="accountInfo" class="account-card"></div>
+            <div id="profilePicUploadSection" class="profile-pic-upload">
+                <h4>Profile Picture</h4>
+                <img id="profilePicPreview" class="profile-pic-preview" src="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='%23999'%3E%3Cpath d='M12 12c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm0 2c-2.67 0-8 1.34-8 4v2h16v-2c0-2.66-5.33-4-8-4z'/%3E%3C/svg%3E" alt="Profile preview">
+                <input type="file" id="profilePicInput" accept="image/*" style="margin-top: 10px;">
+                <button id="uploadProfilePicBtn" class="admin-toggle" style="margin-top: 10px;">Upload Picture</button>
+            </div>
+        </div>
+        <div id="aboutPage" class="page">
+            <div class="section-title">📖 About APSHULE</div>
+            <div id="dynamicAbout" class="about-card">Loading...</div>
+        </div>
+    </div>
+
+    <div class="bottom-nav">
+        <div class="nav-item active" data-page="home"><i class="fas fa-home"></i><span>Home</span></div>
+        <div class="nav-item" data-page="mylist"><i class="fas fa-heart"></i><span>My List</span></div>
+        <div class="nav-item" data-page="notifications"><i class="fas fa-bell"></i><span>Alerts</span></div>
+        <div class="nav-item" data-page="account"><i class="fas fa-user"></i><span>Account</span></div>
+        <div class="nav-item" data-page="about"><i class="fas fa-info-circle"></i><span>About</span></div>
+    </div>
+</div>
+<div id="notification" class="notification"></div>
+
+<script type="module">
+    // ============================================================
+    // APSHULE FRONTEND — Cloudflare Worker + Neon backend
+    // No Firebase, no Render. Pure fetch() to your Worker API.
+    // ============================================================
+
+    // 🔴 REPLACE THIS with your deployed Worker URL:
+    const API_BASE = "https://apshule-api.apshule-migration.workers.dev";
+
+    let AUTH_TOKEN = localStorage.getItem('apshule_token') || null;
+
+    // ---------- HTTP HELPER ----------
+    async function api(path, { method = 'GET', body, auth = true } = {}) {
+        const headers = { 'Content-Type': 'application/json' };
+        if (auth && AUTH_TOKEN) headers['Authorization'] = 'Bearer ' + AUTH_TOKEN;
+        const res = await fetch(API_BASE + path, {
+            method, headers,
+            body: body ? JSON.stringify(body) : undefined,
+        });
+        if (res.status === 204) return null;
+        const data = await res.json().catch(() => ({}));
+        if (!res.ok) throw new Error(data.error || res.statusText || 'Request failed');
+        return data;
+    }
+
+    // ---------- GLOBAL STATE ----------
+    let currentUser = null;
+    let schools = [];
+    let globalEventsList = [];
+    let pdfMaterials = [];
+    let videoMappings = {};
+    let primarySubjects = [];
+    let secondarySubjects = [];
+    let attendancePeople = JSON.parse(localStorage.getItem('apshule_attendance_people')) || [];
+    let attendanceRecords = JSON.parse(localStorage.getItem('apshule_attendance_records')) || [];
+    let currentRating = 0, currentLessonSubject = "";
+    let currentSelectedClassId = null;
+    let currentLevel = "primary";
+
+    const classData = {
+        primary: [{id:1,name:"Primary 1",icon:"fa-baby-carriage",color:"#FF6B6B"},{id:2,name:"Primary 2",icon:"fa-child",color:"#4ECDC4"},{id:3,name:"Primary 3",icon:"fa-graduation-cap",color:"#45B7D1"},{id:4,name:"Primary 4",icon:"fa-book-reader",color:"#96CEB4"},{id:5,name:"Primary 5",icon:"fa-pencil-alt",color:"#FFEAA7"},{id:6,name:"Primary 6",icon:"fa-chalkboard-teacher",color:"#DDA0DD"},{id:7,name:"Primary 7",icon:"fa-users",color:"#FF9F43"}],
+        secondary: [{id:1,name:"Senior 1",icon:"fa-seedling",color:"#4CAF50"},{id:2,name:"Senior 2",icon:"fa-tree",color:"#8BC34A"},{id:3,name:"Senior 3",icon:"fa-book",color:"#FF9800"},{id:4,name:"Senior 4",icon:"fa-chart-line",color:"#F44336"},{id:5,name:"Senior 5",icon:"fa-flask",color:"#9C27B0"},{id:6,name:"Senior 6",icon:"fa-university",color:"#2196F3"}]
+    };
+
+    // ---------- HELPERS ----------
+    function showNotification(msg, type="success") {
+        const n = document.getElementById('notification');
+        n.textContent = msg;
+        n.className = `notification ${type}`;
+        n.style.display = 'block';
+        setTimeout(() => n.style.display = 'none', 3000);
+    }
+    window.showNotification = showNotification;
+    window.togglePassword = function(id) {
+        const inp = document.getElementById(id);
+        if (inp) inp.type = inp.type === "password" ? "text" : "password";
+    };
+    function extractVideoId(url) {
+        if (!url) return "";
+        const patterns = [/(?:youtube\.com\/watch\?v=)([^&]+)/, /(?:youtu\.be\/)([^?]+)/, /(?:youtube\.com\/embed\/)([^?]+)/];
+        for (const p of patterns) { const m = url.match(p); if (m) return m[1]; }
+        return url;
+    }
+    function escapeHtml(str){ if(!str)return ''; return String(str).replace(/[&<>"]/g, m => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[m])); }
+
+    function updateGreeting() {
+        const hour = new Date().getHours();
+        let greeting = hour < 12 ? "Good morning" : (hour < 18 ? "Good afternoon" : "Good evening");
+        const nameSpan = document.getElementById('userName');
+        if (nameSpan && currentUser) {
+            const firstName = (currentUser.name || "Student").split(' ')[0];
+            nameSpan.innerText = `${greeting}, ${firstName}!`;
+        }
+    }
+    setInterval(updateGreeting, 60000);
+
+    // ---------- PESAPAL (via Worker) ----------
+    function showPaymentLoading(show) {
+        let el = document.getElementById('paymentLoadingOverlay');
+        if (show) {
+            if (!el) {
+                el = document.createElement('div');
+                el.id = 'paymentLoadingOverlay';
+                el.className = 'payment-loading';
+                el.innerHTML = '<i class="fas fa-spinner fa-pulse fa-3x"></i><span>Redirecting to Pesapal...</span>';
+                document.body.appendChild(el);
+            } else el.style.display = 'flex';
+        } else if (el) el.style.display = 'none';
+    }
+
+    async function initiatePesapalPayment(plan, amount, email, phone, name) {
+        showPaymentLoading(true);
+        try {
+            const data = await api('/api/pesapal/initiate', {
+                method: 'POST',
+                body: { amount, currency: "UGX", description: `${plan} Subscription - APSHULE`, email, phone, name, reference: `SUB_${Date.now()}_${currentUser.uid}` }
+            });
+            if (data.redirect_url) {
+                sessionStorage.setItem('pesapal_order_tracking_id', data.order_tracking_id);
+                sessionStorage.setItem('pesapal_merchant_reference', data.merchant_reference);
+                window.location.href = data.redirect_url;
+            } else throw new Error(data.error || "Failed to initiate payment");
+        } catch (err) {
+            showNotification("Payment error: " + err.message, "error");
+            showPaymentLoading(false);
+        }
+    }
+
+    async function checkPaymentStatus() {
+        const urlParams = new URLSearchParams(window.location.search);
+        const orderTrackingId = urlParams.get('OrderTrackingId');
+        const merchantReference = urlParams.get('OrderMerchantReference');
+        if (orderTrackingId && merchantReference) {
+            showPaymentLoading(true);
+            try {
+                const data = await api('/api/pesapal/status', { method: 'POST', body: { order_tracking_id: orderTrackingId } });
+                if (data.status === "COMPLETED") {
+                    showNotification("✅ Payment successful! Your subscription is active.", "success");
+                    if (currentUser) {
+                        await api('/api/users/me/subscription', { method: 'POST', body: { subscription: merchantReference } });
+                    }
+                } else showNotification("Payment not completed. Status: " + data.status, "error");
+            } catch (err) { showNotification("Failed to verify payment", "error"); }
+            finally {
+                showPaymentLoading(false);
+                window.history.replaceState({}, document.title, window.location.pathname);
+            }
+        }
+    }
+
+    // ---------- ANALYTICS / FEEDBACK ----------
+    async function saveFeedback(lesson, rating, comment) {
+        if (!currentUser) return;
+        try { await api('/api/feedbacks', { method: 'POST', body: { lesson, rating, comment } }); } catch(e) { console.warn(e); }
+    }
+    async function saveVideoView(subject, classId, className) {
+        if (!currentUser) return;
+        try { await api('/api/video-views', { method: 'POST', body: { subject, classId, className } }); } catch(e) { console.warn(e); }
+    }
+
+    async function renderFeedbackAdmin() {
+        const container = document.getElementById('feedbackAdminList');
+        if (!container) return;
+        try {
+            const list = await api('/api/feedbacks?limit=50');
+            if (!list.length) { container.innerHTML = '<div>No feedback yet.</div>'; return; }
+            let html = '<div style="max-height:300px; overflow-y:auto;">';
+            list.forEach(f => {
+                html += `<div style="border-bottom:1px solid #ddd; padding:8px;"><strong>${escapeHtml(f.userName)}</strong> rated ${escapeHtml(f.lesson)} ${f.rating}⭐<br><em>${escapeHtml(f.comment || 'No comment')}</em><br><small>${new Date(f.timestamp).toLocaleString()}</small></div>`;
+            });
+            html += '</div>';
+            container.innerHTML = html;
+        } catch(e) { container.innerHTML = '<div>Error loading feedback</div>'; }
+    }
+    async function renderGlobalMostWatched() {
+        const container = document.getElementById('globalMostWatchedList');
+        if (!container) return;
+        try {
+            const stats = await api('/api/video-views/stats');
+            if (!stats.length) { container.innerHTML = '<li>No views yet.</li>'; return; }
+            container.innerHTML = stats.slice(0, 10).map(s => `<li><strong>${escapeHtml(s.subject)}</strong> – ${s.count} views</li>`).join('');
+        } catch(e) { container.innerHTML = '<li>Error</li>'; }
+    }
+
+    // ---------- PROFILE ----------
+    async function uploadProfilePicture(file) {
+        if (!currentUser) return;
+        const reader = new FileReader();
+        reader.onload = async (e) => {
+            const base64 = e.target.result;
+            try {
+                await api('/api/users/me', { method: 'PATCH', body: { profilePic: base64 } });
+                currentUser.profilePic = base64;
+                document.getElementById('profilePicPreview').src = base64;
+                showNotification("Profile picture updated!");
+            } catch(err) { showNotification(err.message, "error"); }
+        };
+        reader.readAsDataURL(file);
+    }
+    function loadProfilePicPreview() {
+        const preview = document.getElementById('profilePicPreview');
+        if (!preview) return;
+        if (currentUser && currentUser.profilePic) preview.src = currentUser.profilePic;
+        else preview.src = "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='%23999'%3E%3Cpath d='M12 12c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm0 2c-2.67 0-8 1.34-8 4v2h16v-2c0-2.66-5.33-4-8-4z'/%3E%3C/svg%3E";
+    }
+
+    // ---------- BRAND LOGO ----------
+    async function uploadBrandLogoBase64(file) {
+        if (!currentUser || currentUser.role !== 'superadmin') { showNotification("Only super admin can change the logo", "error"); return; }
+        const reader = new FileReader();
+        reader.onload = async (e) => {
+            const base64 = e.target.result;
+            try {
+                await api('/api/settings/brand', { method: 'PUT', body: { logoBase64: base64 } });
+                document.querySelectorAll('.login-logo-img, .header-logo-img').forEach(img => img.src = base64);
+                const fav = document.querySelector("link[rel='icon']"); if (fav) fav.href = base64;
+                const ap = document.querySelector("link[rel='apple-touch-icon']"); if (ap) ap.href = base64;
+                showNotification("Brand logo updated successfully!");
+            } catch(err) { showNotification(err.message, "error"); }
+        };
+        reader.readAsDataURL(file);
+    }
+    async function loadBrandLogo() {
+        try {
+            const data = await api('/api/settings/brand', { auth: false });
+            if (data && data.logoBase64) {
+                document.querySelectorAll('.login-logo-img, .header-logo-img').forEach(img => img.src = data.logoBase64);
+                const fav = document.querySelector("link[rel='icon']"); if (fav) fav.href = data.logoBase64;
+                const ap = document.querySelector("link[rel='apple-touch-icon']"); if (ap) ap.href = data.logoBase64;
+            }
+        } catch(e) { /* ignore */ }
+    }
+
+    // ---------- CLASSES & SUBJECTS ----------
+    const subjectColors = ['#2196F3','#4CAF50','#FF9800','#9C27B0','#F44336','#00BCD4','#795548','#E91E63','#3F51B5','#009688','#FFC107','#8BC34A','#673AB7','#FF5722','#607D8B','#CDDC39'];
+    function getSubjectIcon(subj) {
+        const icons = { 'Mathematics':'fa-calculator','English':'fa-book','Biology':'fa-dna','Chemistry':'fa-flask','Physics':'fa-atom','History':'fa-landmark','Geography':'fa-globe','Kiswahili':'fa-language','Commerce':'fa-chart-line','ICT':'fa-laptop','Literature':'fa-book-open','Economics':'fa-chart-bar','Science':'fa-flask','Social Studies':'fa-globe','Literacy':'fa-book','Religious Education':'fa-church','Agriculture':'fa-seedling','Fine Art':'fa-paintbrush','Physical Education':'fa-futbol','Entrepreneurship':'fa-lightbulb' };
+        return icons[subj] || 'fa-book-open';
+    }
+    function renderClasses() {
+        const grid = document.getElementById('classGrid');
+        if (!grid) return;
+        const classes = classData[currentLevel];
+        grid.innerHTML = classes.map(c => `<div class="class-card" data-class="${c.id}" onclick="selectClass(${c.id}, '${c.name}')" style="background: linear-gradient(135deg, ${c.color}22, white); border: 2px solid ${c.color}44;"><i class="fas ${c.icon}" style="background: linear-gradient(135deg, ${c.color}, ${c.color}cc); -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text; font-size: 52px;"></i><div class="class-name" style="color: ${c.color};">${c.name}</div><div class="class-details">${currentLevel === 'primary' ? primarySubjects.length : secondarySubjects.length} Subjects</div></div>`).join('');
+    }
+    window.selectClass = function(id, name) {
+        currentSelectedClassId = { id, name, level: currentLevel };
+        document.getElementById('classSelectionSection').style.display = 'none';
+        document.getElementById('subjectsSection').style.display = 'block';
+        renderSubjects();
+    };
+    function renderSubjects() {
+        const subjects = currentLevel === 'primary' ? primarySubjects : secondarySubjects;
+        const grid = document.getElementById('subjectsGrid');
+        if (!grid) return;
+        grid.innerHTML = subjects.map((s, idx) => `<div class="subject-card" onclick="openVideoLesson('${s.replace(/'/g,"\\'")}')"><div class="subject-icon" style="background: ${subjectColors[idx % subjectColors.length]}"><i class="fas ${getSubjectIcon(s)}"></i></div><div class="subject-name">${escapeHtml(s)}</div><div style="font-size:10px; color:#666; margin-top:8px;"><i class="fab fa-youtube"></i> YouTube Lesson</div></div>`).join('');
+    }
+    window.openVideoLesson = function(subject) {
+        if (!currentUser) { showNotification("Please login first", "error"); return; }
+        if (!currentSelectedClassId) { showNotification("Please select a class first", "error"); return; }
+        const key = `${currentSelectedClassId.level}_${currentSelectedClassId.id}_${subject}`;
+        const vid = videoMappings[key];
+        if (!vid) { showNotification(`No video for "${subject}" in ${currentSelectedClassId.name}. Ask admin to add.`, "info"); return; }
+        currentLessonSubject = `${subject} (${currentSelectedClassId.name})`;
+        saveVideoView(subject, currentSelectedClassId.id, currentSelectedClassId.name);
+        document.getElementById('youtubeIframe').src = `https://www.youtube.com/embed/${vid}?autoplay=1`;
+        document.getElementById('currentVideoTitle').innerText = `${subject} - ${currentSelectedClassId.name} Lesson`;
+        document.getElementById('videoTitle').innerHTML = `<i class="fab fa-youtube"></i> ${escapeHtml(subject)} Lesson`;
+        document.getElementById('feedbackSection').style.display = 'block';
+        document.getElementById('videoModal').classList.add('show');
+        currentRating = 0;
+        document.querySelectorAll('#starRating i').forEach(s => s.className = 'far fa-star');
+        document.getElementById('feedbackComment').value = '';
+    };
+    function renderPdfList() {
+        const c = document.getElementById('pdfListContainer');
+        if (!c) return;
+        if (!pdfMaterials.length) { c.innerHTML = '<div style="padding:20px; text-align:center; color:#999;">No PDFs added yet.</div>'; return; }
+        c.innerHTML = pdfMaterials.map(p => `<a href="${p.url}" target="_blank" class="material-item"><i class="fas fa-file-pdf"></i> ${escapeHtml(p.title)}</a>`).join('');
+    }
+    function renderPdfAdmin() {
+        const c = document.getElementById('pdfAdminList');
+        if (!c) return;
+        if (!pdfMaterials.length) { c.innerHTML = '<div>No PDFs</div>'; return; }
+        c.innerHTML = pdfMaterials.map(p => `<div class="pdf-item"><a href="${p.url}" target="_blank">📄 ${escapeHtml(p.title)}</a><button class="delete-pdf" data-id="${p.id}">Delete</button></div>`).join('');
+        document.querySelectorAll('.delete-pdf').forEach(btn => btn.addEventListener('click', async () => {
+            try { await api('/api/pdfs/' + btn.getAttribute('data-id'), { method: 'DELETE' }); showNotification("PDF deleted"); refreshAllData(); } catch(e) { showNotification(e.message, "error"); }
+        }));
+    }
+    function renderEventsTicker() {
+        const t = document.getElementById('eventsTicker');
+        if (!t) return;
+        let eventsToShow = (currentUser && currentUser.role === 'school')
+            ? globalEventsList.filter(ev => ev.schoolId === currentUser.schoolId)
+            : globalEventsList;
+        if (!eventsToShow.length) { t.innerHTML = '<div class="ticker-item">No upcoming events</div>'; return; }
+        let html = '';
+        for (let i = 0; i < 2; i++) eventsToShow.forEach(ev => { html += `<div class="ticker-item">🎓 <strong>${escapeHtml(ev.title)}</strong> | ${escapeHtml(ev.fee)} | 📅 ${escapeHtml(ev.date)}</div>`; });
+        t.innerHTML = html;
+    }
+    function renderSchoolEventsList() {
+        const c = document.getElementById('schoolEventsList');
+        if (!c || !currentUser || currentUser.role !== 'school') return;
+        const myEvents = globalEventsList.filter(ev => ev.schoolId === currentUser.schoolId);
+        if (!myEvents.length) { c.innerHTML = '<div>No events for your school</div>'; return; }
+        c.innerHTML = myEvents.map(ev => `<div class="event-item"><div><strong>${escapeHtml(ev.title)}</strong><br>${escapeHtml(ev.date)} | ${escapeHtml(ev.fee)}</div><div><button class="delete-school-event" data-id="${ev.id}">Delete</button><button class="edit-school-event" data-id="${ev.id}">Edit</button></div></div>`).join('');
+        document.querySelectorAll('.delete-school-event').forEach(btn => btn.addEventListener('click', async () => {
+            if (confirm("Delete?")) { try { await api('/api/events/' + btn.getAttribute('data-id'), { method: 'DELETE' }); refreshAllData(); } catch(e) { showNotification(e.message, "error"); } }
+        }));
+        document.querySelectorAll('.edit-school-event').forEach(btn => btn.addEventListener('click', async () => {
+            const id = btn.getAttribute('data-id');
+            const ev = myEvents.find(e => e.id == id);
+            if (!ev) return;
+            const title = prompt("Title:", ev.title); if (!title) return;
+            const date = prompt("Date:", ev.date) || ev.date;
+            const fee = prompt("Fee:", ev.fee) || ev.fee;
+            try { await api('/api/events/' + id, { method: 'PATCH', body: { title, date, fee } }); refreshAllData(); } catch(e) { showNotification(e.message, "error"); }
+        }));
+    }
+    function renderEventsAdmin() {
+        const c = document.getElementById('eventsAdminList');
+        if (!c) return;
+        if (!globalEventsList.length) { c.innerHTML = '<div>No events</div>'; return; }
+        c.innerHTML = globalEventsList.map(ev => `<div class="event-item"><div><strong>${escapeHtml(ev.title)}</strong><br>${escapeHtml(ev.date)} | ${escapeHtml(ev.fee)}</div><div><button class="delete-event" data-id="${ev.id}">Delete</button><button class="edit-event" data-id="${ev.id}">Edit</button></div></div>`).join('');
+        document.querySelectorAll('.delete-event').forEach(btn => btn.addEventListener('click', async () => {
+            if (confirm("Delete?")) { try { await api('/api/events/' + btn.getAttribute('data-id'), { method: 'DELETE' }); refreshAllData(); } catch(e) { showNotification(e.message, "error"); } }
+        }));
+        document.querySelectorAll('.edit-event').forEach(btn => btn.addEventListener('click', async () => {
+            const id = btn.getAttribute('data-id');
+            const ev = globalEventsList.find(e => e.id == id);
+            if (!ev) return;
+            const title = prompt("Title:", ev.title); if (!title) return;
+            const date = prompt("Date:", ev.date) || ev.date;
+            const fee = prompt("Fee:", ev.fee) || ev.fee;
+            try { await api('/api/events/' + id, { method: 'PATCH', body: { title, date, fee } }); refreshAllData(); } catch(e) { showNotification(e.message, "error"); }
+        }));
+    }
+    function renderSchoolsAdmin() {
+        const c = document.getElementById('schoolsAdminList');
+        if (!c) return;
+        if (!schools.length) { c.innerHTML = '<div>No schools</div>'; return; }
+        c.innerHTML = schools.map(s => `<div class="school-item"><img class="school-logo" src="${s.logo || 'https://via.placeholder.com/50'}" onerror="this.src='https://via.placeholder.com/50'"><div><strong>${escapeHtml(s.name)}</strong><br>${escapeHtml(s.loginEmail)}</div><div><button class="edit-school" data-id="${s.id}">Edit</button><button class="delete-school" data-id="${s.id}">Delete</button></div></div>`).join('');
+        document.querySelectorAll('.edit-school').forEach(btn => btn.addEventListener('click', async () => {
+            const id = btn.getAttribute('data-id');
+            const s = schools.find(ss => ss.id == id);
+            if (!s) return;
+            const name = prompt("Name:", s.name); if (!name) return;
+            const contact = prompt("Contact:", s.contact) || s.contact;
+            const location = prompt("Location:", s.location) || s.location;
+            const logo = prompt("Logo URL:", s.logo) || s.logo;
+            const loginEmail = prompt("Login email:", s.loginEmail) || s.loginEmail;
+            try {
+                await api('/api/schools/' + id, { method: 'PATCH', body: { name, contact, location, logo, loginEmail } });
+                if (currentUser && currentUser.role === 'school' && currentUser.schoolId === id) {
+                    document.getElementById('headerLogoImg').src = logo || "https://i.ibb.co/YFrCtRW8/IMG-20260328-WA0041-9.jpg";
+                }
+                refreshAllData();
+            } catch(e) { showNotification(e.message, "error"); }
+        }));
+        document.querySelectorAll('.delete-school').forEach(btn => btn.addEventListener('click', async () => {
+            if (confirm("Delete school?")) { try { await api('/api/schools/' + btn.getAttribute('data-id'), { method: 'DELETE' }); refreshAllData(); } catch(e) { showNotification(e.message, "error"); } }
+        }));
+    }
+    function populateVideoMappingDropdowns() {
+        const subjSelect = document.getElementById('videoSubjectSelect');
+        const allSubjects = [...primarySubjects, ...secondarySubjects];
+        subjSelect.innerHTML = '<option value="">Select Subject</option>' + allSubjects.map(s => `<option value="${escapeHtml(s)}">${escapeHtml(s)}</option>`).join('');
+        const classSelect = document.getElementById('videoClassSelect');
+        const allClasses = [...classData.primary.map(c => ({ value: `primary_${c.id}`, label: `Primary ${c.id}` })), ...classData.secondary.map(c => ({ value: `secondary_${c.id}`, label: `Senior ${c.id}` }))];
+        classSelect.innerHTML = '<option value="">Select Class</option>' + allClasses.map(c => `<option value="${c.value}">${c.label}</option>`).join('');
+    }
+    function renderExistingMappings() {
+        const container = document.getElementById('existingMappingsList');
+        if (!container) return;
+        const entries = Object.entries(videoMappings);
+        if (!entries.length) { container.innerHTML = '<em>No video mappings yet. Use the form above to add.</em>'; return; }
+        let html = '<strong>Current Mappings:</strong><ul style="margin-top:8px;">';
+        for (const [key, vid] of entries) {
+            const parts = key.split('_');
+            const level = parts[0] === 'primary' ? 'Primary' : 'Secondary';
+            const classId = parts[1];
+            const subject = parts.slice(2).join('_');
+            html += `<li><strong>${escapeHtml(subject)}</strong> (${level} ${classId}) → <code>${escapeHtml(vid)}</code></li>`;
+        }
+        html += '</ul>';
+        container.innerHTML = html;
+    }
+    async function saveVideoMapping() {
+        const subject = document.getElementById('videoSubjectSelect').value;
+        const classVal = document.getElementById('videoClassSelect').value;
+        const youtubeId = extractVideoId(document.getElementById('videoYoutubeId').value);
+        if (!subject || !classVal || !youtubeId) { showNotification("Please fill all fields", "error"); return; }
+        const key = `${classVal}_${subject}`;
+        try {
+            await api('/api/video-mappings', { method: 'POST', body: { key, subject, classKey: classVal, youtubeId } });
+            showNotification(`Video saved for ${subject}`);
+            document.getElementById('videoYoutubeId').value = '';
+            refreshAllData();
+        } catch(e) { showNotification(e.message, "error"); }
+    }
+    function testVideoMapping() {
+        const youtubeId = extractVideoId(document.getElementById('videoYoutubeId').value);
+        if (!youtubeId) { showNotification("Enter a valid YouTube URL or ID", "error"); return; }
+        document.getElementById('youtubeIframe').src = `https://www.youtube.com/embed/${youtubeId}?autoplay=1`;
+        document.getElementById('videoModal').classList.add('show');
+    }
+
+    // ---------- ATTENDANCE (localStorage only) ----------
+    let attendanceStream = null, enrollStream = null, currentAttendanceCamera='environment', currentEnrollCamera='environment', capturedFaceImage=null;
+    async function setupCamera(vid, mode='environment') {
+        try { const s = await navigator.mediaDevices.getUserMedia({ video: { facingMode: { exact: mode } } }); document.getElementById(vid).srcObject = s; return s; }
+        catch(e) { try { const s = await navigator.mediaDevices.getUserMedia({ video: true }); document.getElementById(vid).srcObject = s; return s; } catch(e) { showNotification("Camera access denied","error"); return null; } }
+    }
+    function captureFace(vid) { const v = document.getElementById(vid); if (!v || !v.videoWidth) return null; const c = document.createElement('canvas'); c.width = v.videoWidth; c.height = v.videoHeight; c.getContext('2d').drawImage(v, 0, 0); return c.toDataURL('image/jpeg', 0.8); }
+    function getImageHash(dataURL, cb) { const img = new Image(); img.onload = () => { const c = document.createElement('canvas'); c.width=8; c.height=8; const ctx=c.getContext('2d'); ctx.drawImage(img,0,0,8,8); const d=ctx.getImageData(0,0,8,8).data; let sum=0; for(let i=0;i<d.length;i+=4) sum+=(d[i]+d[i+1]+d[i+2])/3; const avg=sum/64; let hash=''; for(let i=0;i<d.length;i+=4) hash+=((d[i]+d[i+1]+d[i+2])/3 >= avg)?'1':'0'; cb(hash); }; img.src = dataURL; }
+    function hamming(a,b){ if(a.length!==b.length) return 999; let d=0; for(let i=0;i<a.length;i++) if(a[i]!==b[i]) d++; return d; }
+    function markAttendance() {
+        if (!currentUser || currentUser.role !== 'school') { showNotification("Only school accounts", "error"); return; }
+        const sid = currentUser.schoolId;
+        const people = attendancePeople.filter(p => p.schoolId === sid);
+        if (!people.length) { showNotification("No enrolled faces", "error"); return; }
+        const img = captureFace('attendanceVideo');
+        if (!img) { showNotification("Capture failed", "error"); return; }
+        getImageHash(img, (hash) => {
+            let best = null, bestDist = 15;
+            for (const p of people) if (p.faceHash) { const d = hamming(hash, p.faceHash); if (d < bestDist) { bestDist = d; best = p; } }
+            const resDiv = document.getElementById('attendanceResult');
+            if (!best) { resDiv.style.display='block'; resDiv.innerHTML='<div style="color:red">❌ Not recognized</div>'; return; }
+            const today = new Date().toDateString();
+            const already = attendanceRecords.find(r => r.personId === best.id && r.schoolId === sid && new Date(r.timestamp).toDateString() === today);
+            if (already) { resDiv.style.display='block'; resDiv.innerHTML=`<div style="color:#FF8C42">⚠️ ${escapeHtml(best.name)} already marked</div>`; return; }
+            attendanceRecords.push({ id: Date.now(), schoolId: sid, personId: best.id, personName: best.name, category: best.category, phone: best.phone, timestamp: new Date().toISOString(), timeIn: new Date().toLocaleTimeString(), date: today });
+            localStorage.setItem('apshule_attendance_records', JSON.stringify(attendanceRecords));
+            resDiv.style.display='block'; resDiv.innerHTML=`<div style="color:green">✅ ${escapeHtml(best.name)} marked at ${new Date().toLocaleTimeString()}</div>`;
+            showNotification(`Attendance for ${best.name}`);
+            renderRecentAttendance(); renderEnrolledList();
+            setTimeout(() => resDiv.style.display = 'none', 4000);
+        });
+    }
+    function renderRecentAttendance() {
+        if (!currentUser || currentUser.role !== 'school') return;
+        const sid = currentUser.schoolId;
+        const c = document.getElementById('recentAttendanceList');
+        if (!c) return;
+        const today = new Date().toDateString();
+        const rec = attendanceRecords.filter(r => r.schoolId === sid && new Date(r.timestamp).toDateString() === today).slice(-10);
+        if (!rec.length) { c.innerHTML = '<div style="text-align:center;color:#999">No records today</div>'; return; }
+        c.innerHTML = rec.map(r => `<div class="attendance-item"><div><strong>${escapeHtml(r.personName)}</strong><br><small>${escapeHtml(r.category)}</small></div><div>${r.timeIn}</div><i class="fas fa-check-circle" style="color:#2E7D32;"></i></div>`).join('');
+    }
+    function renderEnrolledList() {
+        if (!currentUser || currentUser.role !== 'school') return;
+        const sid = currentUser.schoolId;
+        const c = document.getElementById('enrolledPersonsList');
+        if (!c) return;
+        const people = attendancePeople.filter(p => p.schoolId === sid);
+        if (!people.length) { c.innerHTML = '<div style="text-align:center;color:#999">No enrolled people</div>'; return; }
+        c.innerHTML = people.map(p => `<div class="enrolled-person"><div><strong>${escapeHtml(p.name)}</strong><br><small>${escapeHtml(p.category)}</small><br>📞 ${escapeHtml(p.phone || 'N/A')}</div><button onclick="window.deleteEnrolled(${p.id})" style="background:#dc3545;color:white;border:none;padding:8px 12px;border-radius:20px;">Delete</button></div>`).join('');
+    }
+    window.deleteEnrolled = function(id) {
+        if (confirm("Delete?")) {
+            attendancePeople = attendancePeople.filter(p => p.id !== id);
+            attendanceRecords = attendanceRecords.filter(r => r.personId !== id);
+            localStorage.setItem('apshule_attendance_people', JSON.stringify(attendancePeople));
+            localStorage.setItem('apshule_attendance_records', JSON.stringify(attendanceRecords));
+            showNotification("Person deleted"); renderEnrolledList(); renderRecentAttendance();
+        }
+    };
+
+    // ---------- AI CHAT ----------
+    async function askAI(q) {
+        if (typeof puter !== 'undefined' && puter.ai) {
+            try { const resp = await puter.ai.chat(q); return resp.message.content; }
+            catch(e) { return "Connection error"; }
+        }
+        return "📚 I'm a demo AI. Full version coming soon!";
+    }
+    function addMsg(t, s) {
+        const c = document.getElementById('chatMessages');
+        const d = document.createElement('div');
+        d.className = `message ${s}`;
+        d.innerHTML = `<div class="message-avatar"><i class="fas ${s==='user'?'fa-user':'fa-robot'}"></i></div><div class="message-bubble">${escapeHtml(t)}</div>`;
+        c.appendChild(d); c.scrollTop = c.scrollHeight;
+    }
+    async function sendChat() {
+        const inp = document.getElementById('chatInput');
+        const q = inp.value.trim();
+        if (!q) return;
+        addMsg(q, 'user'); inp.value = '';
+        addMsg("🤔 Thinking...", 'ai');
+        const ans = await askAI(q);
+        const msgs = document.querySelectorAll('#chatMessages .message');
+        if (msgs.length && msgs[msgs.length-1].querySelector('.message-bubble')?.innerText === "🤔 Thinking...") msgs[msgs.length-1].remove();
+        addMsg(ans, 'ai');
+    }
+
+    // ---------- NAVIGATION ----------
+    function navigateTo(pageId) {
+        if (document.getElementById('videoModal').classList.contains('show')) {
+            document.getElementById('videoModal').classList.remove('show');
+            document.getElementById('youtubeIframe').src = '';
+            document.getElementById('feedbackSection').style.display = 'none';
+        }
+        document.querySelectorAll('.page').forEach(p => p.classList.remove('active-page'));
+        const tp = document.getElementById(`${pageId}Page`);
+        if (tp) tp.classList.add('active-page'); else document.getElementById('homePage').classList.add('active-page');
+        document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
+        const an = document.querySelector(`.nav-item[data-page="${pageId}"]`);
+        if (an) an.classList.add('active');
+    }
+
+    // ---------- ABOUT PAGE ----------
+    let currentTeamMembers = [];
+    function renderTeamEditor() {
+        const container = document.getElementById('teamMembersEditor');
+        if (!container) return;
+        if (!currentTeamMembers.length) { container.innerHTML = '<div>No team members. Click "Add Member".</div>'; return; }
+        let html = '';
+        currentTeamMembers.forEach((member, idx) => {
+            html += `<div style="border:1px solid #ddd; border-radius:16px; padding:12px; margin-bottom:12px; background:white;">
+                <div style="display:flex; gap:12px; flex-wrap:wrap;">
+                    <div><img src="${member.photo || 'data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 24 24%22 fill=%22%23999%22%3E%3Cpath d=%22M12 12c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm0 2c-2.67 0-8 1.34-8 4v2h16v-2c0-2.66-5.33-4-8-4z%22/%3E%3C/svg%3E'}" style="width:60px;height:60px;border-radius:50%;"><br><input type="file" class="team-photo-upload" data-idx="${idx}" accept="image/*" style="font-size:11px;"></div>
+                    <div style="flex:1;"><input type="text" placeholder="Name" value="${escapeHtml(member.name)}" class="team-name-input" data-idx="${idx}" style="width:100%;"><input type="text" placeholder="Role" value="${escapeHtml(member.role)}" class="team-role-input" data-idx="${idx}" style="width:100%;"><input type="text" placeholder="Phone" value="${escapeHtml(member.phone||'')}" class="team-phone-input" data-idx="${idx}" style="width:100%;"></div>
+                    <div><button class="move-up-btn" data-idx="${idx}" ${idx===0?'disabled':''}>⬆️ Up</button><button class="move-down-btn" data-idx="${idx}" ${idx===currentTeamMembers.length-1?'disabled':''}>⬇️ Down</button><button class="remove-team-btn" data-idx="${idx}" style="background:#dc3545;">Remove</button></div>
+                </div>
+            </div>`;
+        });
+        container.innerHTML = html;
+        document.querySelectorAll('.team-photo-upload').forEach(inp => inp.addEventListener('change', e => { const idx = parseInt(inp.dataset.idx), file = e.target.files[0]; if (file) { const r = new FileReader(); r.onload = ev => { currentTeamMembers[idx].photo = ev.target.result; renderTeamEditor(); }; r.readAsDataURL(file); } }));
+        document.querySelectorAll('.team-name-input').forEach(inp => inp.addEventListener('input', () => { currentTeamMembers[parseInt(inp.dataset.idx)].name = inp.value; }));
+        document.querySelectorAll('.team-role-input').forEach(inp => inp.addEventListener('input', () => { currentTeamMembers[parseInt(inp.dataset.idx)].role = inp.value; }));
+        document.querySelectorAll('.team-phone-input').forEach(inp => inp.addEventListener('input', () => { currentTeamMembers[parseInt(inp.dataset.idx)].phone = inp.value; }));
+        document.querySelectorAll('.move-up-btn').forEach(btn => btn.addEventListener('click', () => { const idx = parseInt(btn.dataset.idx); if (idx > 0) { [currentTeamMembers[idx-1], currentTeamMembers[idx]] = [currentTeamMembers[idx], currentTeamMembers[idx-1]]; renderTeamEditor(); } }));
+        document.querySelectorAll('.move-down-btn').forEach(btn => btn.addEventListener('click', () => { const idx = parseInt(btn.dataset.idx); if (idx < currentTeamMembers.length-1) { [currentTeamMembers[idx+1], currentTeamMembers[idx]] = [currentTeamMembers[idx], currentTeamMembers[idx+1]]; renderTeamEditor(); } }));
+        document.querySelectorAll('.remove-team-btn').forEach(btn => btn.addEventListener('click', () => { const idx = parseInt(btn.dataset.idx); if (confirm("Remove?")) { currentTeamMembers.splice(idx, 1); renderTeamEditor(); } }));
+    }
+    async function loadAboutContent() {
+        try { return await api('/api/settings/about', { auth: false }); }
+        catch(e) {
+            return { vision:"To be Africa's leading digital learning platform.", mission:"To provide quality, accessible education.", coreValues:["Excellence","Accessibility","Innovation"], team:[{name:"Tebuswake Abdallah",role:"CEO",photo:""}], contact:{phone:"+256705732540",email:"apshule@gmail.com",address:"Kampala",whatsapp:"+256705732540"} };
+        }
+    }
+    async function saveAboutContent(about) {
+        await api('/api/settings/about', { method: 'PUT', body: about });
+        showNotification("About page saved!");
+        renderAboutPage(about);
+    }
+    function renderAboutPage(about) {
+        const container = document.getElementById('dynamicAbout');
+        if (!container || !about) return;
+        const coreHtml = (about.coreValues || []).map(v => `<div class="core-value"><i class="fas fa-star"></i> ${escapeHtml(v)}</div>`).join('');
+        const teamHtml = (about.team || []).map(m => `<div class="team-member"><div class="team-avatar">${m.photo?`<img src="${m.photo}" style="width:50px;height:50px;border-radius:50%;">`:'<i class="fas fa-user-tie"></i>'}</div><div><strong>${escapeHtml(m.name)}</strong><br>${escapeHtml(m.role)}${m.phone?`<br>📞 ${escapeHtml(m.phone)}`:''}</div></div>`).join('');
+        const c = about.contact || {};
+        container.innerHTML = `<div class="vision-box"><h3>Vision</h3><p>${escapeHtml(about.vision)}</p></div><div class="mission-box"><h3>Mission</h3><p>${escapeHtml(about.mission)}</p></div><h3>Core Values</h3>${coreHtml}<h3>Team</h3>${teamHtml}<div class="contact-info"><i class="fas fa-phone"></i> ${escapeHtml(c.phone || '')}</div><div class="contact-info"><i class="fas fa-envelope"></i> ${escapeHtml(c.email || '')}</div><div class="contact-info"><i class="fas fa-map-marker-alt"></i> ${escapeHtml(c.address || '')}</div><a href="https://wa.me/${(c.whatsapp || '').replace(/[^0-9]/g,'')}" class="whatsapp-btn">WhatsApp ${escapeHtml(c.whatsapp || '')}</a>`;
+    }
+    async function populateAboutEditor() {
+        const about = await loadAboutContent();
+        document.getElementById('editVision').value = about.vision || '';
+        document.getElementById('editMission').value = about.mission || '';
+        document.getElementById('editCoreValues').value = (about.coreValues || []).join(', ');
+        currentTeamMembers = about.team ? [...about.team] : [];
+        renderTeamEditor();
+        document.getElementById('editContactPhone').value = about.contact?.phone || '';
+        document.getElementById('editContactEmail').value = about.contact?.email || '';
+        document.getElementById('editContactAddress').value = about.contact?.address || '';
+        document.getElementById('editWhatsapp').value = about.contact?.whatsapp || '';
+    }
+
+    // ---------- USER MANAGEMENT (superadmin) ----------
+    async function loadAllUsers() {
+        if (!currentUser || currentUser.role !== 'superadmin') return;
+        try {
+            const users = await api('/api/users');
+            document.getElementById('totalUsersCount').innerText = users.length;
+            let html = '';
+            users.forEach(u => {
+                html += `<div style="border-bottom:1px solid #ccc; padding:8px;"><strong>${escapeHtml(u.name)}</strong> (${escapeHtml(u.email)}) Role: ${escapeHtml(u.role||'individual')} <button class="edit-user" data-uid="${u.id}">Edit Role</button> <button class="delete-user" data-uid="${u.id}" style="background:#dc3545;">Delete</button></div>`;
+            });
+            document.getElementById('allUsersList').innerHTML = html;
+            document.querySelectorAll('.edit-user').forEach(btn => btn.addEventListener('click', async () => {
+                const uid = btn.dataset.uid;
+                const newRole = prompt("Enter role: superadmin, school, individual");
+                if (newRole && ['superadmin','school','individual'].includes(newRole)) {
+                    try { await api('/api/users/' + uid, { method: 'PATCH', body: { role: newRole } }); showNotification("Role updated"); loadAllUsers(); } catch(e) { showNotification(e.message, "error"); }
+                }
+            }));
+            document.querySelectorAll('.delete-user').forEach(btn => btn.addEventListener('click', async () => {
+                if (confirm("Delete user?")) { try { await api('/api/users/' + btn.dataset.uid, { method: 'DELETE' }); showNotification("User deleted"); loadAllUsers(); } catch(e) { showNotification(e.message, "error"); } }
+            }));
+        } catch(e) { showNotification(e.message, "error"); }
+    }
+
+    // ---------- AUTH / SESSION ----------
+    async function loadCurrentUser() {
+        if (!AUTH_TOKEN) return null;
+        try { return await api('/api/auth/me'); }
+        catch(e) { AUTH_TOKEN = null; localStorage.removeItem('apshule_token'); return null; }
+    }
+
+    async function showAppFor(user) {
+        currentUser = user;
+        document.getElementById('loginScreen').classList.add('hidden');
+        document.getElementById('appScreen').classList.remove('hidden');
+        updateGreeting();
+
+        const address = currentUser.address || 'Not set';
+        document.getElementById('accountInfo').innerHTML = `
+            <div class="account-field"><label>Name</label><div>${escapeHtml(currentUser.name)}</div></div>
+            <div class="account-field"><label>Email</label><div>${escapeHtml(currentUser.email)}</div></div>
+            <div class="account-field"><label>Phone</label><div>${escapeHtml(currentUser.phone||'N/A')}</div></div>
+            <div class="account-field"><label>Role</label><div>${currentUser.role==='superadmin'?'Super Admin':(currentUser.role==='school'?'School Admin':'Individual')}</div></div>
+            <div class="account-field"><label>Address</label><div id="userAddressDisplay">${escapeHtml(address)}</div><button id="editAddressBtn" class="admin-toggle">✏️ Edit Address</button></div>
+            <div class="account-field"><label>Logins</label><div>${currentUser.loginCount||0}</div></div>
+        `;
+        document.getElementById('editAddressBtn')?.addEventListener('click', async () => {
+            const newAddr = prompt("Enter your physical address:", address);
+            if (newAddr) { try { await api('/api/users/me', { method: 'PATCH', body: { address: newAddr } }); currentUser.address = newAddr; showNotification("Address saved!"); showAppFor(currentUser); } catch(e) { showNotification(e.message, "error"); } }
+        });
+
+        const isSuper = currentUser.role === 'superadmin';
+        const isSchool = currentUser.role === 'school';
+        document.getElementById('adminMenuItem').style.display = (isSuper || isSchool) ? "flex" : "none";
+        document.getElementById('superAdminSection').style.display = isSuper ? "block" : "none";
+        document.getElementById('schoolEventsSection').style.display = isSchool ? "block" : "none";
+        document.getElementById('globalEventsSection').style.display = isSuper ? "block" : "none";
+        document.getElementById('addSubjectSection').style.display = isSuper ? "block" : "none";
+        document.getElementById('pdfManagementSection').style.display = isSuper ? "block" : "none";
+        document.getElementById('attendanceMenuItem').style.display = isSchool ? "flex" : "none";
+
+        const profilePicSection = document.getElementById('profilePicUploadSection');
+        if (profilePicSection) profilePicSection.style.display = (isSchool || isSuper) ? "none" : "block";
+
+        if (isSchool) {
+            const s = schools.find(sch => sch.id === currentUser.schoolId);
+            const logo = s?.logo || "https://i.ibb.co/YFrCtRW8/IMG-20260328-WA0041-9.jpg";
+            document.getElementById('headerLogoImg').src = logo;
+            if (s) document.getElementById('attendanceSchoolName').innerText = ` - ${s.name}`;
+        }
+        loadProfilePicPreview();
+
+        if (isSuper) {
+            renderFeedbackAdmin();
+            renderGlobalMostWatched();
+        }
+        renderClasses();
+        renderRecentAttendance();
+        renderEnrolledList();
+        renderEventsTicker();
+        renderAboutPage(await loadAboutContent());
+        if (isSuper) loadAllUsers();
+    }
+
+    // ---------- DATA REFRESH (replaces Firestore onSnapshot) ----------
+    async function refreshAllData() {
+        if (!AUTH_TOKEN || !currentUser) return;
+        try {
+            const [schoolsRes, eventsRes, pdfsRes, mappingsRes, subjectsRes] = await Promise.all([
+                api('/api/schools').catch(() => []),
+                api('/api/events').catch(() => []),
+                api('/api/pdfs').catch(() => []),
+                api('/api/video-mappings').catch(() => ({})),
+                api('/api/subjects').catch(() => ({ primary: [], secondary: [] })),
+            ]);
+            schools = schoolsRes || [];
+            globalEventsList = eventsRes || [];
+            pdfMaterials = pdfsRes || [];
+            videoMappings = mappingsRes || {};
+            primarySubjects = subjectsRes.primary || [];
+            secondarySubjects = subjectsRes.secondary || [];
+
+            renderSchoolsAdmin();
+            renderEventsTicker();
+            if (currentUser.role === 'superadmin') renderEventsAdmin();
+            if (currentUser.role === 'school') renderSchoolEventsList();
+            renderPdfList(); renderPdfAdmin();
+            populateVideoMappingDropdowns();
+            renderExistingMappings();
+            renderClasses();
+
+            if (currentUser.role === 'school') {
+                const s = schools.find(sch => sch.id === currentUser.schoolId);
+                if (s && s.logo) document.getElementById('headerLogoImg').src = s.logo;
+                if (s) document.getElementById('attendanceSchoolName').innerText = ` - ${s.name}`;
+            }
+        } catch(e) { console.warn('Refresh error', e); }
+    }
+    function startPolling() {
+        if (window._pollInterval) clearInterval(window._pollInterval);
+        window._pollInterval = setInterval(refreshAllData, 15000);
+    }
+
+    // ---------- EVENT WIRING (all DOM listeners) ----------
+    function wireEvents() {
+        document.getElementById('sendBtn')?.addEventListener('click', sendChat);
+        document.getElementById('chatInput')?.addEventListener('keypress', e => { if (e.key === 'Enter') sendChat(); });
+        document.getElementById('openAIDrawerBtn')?.addEventListener('click', () => { document.getElementById('aiDrawer').classList.add('open'); document.getElementById('drawerOverlay').classList.add('show'); });
+        document.getElementById('closeDrawerBtn')?.addEventListener('click', () => { document.getElementById('aiDrawer').classList.remove('open'); document.getElementById('drawerOverlay').classList.remove('show'); });
+        document.getElementById('drawerOverlay')?.addEventListener('click', () => { document.getElementById('aiDrawer').classList.remove('open'); document.getElementById('drawerOverlay').classList.remove('show'); });
+
+        document.querySelectorAll('.nav-item').forEach(i => i.addEventListener('click', () => navigateTo(i.getAttribute('data-page'))));
+        document.getElementById('folderHeader')?.addEventListener('click', () => { const c = document.getElementById('folderContent'); const ic = document.querySelector('#folderHeader i:last-child'); c.classList.toggle('show'); ic.className = c.classList.contains('show') ? 'fas fa-chevron-up' : 'fas fa-chevron-down'; });
+
+        document.querySelectorAll('.subscribe-btn-small').forEach(btn => {
+            btn.addEventListener('click', async e => {
+                e.stopPropagation();
+                if (!currentUser) { alert('Please login first'); return; }
+                const plan = btn.getAttribute('data-plan');
+                const amount = parseInt(btn.getAttribute('data-price'));
+                await initiatePesapalPayment(plan, amount, currentUser.email, currentUser.phone || "N/A", currentUser.name);
+            });
+        });
+
+        document.querySelectorAll('.login-tab').forEach(t => t.addEventListener('click', () => {
+            const tn = t.getAttribute('data-tab');
+            document.querySelectorAll('.login-tab').forEach(tt => tt.classList.remove('active'));
+            t.classList.add('active');
+            document.getElementById('loginFormDiv').classList.toggle('active', tn === 'login');
+            document.getElementById('signupFormDiv').classList.toggle('active', tn === 'signup');
+        }));
+
+        document.getElementById('backToClasses')?.addEventListener('click', () => { document.getElementById('classSelectionSection').style.display = 'block'; document.getElementById('subjectsSection').style.display = 'none'; });
+        document.querySelectorAll('.level-btn').forEach(btn => btn.addEventListener('click', () => {
+            document.querySelectorAll('.level-btn').forEach(b => b.classList.remove('active'));
+            btn.classList.add('active');
+            currentLevel = btn.getAttribute('data-level');
+            document.getElementById('classSelectionSection').style.display = 'block';
+            document.getElementById('subjectsSection').style.display = 'none';
+            renderClasses();
+        }));
+
+        document.getElementById('moreMenuBtn')?.addEventListener('click', e => { e.stopPropagation(); document.getElementById('moreDropdown').classList.toggle('show'); });
+        document.addEventListener('click', () => { document.getElementById('moreDropdown')?.classList.remove('show'); });
+
+        document.getElementById('adminMenuItem')?.addEventListener('click', () => {
+            const ap = document.getElementById('adminPanel');
+            if (!ap) return;
+            ap.classList.toggle('show');
+            if (ap.classList.contains('show')) {
+                renderPdfAdmin();
+                if (currentUser.role === 'school') renderSchoolEventsList(); else renderEventsAdmin();
+                renderSchoolsAdmin();
+                populateVideoMappingDropdowns();
+                renderExistingMappings();
+                navigateTo('home');
+                ap.scrollIntoView({ behavior: 'smooth' });
+            }
+        });
+
+        document.getElementById('closeVideoBtn')?.addEventListener('click', () => { document.getElementById('videoModal').classList.remove('show'); document.getElementById('youtubeIframe').src = ''; document.getElementById('feedbackSection').style.display = 'none'; });
+        document.getElementById('fullscreenBtn')?.addEventListener('click', () => { const vc = document.getElementById('videoContent'); if (!document.fullscreenElement) vc.requestFullscreen(); else document.exitFullscreen(); });
+        document.addEventListener('fullscreenchange', () => { const btn = document.getElementById('fullscreenBtn'); if (document.fullscreenElement) btn.innerHTML = '<i class="fas fa-compress"></i>'; else btn.innerHTML = '<i class="fas fa-expand"></i>'; });
+        document.querySelectorAll('#starRating i').forEach(star => star.addEventListener('click', function () { currentRating = parseInt(this.getAttribute('data-rating')); document.querySelectorAll('#starRating i').forEach((s, idx) => { if (idx < currentRating) s.className = 'fas fa-star'; else s.className = 'far fa-star'; }); }));
+
+        document.getElementById('submitFeedbackBtn')?.addEventListener('click', async () => {
+            const comment = document.getElementById('feedbackComment').value;
+            await saveFeedback(currentLessonSubject, currentRating, comment);
+            showNotification('Thank you for your feedback!');
+            document.getElementById('videoModal').classList.remove('show');
+            document.getElementById('youtubeIframe').src = '';
+            document.getElementById('feedbackSection').style.display = 'none';
+        });
+        document.getElementById('closeFeedbackBtn')?.addEventListener('click', () => { document.getElementById('videoModal').classList.remove('show'); document.getElementById('youtubeIframe').src = ''; document.getElementById('feedbackSection').style.display = 'none'; });
+
+        // Admin buttons
+        document.getElementById('addSchoolBtn')?.addEventListener('click', async () => {
+            const name = document.getElementById('schoolName').value.trim();
+            const contact = document.getElementById('schoolContact').value.trim();
+            const location = document.getElementById('schoolLocation').value.trim();
+            const logo = document.getElementById('schoolLogoUrl').value.trim();
+            const loginEmail = document.getElementById('schoolLoginEmail').value.trim();
+            const loginPassword = document.getElementById('schoolLoginPassword').value;
+            if (!name || !contact || !location || !loginEmail || !loginPassword) { showNotification("Fill all fields", "error"); return; }
+            if (loginPassword.length < 6) { showNotification("Password min 6", "error"); return; }
+            try {
+                await api('/api/schools', { method: 'POST', body: { name, contact, location, logo, loginEmail, loginPassword } });
+                showNotification("School added");
+                ['schoolName','schoolContact','schoolLocation','schoolLogoUrl','schoolLoginEmail','schoolLoginPassword'].forEach(id => document.getElementById(id).value = '');
+                refreshAllData();
+            } catch(e) { showNotification(e.message, "error"); }
+        });
+        document.getElementById('addEventBtn')?.addEventListener('click', async () => {
+            const title = document.getElementById('eventTitle').value.trim();
+            const date = document.getElementById('eventDate').value.trim();
+            const fee = document.getElementById('eventFee').value.trim();
+            if (!title || !date || !fee) { showNotification("Fill all", "error"); return; }
+            try { await api('/api/events', { method: 'POST', body: { title, date, fee, schoolId: null } }); showNotification("Global event added"); ['eventTitle','eventDate','eventFee'].forEach(id => document.getElementById(id).value = ''); refreshAllData(); } catch(e) { showNotification(e.message, "error"); }
+        });
+        document.getElementById('addSchoolEventBtn')?.addEventListener('click', async () => {
+            if (!currentUser || currentUser.role !== 'school') return;
+            const title = document.getElementById('schoolEventTitle').value.trim();
+            const date = document.getElementById('schoolEventDate').value.trim();
+            const fee = document.getElementById('schoolEventFee').value.trim();
+            if (!title || !date || !fee) { showNotification("Fill all", "error"); return; }
+            try { await api('/api/events', { method: 'POST', body: { title, date, fee, schoolId: currentUser.schoolId } }); showNotification("School event added"); ['schoolEventTitle','schoolEventDate','schoolEventFee'].forEach(id => document.getElementById(id).value = ''); refreshAllData(); } catch(e) { showNotification(e.message, "error"); }
+        });
+        document.getElementById('addPdfBtn')?.addEventListener('click', async () => {
+            const title = document.getElementById('pdfTitle').value.trim();
+            const url = document.getElementById('pdfUrl').value.trim();
+            if (!title || !url) { showNotification("Fill both", "error"); return; }
+            try { await api('/api/pdfs', { method: 'POST', body: { title, url } }); showNotification("PDF added"); ['pdfTitle','pdfUrl'].forEach(id => document.getElementById(id).value = ''); refreshAllData(); } catch(e) { showNotification(e.message, "error"); }
+        });
+        document.getElementById('addNewSubjectBtn')?.addEventListener('click', async () => {
+            const newName = document.getElementById('newSubjectName').value.trim();
+            const level = document.getElementById('newSubjectLevel').value;
+            if (!newName) { showNotification("Enter subject name", "error"); return; }
+            const list = level === 'primary' ? [...primarySubjects] : [...secondarySubjects];
+            if (list.includes(newName)) { showNotification("Subject exists", "error"); return; }
+            list.push(newName);
+            try { await api('/api/subjects/' + level, { method: 'PUT', body: { list } }); showNotification(`Subject "${newName}" added`); document.getElementById('newSubjectName').value = ''; refreshAllData(); } catch(e) { showNotification(e.message, "error"); }
+        });
+        document.getElementById('testVideoBtn')?.addEventListener('click', testVideoMapping);
+        document.getElementById('saveVideoMappingBtn')?.addEventListener('click', saveVideoMapping);
+        document.getElementById('uploadProfilePicBtn')?.addEventListener('click', () => {
+            const fileInput = document.getElementById('profilePicInput');
+            if (!fileInput.files.length) { showNotification("Select an image first", "error"); return; }
+            uploadProfilePicture(fileInput.files[0]);
+        });
+        document.getElementById('uploadLogoBtn')?.addEventListener('click', () => {
+            const fileInput = document.getElementById('logoUploadInput');
+            if (!fileInput.files.length) { showNotification("Select an image first", "error"); return; }
+            uploadBrandLogoBase64(fileInput.files[0]);
+        });
+        document.getElementById('startJitsiLessonBtn')?.addEventListener('click', () => {
+            const roomName = `apshule_${Date.now()}_${Math.random().toString(36).substr(2, 8)}`;
+            const container = document.getElementById('liveLessonContainer');
+            container.style.display = 'block';
+            container.innerHTML = `<div style="background:white; border-radius:20px;"><div style="background:#4B2E9E; padding:12px; color:white; display:flex; justify-content:space-between;"><span>Live Lesson</span><button id="closeLiveLessonBtn" style="background:none; border:none; color:white;">&times;</button></div><iframe src="https://meet.jit.si/${roomName}" allow="camera; microphone; fullscreen; display-capture" style="width:100%; height:500px; border:none;"></iframe></div>`;
+            document.getElementById('closeLiveLessonBtn')?.addEventListener('click', () => { container.style.display = 'none'; container.innerHTML = ''; });
+            showNotification("Live lesson started! Share the room name.", "success");
+        });
+        document.getElementById('editAboutBtn')?.addEventListener('click', async () => {
+            const ed = document.getElementById('aboutEditor');
+            if (ed.style.display === 'none') { await populateAboutEditor(); ed.style.display = 'block'; } else ed.style.display = 'none';
+        });
+        document.getElementById('saveAboutBtn')?.addEventListener('click', async () => {
+            const about = {
+                vision: document.getElementById('editVision').value,
+                mission: document.getElementById('editMission').value,
+                coreValues: document.getElementById('editCoreValues').value.split(',').map(s => s.trim()).filter(Boolean),
+                team: currentTeamMembers,
+                contact: { phone: document.getElementById('editContactPhone').value, email: document.getElementById('editContactEmail').value, address: document.getElementById('editContactAddress').value, whatsapp: document.getElementById('editWhatsapp').value }
+            };
+            try { await saveAboutContent(about); document.getElementById('aboutEditor').style.display = 'none'; } catch(e) { showNotification(e.message, "error"); }
+        });
+        document.getElementById('addTeamMemberBtn')?.addEventListener('click', () => { currentTeamMembers.push({ name: "New Member", role: "Role", phone: "", photo: "" }); renderTeamEditor(); });
+        document.getElementById('refreshUsersBtn')?.addEventListener('click', loadAllUsers);
+
+        // Attendance wiring
+        document.getElementById('attendanceMenuItem')?.addEventListener('click', async () => {
+            if (!currentUser || currentUser.role !== 'school') { showNotification("Only school accounts", "error"); return; }
+            document.getElementById('attendanceModal').classList.add('show');
+            attendanceStream = await setupCamera('attendanceVideo', currentAttendanceCamera);
+            enrollStream = await setupCamera('enrollVideo', currentEnrollCamera);
+        });
+        document.getElementById('closeAttendanceModal')?.addEventListener('click', () => {
+            document.getElementById('attendanceModal').classList.remove('show');
+            if (attendanceStream) attendanceStream.getTracks().forEach(t => t.stop());
+            if (enrollStream) enrollStream.getTracks().forEach(t => t.stop());
+        });
+        document.querySelectorAll('.attendance-tab').forEach(t => t.addEventListener('click', () => {
+            const name = t.getAttribute('data-attendance-tab');
+            document.querySelectorAll('.attendance-tab').forEach(tt => tt.classList.remove('active'));
+            t.classList.add('active');
+            document.querySelectorAll('.attendance-tab-content').forEach(c => c.classList.remove('active'));
+            document.getElementById(name + 'Tab').classList.add('active');
+        }));
+        document.getElementById('switchAttendanceCamera')?.addEventListener('click', async () => { if (attendanceStream) attendanceStream.getTracks().forEach(t => t.stop()); const newMode = currentAttendanceCamera === 'environment' ? 'user' : 'environment'; const s = await setupCamera('attendanceVideo', newMode); if (s) currentAttendanceCamera = newMode; });
+        document.getElementById('switchEnrollCamera')?.addEventListener('click', async () => { if (enrollStream) enrollStream.getTracks().forEach(t => t.stop()); const newMode = currentEnrollCamera === 'environment' ? 'user' : 'environment'; const s = await setupCamera('enrollVideo', newMode); if (s) currentEnrollCamera = newMode; });
+        document.getElementById('markAttendanceBtn')?.addEventListener('click', markAttendance);
+        document.getElementById('captureEnrollBtn')?.addEventListener('click', () => { const img = captureFace('enrollVideo'); if (img) { capturedFaceImage = img; document.getElementById('enrollPreview').innerHTML = `<img src="${capturedFaceImage}" class="preview-image"><p>✅ Face captured</p>`; showNotification("Face captured"); } else showNotification("Camera not ready", "error"); });
+        document.getElementById('faceImageUpload')?.addEventListener('change', function (e) { const file = e.target.files[0]; if (file) { const reader = new FileReader(); reader.onload = ev => { capturedFaceImage = ev.target.result; document.getElementById('enrollPreview').innerHTML = `<img src="${capturedFaceImage}" class="preview-image"><p>✅ Face imported</p>`; showNotification("Face imported"); }; reader.readAsDataURL(file); } });
+        document.getElementById('saveEnrolledPersonBtn')?.addEventListener('click', () => {
+            if (!currentUser || currentUser.role !== 'school') { showNotification("Only school accounts", "error"); return; }
+            const sid = currentUser.schoolId;
+            const name = document.getElementById('enrollName').value.trim();
+            const category = document.getElementById('enrollCategory').value;
+            const phone = document.getElementById('enrollPhone').value.trim();
+            if (!name) { showNotification("Enter name", "error"); return; }
+            if (!capturedFaceImage) { showNotification("Capture face first", "error"); return; }
+            getImageHash(capturedFaceImage, (hash) => {
+                attendancePeople.push({ id: Date.now(), schoolId: sid, name, category, phone, faceHash: hash, enrolledAt: new Date().toISOString() });
+                localStorage.setItem('apshule_attendance_people', JSON.stringify(attendancePeople));
+                document.getElementById('enrollName').value = ''; document.getElementById('enrollPhone').value = ''; document.getElementById('enrollPreview').innerHTML = '';
+                capturedFaceImage = null; document.getElementById('faceImageUpload').value = '';
+                showNotification(`${name} enrolled`); renderEnrolledList();
+            });
+        });
+        document.getElementById('clearAllAttendanceBtn')?.addEventListener('click', () => {
+            if (!currentUser || currentUser.role !== 'school') return;
+            const sid = currentUser.schoolId;
+            if (confirm("Delete all attendance records for this school?")) {
+                attendanceRecords = attendanceRecords.filter(r => r.schoolId !== sid);
+                localStorage.setItem('apshule_attendance_records', JSON.stringify(attendanceRecords));
+                showNotification("All records cleared"); renderRecentAttendance();
+            }
+        });
+
+        // Auth forms
+        document.getElementById('signupBtn').addEventListener('click', async e => {
+            e.preventDefault();
+            const name = document.getElementById('signupName').value.trim();
+            const email = document.getElementById('signupEmail').value.trim();
+            const phone = document.getElementById('signupPhone').value.trim();
+            const password = document.getElementById('signupPassword').value;
+            const educationLevel = document.getElementById('signupEducationLevel').value;
+            if (!name || !email || !phone || !password || !educationLevel) { document.getElementById('loginError').innerText = "Fill all fields"; return; }
+            if (password.length < 6) { document.getElementById('loginError').innerText = "Password min 6 chars"; return; }
+            try {
+                const data = await api('/api/auth/signup', { method: 'POST', body: { name, email, phone, password, educationLevel }, auth: false });
+                AUTH_TOKEN = data.token; localStorage.setItem('apshule_token', AUTH_TOKEN);
+                showNotification("Account created!");
+                await showAppFor(data.user);
+                startPolling(); refreshAllData();
+            } catch(err) { document.getElementById('loginError').innerText = err.message; }
+        });
+        document.getElementById('loginBtn').addEventListener('click', async e => {
+            e.preventDefault();
+            const email = document.getElementById('loginEmail').value.trim();
+            const password = document.getElementById('loginPassword').value;
+            try {
+                const data = await api('/api/auth/login', { method: 'POST', body: { email, password }, auth: false });
+                AUTH_TOKEN = data.token; localStorage.setItem('apshule_token', AUTH_TOKEN);
+                showNotification("Login successful");
+                await showAppFor(data.user);
+                startPolling(); refreshAllData();
+            } catch(err) { document.getElementById('loginError').innerText = "Invalid email/password"; }
+        });
+        document.getElementById('sendResetEmailBtn').addEventListener('click', async () => {
+            const email = document.getElementById('resetEmail').value.trim();
+            if (!email) { showNotification("Enter email", "error"); return; }
+            try { await api('/api/auth/reset', { method: 'POST', body: { email }, auth: false }); showNotification("Reset email sent!"); } catch(err) { showNotification(err.message, "error"); }
+        });
+        document.getElementById('logoutBtn').addEventListener('click', async () => {
+            try { await api('/api/auth/logout', { method: 'POST' }); } catch(e) {}
+            AUTH_TOKEN = null; localStorage.removeItem('apshule_token'); currentUser = null;
+            if (window._pollInterval) clearInterval(window._pollInterval);
+            document.getElementById('loginScreen').classList.remove('hidden');
+            document.getElementById('appScreen').classList.add('hidden');
+        });
+        document.getElementById('forgotPasswordLink').addEventListener('click', () => { document.getElementById('resetSection').style.display = 'block'; });
+    }
+
+    // ---------- BOOT ----------
+    wireEvents();
+    renderClasses();
+
+    (async () => {
+        await loadBrandLogo();
+        const user = await loadCurrentUser();
+        if (user) {
+            await showAppFor(user);
+            startPolling();
+            await refreshAllData();
+        }
+        await checkPaymentStatus();
+        console.log("✅ APSHULE (Cloudflare + Neon) ready.");
+    })();
+</script>
+</body>
+</html>
