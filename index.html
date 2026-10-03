@@ -269,7 +269,7 @@
 
     <div class="main-content">
         <div id="homePage" class="page active-page">
-            <div class="education-level"><button class="level-btn active" data-level="primary">🏫 Primary School</button><button class="level-btn" data-level="secondary">🎓 Secondary School</button></div>
+            <div class="education-level"><button class="level-btn" data-level="nursery">🧒 Nursery</button><button class="level-btn" data-level="primary">🏫 Primary School</button><button class="level-btn" data-level="secondary">🎓 Secondary School</button></div>
             <div id="classSelectionSection"><div class="section-title">📚 Select Your Class</div><div id="classGrid" class="class-grid"></div></div>
             <div id="subjectsSection" style="display:none;"><button id="backToClasses" class="back-btn"><i class="fas fa-arrow-left"></i> Back to Classes</button><div class="section-title">📖 Available Subjects</div><div id="subjectsGrid" class="subjects-grid"></div></div>
             <div class="welcome-card"><div class="welcome-title">Welcome to APSHULE</div><div class="welcome-subtitle">Let's Learn With Ease From Anywhere at Anytime</div></div>
@@ -411,15 +411,17 @@
     let globalEventsList = [];
     let pdfMaterials = [];
     let videoMappings = {};
+    let nurserySubjects = [];
     let primarySubjects = [];
     let secondarySubjects = [];
     let attendancePeople = JSON.parse(localStorage.getItem('apshule_attendance_people')) || [];
     let attendanceRecords = JSON.parse(localStorage.getItem('apshule_attendance_records')) || [];
     let currentRating = 0, currentLessonSubject = "";
     let currentSelectedClassId = null;
-    let currentLevel = "primary";
+    let currentLevel = "nursery";
 
     const classData = {
+        nursery: [{id:1,name:"Baby Class",icon:"fa-baby",color:"#FF6B9D"},{id:2,name:"Middle Class",icon:"fa-child",color:"#FFB84D"},{id:3,name:"Top Class",icon:"fa-shapes",color:"#4ECDC4"}],
         primary: [{id:1,name:"Primary 1",icon:"fa-baby-carriage",color:"#FF6B6B"},{id:2,name:"Primary 2",icon:"fa-child",color:"#4ECDC4"},{id:3,name:"Primary 3",icon:"fa-graduation-cap",color:"#45B7D1"},{id:4,name:"Primary 4",icon:"fa-book-reader",color:"#96CEB4"},{id:5,name:"Primary 5",icon:"fa-pencil-alt",color:"#FFEAA7"},{id:6,name:"Primary 6",icon:"fa-chalkboard-teacher",color:"#DDA0DD"},{id:7,name:"Primary 7",icon:"fa-users",color:"#FF9F43"}],
         secondary: [{id:1,name:"Senior 1",icon:"fa-seedling",color:"#4CAF50"},{id:2,name:"Senior 2",icon:"fa-tree",color:"#8BC34A"},{id:3,name:"Senior 3",icon:"fa-book",color:"#FF9800"},{id:4,name:"Senior 4",icon:"fa-chart-line",color:"#F44336"},{id:5,name:"Senior 5",icon:"fa-flask",color:"#9C27B0"},{id:6,name:"Senior 6",icon:"fa-university",color:"#2196F3"}]
     };
@@ -603,7 +605,8 @@
         const grid = document.getElementById('classGrid');
         if (!grid) return;
         const classes = classData[currentLevel];
-        grid.innerHTML = classes.map(c => `<div class="class-card" data-class="${c.id}" onclick="selectClass(${c.id}, '${c.name}')" style="background: linear-gradient(135deg, ${c.color}22, white); border: 2px solid ${c.color}44;"><i class="fas ${c.icon}" style="background: linear-gradient(135deg, ${c.color}, ${c.color}cc); -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text; font-size: 52px;"></i><div class="class-name" style="color: ${c.color};">${c.name}</div><div class="class-details">${currentLevel === 'primary' ? primarySubjects.length : secondarySubjects.length} Subjects</div></div>`).join('');
+        const subjects = currentLevel === 'nursery' ? nurserySubjects : currentLevel === 'primary' ? primarySubjects : secondarySubjects;
+        grid.innerHTML = classes.map(c => `<div class="class-card" data-class="${c.id}" onclick="selectClass(${c.id}, '${c.name}')" style="background: linear-gradient(135deg, ${c.color}22, white); border: 2px solid ${c.color}44;"><i class="fas ${c.icon}" style="background: linear-gradient(135deg, ${c.color}, ${c.color}cc); -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text; font-size: 52px;"></i><div class="class-name" style="color: ${c.color};">${c.name}</div><div class="class-details">${subjects.length} Subjects</div></div>`).join('');
     }
     window.selectClass = function(id, name) {
         currentSelectedClassId = { id, name, level: currentLevel };
@@ -612,7 +615,7 @@
         renderSubjects();
     };
     function renderSubjects() {
-        const subjects = currentLevel === 'primary' ? primarySubjects : secondarySubjects;
+        const subjects = currentLevel === 'nursery' ? nurserySubjects : currentLevel === 'primary' ? primarySubjects : secondarySubjects;
         const grid = document.getElementById('subjectsGrid');
         if (!grid) return;
         grid.innerHTML = subjects.map((s, idx) => `<div class="subject-card" onclick="openVideoLesson('${s.replace(/'/g,"\\'")}')"><div class="subject-icon" style="background: ${subjectColors[idx % subjectColors.length]}"><i class="fas ${getSubjectIcon(s)}"></i></div><div class="subject-name">${escapeHtml(s)}</div><div style="font-size:10px; color:#666; margin-top:8px;"><i class="fab fa-youtube"></i> YouTube Lesson</div></div>`).join('');
@@ -1003,6 +1006,7 @@
             renderFeedbackAdmin();
             renderGlobalMostWatched();
         }
+        currentLevel = document.querySelector('.level-btn.active')?.getAttribute('data-level') || currentLevel;
         renderClasses();
         renderRecentAttendance();
         renderEnrolledList();
@@ -1020,14 +1024,13 @@
                 api('/api/events').catch(() => []),
                 api('/api/pdfs').catch(() => []),
                 api('/api/video-mappings').catch(() => ({})),
-                api('/api/subjects').catch(() => ({ primary: [], secondary: [] })),
+                api('/api/subjects').catch(() => ({ nursery: [], primary: [], secondary: [] })),
             ]);
             schools = schoolsRes || [];
             globalEventsList = eventsRes || [];
             pdfMaterials = pdfsRes || [];
             videoMappings = mappingsRes || {};
-            primarySubjects = subjectsRes.primary || [];
-            secondarySubjects = subjectsRes.secondary || [];
+            updateSubjects(subjectsRes);
 
             renderSchoolsAdmin();
             renderEventsTicker();
@@ -1048,6 +1051,11 @@
     function startPolling() {
         if (window._pollInterval) clearInterval(window._pollInterval);
         window._pollInterval = setInterval(refreshAllData, 15000);
+    }
+    function updateSubjects(subjects) {
+        nurserySubjects = subjects.nursery || [];
+        primarySubjects = subjects.primary || [];
+        secondarySubjects = subjects.secondary || [];
     }
 
     // ---------- EVENT WIRING (all DOM listeners) ----------
@@ -1303,6 +1311,7 @@
 
     // ---------- BOOT ----------
     wireEvents();
+    document.querySelector('.level-btn[data-level="nursery"]')?.classList.add('active');
     renderClasses();
 
     (async () => {
