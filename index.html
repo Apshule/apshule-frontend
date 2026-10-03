@@ -27,6 +27,11 @@
         .login-form { display: none; }
         .login-form.active { display: block; }
         .login-input { width: 100%; padding: 14px; margin-bottom: 16px; border: 1px solid #ddd; border-radius: 30px; font-size: 16px; }
+        .signup-choice-group { border: 0; margin: 0 0 16px; text-align: left; }
+        .signup-choice-group legend { color: #444; font-size: 14px; font-weight: 600; margin-bottom: 8px; }
+        .signup-choice-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; }
+        .signup-choice { display: flex; align-items: center; gap: 8px; min-height: 38px; padding: 8px 10px; border-radius: 12px; background: #f6f4fb; color: #444; font-size: 13px; text-align: left; }
+        .signup-choice input { accent-color: #4B2E9E; }
         .login-btn { width: 100%; padding: 14px; background: #4B2E9E; color: white; border: none; border-radius: 30px; font-size: 16px; font-weight: bold; cursor: pointer; margin-bottom: 10px; }
         .error-message { color: red; margin-top: 16px; font-size: 14px; }
         .success-message { color: green; margin-top: 16px; font-size: 14px; }
@@ -236,11 +241,72 @@
             <button id="loginBtn" class="login-btn">Login</button>
         </div>
         <div id="signupFormDiv" class="login-form">
+            <select id="signupRole" class="login-input" aria-label="Sign up as">
+                <option value="individual">Student / Learner</option>
+                <option value="teacher">Teacher</option>
+            </select>
             <input type="text" id="signupName" placeholder="Full Name" class="login-input">
             <input type="email" id="signupEmail" placeholder="Email" class="login-input">
             <input type="tel" id="signupPhone" placeholder="Phone Number" class="login-input">
-            <div style="position: relative;"><input type="password" id="signupPassword" placeholder="Password (min 6 characters)" class="login-input"><span onclick="togglePassword('signupPassword')" style="position: absolute; right: 20px; top: 12px; cursor: pointer;">👁️</span></div>
-            <select id="signupEducationLevel" class="login-input"><option value="">Select Education Level</option><option value="Primary">Primary School</option><option value="Secondary">Secondary School</option></select>
+            <div style="position: relative;"><input type="password" id="signupPassword" placeholder="Password (min 8 characters)" class="login-input"><span onclick="togglePassword('signupPassword')" style="position: absolute; right: 20px; top: 12px; cursor: pointer;">👁️</span></div>
+            <div id="individualSignupFields">
+                <select id="signupEducationLevel" class="login-input" required><option value="">Select Education Level</option><option value="Primary">Primary School</option><option value="Secondary">Secondary School</option></select>
+                <select id="signupClassLevel" class="login-input" required>
+                    <option value="">Select Class</option>
+                    <option value="Baby">Baby Class</option><option value="Middle">Middle Class</option><option value="Top">Top Class</option>
+                    <option value="P1">Primary 1 (P1)</option><option value="P2">Primary 2 (P2)</option><option value="P3">Primary 3 (P3)</option><option value="P4">Primary 4 (P4)</option><option value="P5">Primary 5 (P5)</option><option value="P6">Primary 6 (P6)</option><option value="P7">Primary 7 (P7)</option>
+                    <option value="S1">Secondary 1 (S1)</option><option value="S2">Secondary 2 (S2)</option><option value="S3">Secondary 3 (S3)</option><option value="S4">Secondary 4 (S4)</option><option value="S5">Secondary 5 (S5)</option><option value="S6">Secondary 6 (S6)</option>
+                </select>
+                <input type="text" id="signupLin" maxlength="50" placeholder="LIN (optional)" class="login-input">
+            </div>
+            <div id="teacherSignupFields" hidden>
+                <fieldset class="signup-choice-group">
+                    <legend>Subjects Taught (select all that apply)</legend>
+                    <div class="signup-choice-grid">
+                        <label class="signup-choice"><input type="checkbox" name="subjectsTaught" value="Mathematics"> Mathematics</label>
+                        <label class="signup-choice"><input type="checkbox" name="subjectsTaught" value="English"> English</label>
+                        <label class="signup-choice"><input type="checkbox" name="subjectsTaught" value="Science"> Science</label>
+                        <label class="signup-choice"><input type="checkbox" name="subjectsTaught" value="Social Studies"> Social Studies</label>
+                        <label class="signup-choice"><input type="checkbox" name="subjectsTaught" value="Biology"> Biology</label>
+                        <label class="signup-choice"><input type="checkbox" name="subjectsTaught" value="Chemistry"> Chemistry</label>
+                        <label class="signup-choice"><input type="checkbox" name="subjectsTaught" value="Physics"> Physics</label>
+                        <label class="signup-choice"><input type="checkbox" name="subjectsTaught" value="History"> History</label>
+                        <label class="signup-choice"><input type="checkbox" name="subjectsTaught" value="Geography"> Geography</label>
+                        <label class="signup-choice"><input type="checkbox" name="subjectsTaught" value="Kiswahili"> Kiswahili</label>
+                        <label class="signup-choice"><input type="checkbox" name="subjectsTaught" value="Commerce"> Commerce</label>
+                        <label class="signup-choice"><input type="checkbox" name="subjectsTaught" value="ICT"> ICT</label>
+                        <label class="signup-choice"><input type="checkbox" name="subjectsTaught" value="Agriculture"> Agriculture</label>
+                        <label class="signup-choice"><input type="checkbox" name="subjectsTaught" value="Literature"> Literature</label>
+                        <label class="signup-choice"><input type="checkbox" name="subjectsTaught" value="Entrepreneurship"> Entrepreneurship</label>
+                        <label class="signup-choice"><input type="checkbox" name="subjectsTaught" value="Economics"> Economics</label>
+                        <label class="signup-choice"><input type="checkbox" name="subjectsTaught" value="Fine Art"> Fine Art</label>
+                        <label class="signup-choice"><input type="checkbox" name="subjectsTaught" value="Physical Education"> Physical Education</label>
+                        <label class="signup-choice"><input type="checkbox" name="subjectsTaught" value="Religious Education"> Religious Education</label>
+                        <label class="signup-choice"><input type="checkbox" name="subjectsTaught" value="Literacy"> Literacy</label>
+                    </div>
+                </fieldset>
+                <fieldset class="signup-choice-group">
+                    <legend>Classes Taught (select all that apply)</legend>
+                    <div class="signup-choice-grid">
+                        <label class="signup-choice"><input type="checkbox" name="assignedClasses" value="Baby"> Baby</label>
+                        <label class="signup-choice"><input type="checkbox" name="assignedClasses" value="Middle"> Middle</label>
+                        <label class="signup-choice"><input type="checkbox" name="assignedClasses" value="Top"> Top</label>
+                        <label class="signup-choice"><input type="checkbox" name="assignedClasses" value="P1"> P1</label>
+                        <label class="signup-choice"><input type="checkbox" name="assignedClasses" value="P2"> P2</label>
+                        <label class="signup-choice"><input type="checkbox" name="assignedClasses" value="P3"> P3</label>
+                        <label class="signup-choice"><input type="checkbox" name="assignedClasses" value="P4"> P4</label>
+                        <label class="signup-choice"><input type="checkbox" name="assignedClasses" value="P5"> P5</label>
+                        <label class="signup-choice"><input type="checkbox" name="assignedClasses" value="P6"> P6</label>
+                        <label class="signup-choice"><input type="checkbox" name="assignedClasses" value="P7"> P7</label>
+                        <label class="signup-choice"><input type="checkbox" name="assignedClasses" value="S1"> S1</label>
+                        <label class="signup-choice"><input type="checkbox" name="assignedClasses" value="S2"> S2</label>
+                        <label class="signup-choice"><input type="checkbox" name="assignedClasses" value="S3"> S3</label>
+                        <label class="signup-choice"><input type="checkbox" name="assignedClasses" value="S4"> S4</label>
+                        <label class="signup-choice"><input type="checkbox" name="assignedClasses" value="S5"> S5</label>
+                        <label class="signup-choice"><input type="checkbox" name="assignedClasses" value="S6"> S6</label>
+                    </div>
+                </fieldset>
+            </div>
             <button id="signupBtn" class="login-btn">Create Account</button>
         </div>
         <div id="loginError" class="error-message"></div>
@@ -255,7 +321,7 @@
             <img id="headerLogoImg" class="header-logo-img logo--responsive logo--desktop logo--tablet logo--mobile"
                  src="https://i.ibb.co/YFrCtRW8/IMG-20260328-WA0041-9.jpg"
                  alt="Logo SHU Learn">
-            <div><div class="app-title">APSHULE</div><div class="tagline">Let's Learn With Ease From Anywhere at Anytime</div><div class="greeting">Hello, <span id="userName">Student</span>!</div></div>
+             <div><div class="app-title">APSHULE</div><div class="tagline">Let's Learn With Ease From Anywhere at Anytime</div><div class="greeting" id="userGreeting"><span id="greetingPrefix">Hello, </span><span id="userName">Student</span>!<span id="userRoleLabel"></span></div></div>
         </div>
         <div class="header-right"><button class="ai-icon-btn" id="openAIDrawerBtn"><i class="fas fa-robot"></i></button><div style="position: relative;"><button class="more-menu-btn" id="moreMenuBtn"><i class="fas fa-ellipsis-v"></i></button><div class="more-dropdown" id="moreDropdown"><div class="dropdown-item" id="attendanceMenuItem" style="display: none;"><i class="fas fa-camera"></i><span>📸 Facial Attendance</span></div><div class="dropdown-item" id="adminMenuItem" style="display: none;"><i class="fas fa-user-cog"></i><span>Admin Panel</span></div><div class="dropdown-item" id="logoutBtn"><i class="fas fa-sign-out-alt"></i><span>Logout</span></div></div></div></div>
     </div>
@@ -449,11 +515,14 @@
 
     function updateGreeting() {
         const hour = new Date().getHours();
-        let greeting = hour < 12 ? "Good morning" : (hour < 18 ? "Good afternoon" : "Good evening");
+        const greeting = hour < 12 ? "Good morning" : (hour < 18 ? "Good afternoon" : "Good evening");
         const nameSpan = document.getElementById('userName');
         if (nameSpan && currentUser) {
             const firstName = (currentUser.name || "Student").split(' ')[0];
-            nameSpan.innerText = `${greeting}, ${firstName}!`;
+            const isStudentOrTeacher = currentUser.role === 'individual' || currentUser.role === 'teacher';
+            document.getElementById('greetingPrefix').textContent = isStudentOrTeacher ? "Hello, " : `${greeting}, `;
+            nameSpan.textContent = firstName;
+            document.getElementById('userRoleLabel').textContent = currentUser.role === 'teacher' ? " Teacher" : "";
         }
     }
     setInterval(updateGreeting, 60000);
@@ -943,8 +1012,8 @@
             document.getElementById('allUsersList').innerHTML = html;
             document.querySelectorAll('.edit-user').forEach(btn => btn.addEventListener('click', async () => {
                 const uid = btn.dataset.uid;
-                const newRole = prompt("Enter role: superadmin, school, individual");
-                if (newRole && ['superadmin','school','individual'].includes(newRole)) {
+                const newRole = prompt("Enter role: superadmin, school, teacher, individual");
+                if (newRole && ['superadmin','school','teacher','individual'].includes(newRole)) {
                     try { await api('/api/users/' + uid, { method: 'PATCH', body: { role: newRole } }); showNotification("Role updated"); loadAllUsers(); } catch(e) { showNotification(e.message, "error"); }
                 }
             }));
@@ -972,7 +1041,7 @@
             <div class="account-field"><label>Name</label><div>${escapeHtml(currentUser.name)}</div></div>
             <div class="account-field"><label>Email</label><div>${escapeHtml(currentUser.email)}</div></div>
             <div class="account-field"><label>Phone</label><div>${escapeHtml(currentUser.phone||'N/A')}</div></div>
-            <div class="account-field"><label>Role</label><div>${currentUser.role==='superadmin'?'Super Admin':(currentUser.role==='school'?'School Admin':'Individual')}</div></div>
+            <div class="account-field"><label>Role</label><div>${currentUser.role==='superadmin'?'Super Admin':(currentUser.role==='school'?'School Admin':(currentUser.role==='teacher'?'Teacher':'Individual'))}</div></div>
             <div class="account-field"><label>Address</label><div id="userAddressDisplay">${escapeHtml(address)}</div><button id="editAddressBtn" class="admin-toggle">✏️ Edit Address</button></div>
             <div class="account-field"><label>Logins</label><div>${currentUser.loginCount||0}</div></div>
         `;
@@ -1265,17 +1334,41 @@
         });
 
         // Auth forms
+        const signupRole = document.getElementById('signupRole');
+        const updateSignupFields = () => {
+            const isTeacher = signupRole.value === 'teacher';
+            document.getElementById('individualSignupFields').hidden = isTeacher;
+            document.getElementById('teacherSignupFields').hidden = !isTeacher;
+            document.getElementById('signupEducationLevel').required = !isTeacher;
+            document.getElementById('signupClassLevel').required = !isTeacher;
+        };
+        signupRole.addEventListener('change', updateSignupFields);
+        updateSignupFields();
+
         document.getElementById('signupBtn').addEventListener('click', async e => {
             e.preventDefault();
             const name = document.getElementById('signupName').value.trim();
             const email = document.getElementById('signupEmail').value.trim();
             const phone = document.getElementById('signupPhone').value.trim();
             const password = document.getElementById('signupPassword').value;
+            const role = signupRole.value;
+            const isTeacher = role === 'teacher';
             const educationLevel = document.getElementById('signupEducationLevel').value;
-            if (!name || !email || !phone || !password || !educationLevel) { document.getElementById('loginError').innerText = "Fill all fields"; return; }
-            if (password.length < 6) { document.getElementById('loginError').innerText = "Password min 6 chars"; return; }
+            const classLevel = document.getElementById('signupClassLevel').value;
+            const lin = document.getElementById('signupLin').value.trim();
+            const subjectsTaught = [...document.querySelectorAll('input[name="subjectsTaught"]:checked')].map(input => input.value);
+            const assignedClasses = [...document.querySelectorAll('input[name="assignedClasses"]:checked')].map(input => input.value);
+            if (!name || !email || !phone || !password || (!isTeacher && (!educationLevel || !classLevel))) { document.getElementById('loginError').innerText = "Fill all required fields"; return; }
+            if (password.length < 8) { document.getElementById('loginError').innerText = "Password min 8 chars"; return; }
             try {
-                const data = await api('/api/auth/signup', { method: 'POST', body: { name, email, phone, password, educationLevel }, auth: false });
+                const data = await api('/api/auth/signup', { method: 'POST', body: {
+                    name, email, phone, password, role,
+                    educationLevel: isTeacher ? null : educationLevel,
+                    classLevel: isTeacher ? null : classLevel,
+                    lin: isTeacher ? null : (lin || null),
+                    subjectsTaught: isTeacher ? subjectsTaught : [],
+                    assignedClasses: isTeacher ? assignedClasses : []
+                }, auth: false });
                 AUTH_TOKEN = data.token; localStorage.setItem('apshule_token', AUTH_TOKEN);
                 showNotification("Account created!");
                 await showAppFor(data.user);
