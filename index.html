@@ -528,6 +528,26 @@
         .teacher-curriculum-tabs { display:flex; flex-wrap:wrap; gap:6px; margin:14px 0; }
         .teacher-curriculum-tab { min-height:35px; padding:7px 10px; border:1px solid #e1dbea; border-radius:9px; background:#fff; color:#6b6476; font-size:11px; font-weight:750; cursor:pointer; }
         .teacher-curriculum-tab.active { border-color:#493b8a; background:#493b8a; color:#fff; }
+        .teacher-curriculum-offline { margin:0 0 12px; padding:10px 12px; border:1px solid #ead9a8; border-radius:10px; background:#fff8e5; color:#725716; font-size:12px; font-weight:700; }
+        .teacher-curriculum-list-panel[hidden] { display:none !important; }
+        .teacher-curriculum-favorites { grid-template-columns:1fr; }
+        .teacher-curriculum-favorite-card { display:flex; align-items:stretch; gap:7px; }
+        .teacher-curriculum-favorite-card > [data-teacher-curriculum] { width:auto; flex:1; min-width:0; }
+        .teacher-curriculum-remove-favorite { flex:none; width:38px; min-height:38px; border:1px solid #e9dca8; border-radius:10px; background:#fff8e5; color:#a06b00; cursor:pointer; }
+        .teacher-curriculum-detail-header { display:flex; align-items:flex-start; gap:10px; margin-bottom:13px; }
+        .teacher-curriculum-detail-title { min-width:0; flex:1; }
+        .teacher-curriculum-detail-title h2 { margin:0; color:#302942; font-size:18px; line-height:1.35; overflow-wrap:anywhere; }
+        .teacher-curriculum-info-strip { display:grid; gap:7px; margin-bottom:13px; padding:11px 12px; border:1px solid #e7e0f1; border-radius:11px; background:#fff; color:#514a60; font-size:12px; }
+        .teacher-curriculum-info-strip strong { color:#302942; }
+        .teacher-curriculum-detail-copy { padding:12px; border:1px solid #eeeaf2; border-radius:10px; background:#fff; color:#433c53; font-size:13px; line-height:1.55; white-space:pre-wrap; overflow-wrap:anywhere; }
+        .teacher-curriculum-detail-copy + .teacher-curriculum-detail-copy { margin-top:9px; }
+        .teacher-curriculum-action-bar { display:flex; flex-wrap:wrap; gap:8px; margin-top:14px; }
+        .teacher-curriculum-action-bar button:disabled { opacity:.55; cursor:not-allowed; }
+        .teacher-curriculum-list-tab[aria-selected="true"] { border-color:#493b8a; background:#493b8a; color:#fff; }
+        @media (min-width: 560px) {
+            .teacher-curriculum-favorites { grid-template-columns:repeat(2,minmax(0,1fr)); }
+            .teacher-curriculum-info-strip { grid-template-columns:1fr 1fr; }
+        }
         .teacher-progress-summary { display:flex; align-items:center; justify-content:space-between; gap:10px; margin-bottom:9px; color:#514a60; font-size:12px; font-weight:750; }
         .teacher-progress-track { height:10px; overflow:hidden; border-radius:999px; background:#eeeaf3; }
         .teacher-progress-fill { width:0; height:100%; border-radius:inherit; background:linear-gradient(90deg,#6d5aae,#e9762d); transition:width .25s ease; }
@@ -1060,28 +1080,38 @@
                 </section>
 
                 <section id="curriculumLinkerScreen" class="teacher-screen" hidden aria-labelledby="teacherCurriculumTitle">
-                    <header class="teacher-screen-header">
+                    <header id="teacherCurriculumHomeHeader" class="teacher-screen-header">
                         <button type="button" class="teacher-back" data-teacher-back><i class="fas fa-arrow-left" aria-hidden="true"></i> Back</button>
-                        <div><h2 id="teacherCurriculumTitle">Curriculum Linker</h2><p>Search curriculum references created by your school administrator.</p></div>
+                        <div><h2 id="teacherCurriculumTitle">📚 Curriculum Linker</h2><p>Search syllabus topics and teaching references.</p></div>
                     </header>
-                    <form id="teacherCurriculumSearchForm">
-                        <div class="teacher-curriculum-search">
-                            <input id="teacherCurriculumQuery" class="teacher-search-input" type="search" placeholder="Search topics or learning outcomes" aria-label="Search curriculum links">
-                            <button type="submit" class="teacher-primary">Search</button>
-                        </div>
-                        <div class="teacher-filters">
-                            <div class="teacher-field">
-                                <label for="teacherCurriculumSubjectFilter">Subject</label>
-                                <select id="teacherCurriculumSubjectFilter"><option value="">All taught subjects</option></select>
+                    <div id="teacherCurriculumOfflineBanner" class="teacher-curriculum-offline" role="status" aria-live="polite" hidden></div>
+                    <div id="teacherCurriculumHome">
+                        <form id="teacherCurriculumSearchForm">
+                            <div class="teacher-curriculum-search">
+                                <input id="teacherCurriculumQuery" class="teacher-search-input" type="search" placeholder="Search topic e.g. Photosynthesis" aria-label="Search curriculum topics">
+                                <button type="submit" class="teacher-primary">🔍 Search</button>
                             </div>
-                            <div class="teacher-field">
-                                <label for="teacherCurriculumClassFilter">Class</label>
-                                <select id="teacherCurriculumClassFilter"><option value="">All assigned classes</option></select>
+                            <div class="teacher-filters">
+                                <div class="teacher-field">
+                                    <label for="teacherCurriculumSubjectFilter">Subject</label>
+                                    <select id="teacherCurriculumSubjectFilter"><option value="">All subjects</option></select>
+                                </div>
+                                <div class="teacher-field">
+                                    <label for="teacherCurriculumClassFilter">Class</label>
+                                    <select id="teacherCurriculumClassFilter"><option value="">All classes</option></select>
+                                </div>
                             </div>
+                        </form>
+                        <div class="teacher-curriculum-tabs" role="tablist" aria-label="Curriculum lists">
+                            <button type="button" class="teacher-curriculum-tab teacher-curriculum-list-tab active" role="tab" aria-selected="true" aria-controls="teacherCurriculumResults" data-curriculum-list-tab="results">🔎 Results</button>
+                            <button type="button" class="teacher-curriculum-tab teacher-curriculum-list-tab" role="tab" aria-selected="false" aria-controls="teacherCurriculumFavorites" data-curriculum-list-tab="favorites">⭐ Favorites</button>
+                            <button type="button" class="teacher-curriculum-tab teacher-curriculum-list-tab" role="tab" aria-selected="false" aria-controls="teacherCurriculumRecent" data-curriculum-list-tab="recent">🕒 Recent</button>
                         </div>
-                    </form>
-                    <div id="teacherCurriculumStatus" class="teacher-screen-status" role="status" aria-live="polite"></div>
-                    <div id="teacherCurriculumResults" class="teacher-list"></div>
+                        <div id="teacherCurriculumStatus" class="teacher-screen-status" role="status" aria-live="polite"></div>
+                        <div id="teacherCurriculumResults" class="teacher-list teacher-curriculum-list-panel" role="tabpanel" aria-label="Search results"></div>
+                        <div id="teacherCurriculumFavorites" class="teacher-list teacher-curriculum-favorites teacher-curriculum-list-panel" role="tabpanel" aria-label="Favorite curriculum topics" hidden></div>
+                        <div id="teacherCurriculumRecent" class="teacher-list teacher-curriculum-list-panel" role="tabpanel" aria-label="Recently viewed curriculum topics" hidden></div>
+                    </div>
                     <div id="teacherCurriculumDetail" class="teacher-curriculum-detail" hidden></div>
                 </section>
 
@@ -1472,6 +1502,7 @@
         "Record Keeping",
         "Ethics"
     ];
+    let teacherCurriculumCacheUserId = null;
     let teacherDashboardState = {
         students: [],
         caRecords: [],
@@ -1479,6 +1510,12 @@
         selectedLearner: null,
         selectedProject: null,
         curriculumLinks: [],
+        curriculumFavorites: [],
+        curriculumRecent: [],
+        curriculumSubjects: [],
+        curriculumClasses: [],
+        curriculumResultsTotal: 0,
+        curriculumListTab: "results",
         selectedCurriculumLink: null,
         curriculumTab: "syllabus",
         retooling: []
@@ -2604,6 +2641,11 @@
         const dashboard = document.getElementById("teacherDashboard");
         if (!section || !dashboard) return;
         const isTeacher = user?.role === "teacher";
+        const nextCacheUserId = isTeacher && user?.id ? String(user.id) : null;
+        if (teacherCurriculumCacheUserId && teacherCurriculumCacheUserId !== nextCacheUserId) {
+            clearTeacherCurriculumUserCache(teacherCurriculumCacheUserId);
+        }
+        teacherCurriculumCacheUserId = nextCacheUserId;
         section.hidden = !isTeacher;
         dashboard.hidden = false;
         document.getElementById("homePage")?.classList.remove("teacher-workspace-active");
@@ -2619,10 +2661,23 @@
             selectedLearner: null,
             selectedProject: null,
             curriculumLinks: [],
+            curriculumFavorites: [],
+            curriculumRecent: [],
+            curriculumSubjects: [],
+            curriculumClasses: [],
+            curriculumResultsTotal: 0,
+            curriculumListTab: "results",
             selectedCurriculumLink: null,
             curriculumTab: "syllabus",
             retooling: []
         };
+        const curriculumHome = document.getElementById("teacherCurriculumHome");
+        const curriculumDetail = document.getElementById("teacherCurriculumDetail");
+        const curriculumHeader = document.getElementById("teacherCurriculumHomeHeader");
+        if (curriculumHome) curriculumHome.hidden = false;
+        if (curriculumDetail) curriculumDetail.hidden = true;
+        if (curriculumHeader) curriculumHeader.hidden = false;
+        setTeacherCurriculumListTab("results");
         ["teacherCaCardCount", "teacherProjectsCardCount", "teacherRetoolingCardCount"].forEach(id => {
             const element = document.getElementById(id);
             if (element) element.textContent = "—";
@@ -2633,8 +2688,6 @@
         const classes = teacherAssignedClasses();
         setTeacherOptions("teacherCaClassFilter", classes, "All assigned classes", teacherClassLabel);
         setTeacherOptions("teacherProjectClassFilter", classes, "All assigned classes", teacherClassLabel);
-        setTeacherOptions("teacherCurriculumClassFilter", classes, "All assigned classes", teacherClassLabel);
-        setTeacherOptions("teacherCurriculumSubjectFilter", teacherSubjects(), "All taught subjects");
         document.getElementById("teacherCaTermFilter").value = currentTeacherTerm();
         void loadTeacherDashboardStats();
     }
@@ -2901,6 +2954,117 @@
         }
     }
 
+    const TEACHER_CURRICULUM_CACHE_TTL = 24 * 60 * 60 * 1000;
+    const TEACHER_CURRICULUM_SEARCH_CACHE_KEY = "apshule_curriculum_search";
+    const TEACHER_CURRICULUM_OPTIONS_CACHE_KEY = "apshule_curriculum_options";
+
+    function teacherCurriculumUserCacheKey(kind, userId = currentUser?.id) {
+        return `apshule_curriculum_${kind}_${encodeURIComponent(String(userId || "anonymous"))}`;
+    }
+
+    function clearTeacherCurriculumUserCache(userId) {
+        if (!userId) return;
+        try {
+            localStorage.removeItem(teacherCurriculumUserCacheKey("favorites", userId));
+            localStorage.removeItem(teacherCurriculumUserCacheKey("recent", userId));
+        } catch (_) {}
+    }
+
+    function readTeacherCurriculumCache(key) {
+        let raw = null;
+        try { raw = localStorage.getItem(key); } catch (_) { return { value: null, expired: false }; }
+        if (!raw) return { value: null, expired: false };
+        let value = null;
+        try { value = JSON.parse(raw); } catch (_) {
+            try { localStorage.removeItem(key); } catch (_) {}
+            return { value: null, expired: false };
+        }
+        if (!value || !Number.isFinite(Number(value.ts))) return { value: null, expired: false };
+        if (Date.now() - Number(value.ts) > TEACHER_CURRICULUM_CACHE_TTL) {
+            try { localStorage.removeItem(key); } catch (_) {}
+            return { value: null, expired: true };
+        }
+        return { value, expired: false };
+    }
+
+    function writeTeacherCurriculumCache(key, value) {
+        try { localStorage.setItem(key, JSON.stringify({ ...value, ts: Date.now() })); } catch (_) {}
+    }
+
+    function setTeacherCurriculumOfflineBanner(show, message = "📶 Offline — showing cached results") {
+        const banner = document.getElementById("teacherCurriculumOfflineBanner");
+        if (!banner) return;
+        banner.hidden = !show;
+        banner.textContent = show ? message : "";
+    }
+
+    function setTeacherCurriculumFilterOptions(subjects, classes) {
+        const subjectSelect = document.getElementById("teacherCurriculumSubjectFilter");
+        const classSelect = document.getElementById("teacherCurriculumClassFilter");
+        const oldSubject = subjectSelect?.value || "";
+        const oldClass = classSelect?.value || "";
+        setTeacherOptions("teacherCurriculumSubjectFilter", subjects, "All subjects");
+        setTeacherOptions("teacherCurriculumClassFilter", classes, "All classes", teacherClassLabel);
+        if (subjectSelect && subjects.includes(oldSubject)) subjectSelect.value = oldSubject;
+        if (classSelect && classes.includes(oldClass)) classSelect.value = oldClass;
+    }
+
+    async function loadTeacherCurriculumOptions() {
+        if (currentUser?.role !== "teacher") return;
+        const useCachedOptions = (expired = false) => {
+            const cache = readTeacherCurriculumCache(TEACHER_CURRICULUM_OPTIONS_CACHE_KEY);
+            if (cache.value && Array.isArray(cache.value.subjects) && Array.isArray(cache.value.classes)) {
+                teacherDashboardState.curriculumSubjects = cache.value.subjects;
+                teacherDashboardState.curriculumClasses = cache.value.classes;
+                setTeacherCurriculumFilterOptions(cache.value.subjects, cache.value.classes);
+                return true;
+            }
+            if (expired || cache.expired) {
+                setTeacherStatus("teacherCurriculumStatus", "Cache expired. Connect to refresh.");
+            }
+            return false;
+        };
+
+        if (!navigator.onLine) {
+            if (!useCachedOptions()) setTeacherCurriculumFilterOptions([], []);
+            return;
+        }
+        try {
+            const [subjectResponse, classResponse] = await Promise.all([
+                api("/api/curriculum-links/subjects"),
+                api("/api/curriculum-links/classes")
+            ]);
+            const subjects = (responseList(subjectResponse, "subjects") || []).filter(value => typeof value === "string");
+            const classes = (responseList(classResponse, "classes") || []).filter(value => typeof value === "string");
+            teacherDashboardState.curriculumSubjects = subjects;
+            teacherDashboardState.curriculumClasses = classes;
+            setTeacherCurriculumFilterOptions(subjects, classes);
+            writeTeacherCurriculumCache(TEACHER_CURRICULUM_OPTIONS_CACHE_KEY, { subjects, classes });
+        } catch (_) {
+            if (!useCachedOptions()) setTeacherStatus("teacherCurriculumStatus", "Could not load curriculum filters.");
+        }
+    }
+
+    function applyTeacherCurriculumOfflineFilters(links) {
+        const query = (document.getElementById("teacherCurriculumQuery")?.value || "").trim().toLocaleLowerCase();
+        const subject = (document.getElementById("teacherCurriculumSubjectFilter")?.value || "").toLocaleLowerCase();
+        const classLevel = (document.getElementById("teacherCurriculumClassFilter")?.value || "").toLocaleLowerCase();
+        return links.filter(link => {
+            const searchText = [link.topic, link.summary_text, link.syllabus_ref].filter(Boolean).join(" ").toLocaleLowerCase();
+            return (!query || searchText.includes(query)) &&
+                (!subject || String(link.subject || "").toLocaleLowerCase() === subject) &&
+                (!classLevel || String(link.class_level || "").toLocaleLowerCase() === classLevel);
+        });
+    }
+
+    function renderTeacherCurriculumSearchStatus(total, shown) {
+        if (total > shown) {
+            setTeacherStatus("teacherCurriculumStatus", `Showing ${shown} of ${total} matching topics.`);
+        } else {
+            setTeacherStatus("teacherCurriculumStatus", `${total} matching topic${total === 1 ? "" : "s"}.`);
+        }
+    }
+
     async function loadTeacherCurriculumLinks() {
         const params = new URLSearchParams();
         const query = document.getElementById("teacherCurriculumQuery").value.trim();
@@ -2909,35 +3073,206 @@
         if (query) params.set("q", query);
         if (subject) params.set("subject", subject);
         if (classLevel) params.set("class_level", classLevel);
+        const results = document.getElementById("teacherCurriculumResults");
+        if (!navigator.onLine) {
+            setTeacherCurriculumOfflineBanner(true, navigator.onLine ? "Connection issue — showing cached results" : undefined);
+            const cache = readTeacherCurriculumCache(TEACHER_CURRICULUM_SEARCH_CACHE_KEY);
+            if (cache.value && Array.isArray(cache.value.results)) {
+                teacherDashboardState.curriculumLinks = applyTeacherCurriculumOfflineFilters(cache.value.results);
+                teacherDashboardState.curriculumResultsTotal = teacherDashboardState.curriculumLinks.length;
+                renderTeacherCurriculumLinks();
+                renderTeacherCurriculumSearchStatus(teacherDashboardState.curriculumResultsTotal, teacherDashboardState.curriculumLinks.length);
+            } else {
+                teacherDashboardState.curriculumLinks = [];
+                results.innerHTML = teacherEmptyMarkup(cache.expired ? "Cache expired. Connect to refresh." : "No cached results. Connect to refresh.");
+                setTeacherStatus("teacherCurriculumStatus", cache.expired ? "Cache expired. Connect to refresh." : "No cached results. Connect to refresh.");
+            }
+            return;
+        }
+
+        setTeacherCurriculumOfflineBanner(false);
         setTeacherStatus("teacherCurriculumStatus", "Searching curriculum links…");
-        document.getElementById("teacherCurriculumResults").innerHTML = teacherEmptyMarkup("Searching…");
-        document.getElementById("teacherCurriculumDetail").hidden = true;
+        results.innerHTML = teacherEmptyMarkup("Searching…");
         try {
             const response = await api(`/api/curriculum-links?${params.toString()}`);
-            teacherDashboardState.curriculumLinks = responseList(response, "links") || [];
+            const links = responseList(response, "results");
+            if (!links) throw new Error("The curriculum search returned an invalid response.");
+            teacherDashboardState.curriculumLinks = links;
+            teacherDashboardState.curriculumResultsTotal = Number(response.total ?? links.length);
+            writeTeacherCurriculumCache(TEACHER_CURRICULUM_SEARCH_CACHE_KEY, { results: links.slice(0, 50) });
             renderTeacherCurriculumLinks();
-            setTeacherStatus("teacherCurriculumStatus", "");
+            renderTeacherCurriculumSearchStatus(teacherDashboardState.curriculumResultsTotal, links.length);
         } catch (error) {
-            teacherDashboardState.curriculumLinks = [];
-            document.getElementById("teacherCurriculumResults").innerHTML = teacherEmptyMarkup("Curriculum links could not be loaded.");
-            setTeacherStatus("teacherCurriculumStatus", error.message || "Could not search curriculum links.", true);
+            setTeacherCurriculumOfflineBanner(true);
+            const cache = readTeacherCurriculumCache(TEACHER_CURRICULUM_SEARCH_CACHE_KEY);
+            if (cache.value && Array.isArray(cache.value.results)) {
+                teacherDashboardState.curriculumLinks = applyTeacherCurriculumOfflineFilters(cache.value.results);
+                teacherDashboardState.curriculumResultsTotal = teacherDashboardState.curriculumLinks.length;
+                renderTeacherCurriculumLinks();
+                setTeacherStatus("teacherCurriculumStatus", "Connection failed — showing cached results.");
+            } else {
+                teacherDashboardState.curriculumLinks = [];
+                results.innerHTML = teacherEmptyMarkup(cache.expired ? "Cache expired. Connect to refresh." : "No cached results. Connect to refresh.");
+                setTeacherStatus("teacherCurriculumStatus", cache.expired
+                    ? "Cache expired. Connect to refresh."
+                    : (error.message || "Could not search curriculum links."), true);
+            }
         }
+    }
+
+    function teacherCurriculumRowMarkup(link, extra = "") {
+        return `<button type="button" class="teacher-list-row" data-teacher-curriculum="${escapeHtml(link.id)}">
+            <span class="teacher-list-row-copy">
+                <strong>${escapeHtml(link.topic || "Untitled topic")}</strong>
+                <small>${escapeHtml(link.subject || "Subject not set")} · ${escapeHtml(teacherClassLabel(link.class_level))}${extra}</small>
+            </span>
+            <i class="fas fa-chevron-right" aria-hidden="true"></i>
+        </button>`;
     }
 
     function renderTeacherCurriculumLinks() {
         const results = document.getElementById("teacherCurriculumResults");
         if (!teacherDashboardState.curriculumLinks.length) {
-            results.innerHTML = teacherEmptyMarkup("No curriculum links found. Ask your school admin.");
+            results.innerHTML = teacherEmptyMarkup("No matching topics. Ask your school admin to add more.");
             return;
         }
-        results.innerHTML = teacherDashboardState.curriculumLinks.map(link => `
-            <button type="button" class="teacher-list-row" data-teacher-curriculum="${escapeHtml(link.id)}">
-                <span class="teacher-list-row-copy">
-                    <strong>${escapeHtml(link.topic || "Untitled topic")}</strong>
-                    <small>${escapeHtml(link.subject || "Subject not set")} · ${escapeHtml(teacherClassLabel(link.class_level))}</small>
-                </span>
-                <i class="fas fa-chevron-right" aria-hidden="true"></i>
-            </button>`).join("");
+        results.innerHTML = teacherDashboardState.curriculumLinks.map(link => teacherCurriculumRowMarkup(link)).join("");
+    }
+
+    function setTeacherCurriculumListTab(tab) {
+        const allowed = ["results", "favorites", "recent"];
+        const selected = allowed.includes(tab) ? tab : "results";
+        teacherDashboardState.curriculumListTab = selected;
+        document.querySelectorAll("[data-curriculum-list-tab]").forEach(button => {
+            const isSelected = button.dataset.curriculumListTab === selected;
+            button.classList.toggle("active", isSelected);
+            button.setAttribute("aria-selected", String(isSelected));
+        });
+        const panels = {
+            results: "teacherCurriculumResults",
+            favorites: "teacherCurriculumFavorites",
+            recent: "teacherCurriculumRecent"
+        };
+        Object.entries(panels).forEach(([key, id]) => {
+            const panel = document.getElementById(id);
+            if (panel) panel.hidden = key !== selected;
+        });
+    }
+
+    function renderTeacherCurriculumFavorites() {
+        const list = document.getElementById("teacherCurriculumFavorites");
+        const favorites = teacherDashboardState.curriculumFavorites;
+        if (!favorites.length) {
+            list.innerHTML = teacherEmptyMarkup("No favorite topics yet. Save a topic to find it here.");
+            return;
+        }
+        list.innerHTML = favorites.map(link => `
+            <div class="teacher-curriculum-favorite-card">
+                ${teacherCurriculumRowMarkup(link)}
+                <button type="button" class="teacher-curriculum-remove-favorite" data-curriculum-unfavorite="${escapeHtml(link.id)}" aria-label="Remove ${escapeHtml(link.topic || "topic")} from favorites" title="Remove from favorites" ${navigator.onLine ? "" : "disabled"}>⭐</button>
+            </div>`).join("");
+    }
+
+    function formatTeacherCurriculumDate(value) {
+        if (!value) return "Recently";
+        const date = new Date(value);
+        return Number.isNaN(date.getTime()) ? "Recently" : date.toLocaleString("en-UG", { dateStyle: "medium", timeStyle: "short" });
+    }
+
+    function renderTeacherCurriculumRecent() {
+        const list = document.getElementById("teacherCurriculumRecent");
+        const recent = teacherDashboardState.curriculumRecent;
+        if (!recent.length) {
+            list.innerHTML = teacherEmptyMarkup("No recently viewed topics yet.");
+            return;
+        }
+        list.innerHTML = recent.map(link => teacherCurriculumRowMarkup(link, ` · Viewed ${escapeHtml(formatTeacherCurriculumDate(link.viewed_at))}`)).join("");
+    }
+
+    function showTeacherCurriculumCachedCollection(kind, errorMessage) {
+        const key = teacherCurriculumUserCacheKey(kind);
+        const cache = readTeacherCurriculumCache(key);
+        const list = cache.value?.items;
+        if (Array.isArray(list)) {
+            if (kind === "favorites") {
+                teacherDashboardState.curriculumFavorites = list;
+                renderTeacherCurriculumFavorites();
+            } else {
+                teacherDashboardState.curriculumRecent = list;
+                renderTeacherCurriculumRecent();
+            }
+            setTeacherStatus("teacherCurriculumStatus", errorMessage || "📶 Offline — showing saved items.");
+            return true;
+        }
+        if (kind === "favorites") {
+            teacherDashboardState.curriculumFavorites = [];
+            renderTeacherCurriculumFavorites();
+        } else {
+            teacherDashboardState.curriculumRecent = [];
+            renderTeacherCurriculumRecent();
+        }
+        setTeacherStatus("teacherCurriculumStatus", cache.expired ? "Cache expired. Connect to refresh." : errorMessage);
+        return false;
+    }
+
+    async function loadTeacherCurriculumFavorites() {
+        if (currentUser?.role !== "teacher") return;
+        const userId = String(currentUser.id);
+        if (!navigator.onLine) {
+            setTeacherCurriculumOfflineBanner(true);
+            showTeacherCurriculumCachedCollection("favorites", "No cached favorites. Connect to refresh.");
+            return;
+        }
+        try {
+            const response = await api("/api/teacher/curriculum-favorites");
+            if (String(currentUser?.id || "") !== userId) return;
+            const favorites = responseList(response, "favorites") || [];
+            teacherDashboardState.curriculumFavorites = favorites;
+            writeTeacherCurriculumCache(teacherCurriculumUserCacheKey("favorites", userId), { items: favorites });
+            renderTeacherCurriculumFavorites();
+            setTeacherCurriculumOfflineBanner(false);
+            if (teacherDashboardState.curriculumListTab === "favorites") {
+                setTeacherStatus("teacherCurriculumStatus", `${favorites.length} favorite topic${favorites.length === 1 ? "" : "s"}.`);
+            }
+        } catch (_) {
+            if (String(currentUser?.id || "") !== userId) return;
+            setTeacherCurriculumOfflineBanner(true, navigator.onLine ? "Connection issue — showing saved items" : undefined);
+            showTeacherCurriculumCachedCollection("favorites", "Could not refresh favorites; showing the last saved list.");
+        }
+    }
+
+    async function loadTeacherCurriculumRecent() {
+        if (currentUser?.role !== "teacher") return;
+        const userId = String(currentUser.id);
+        if (!navigator.onLine) {
+            setTeacherCurriculumOfflineBanner(true);
+            showTeacherCurriculumCachedCollection("recent", "No cached recent topics. Connect to refresh.");
+            return;
+        }
+        try {
+            const response = await api("/api/teacher/curriculum-recent");
+            if (String(currentUser?.id || "") !== userId) return;
+            const recent = responseList(response, "recent") || [];
+            teacherDashboardState.curriculumRecent = recent;
+            writeTeacherCurriculumCache(teacherCurriculumUserCacheKey("recent", userId), { items: recent });
+            renderTeacherCurriculumRecent();
+            setTeacherCurriculumOfflineBanner(false);
+            if (teacherDashboardState.curriculumListTab === "recent") {
+                setTeacherStatus("teacherCurriculumStatus", `${recent.length} recently viewed topic${recent.length === 1 ? "" : "s"}.`);
+            }
+        } catch (_) {
+            if (String(currentUser?.id || "") !== userId) return;
+            setTeacherCurriculumOfflineBanner(true, navigator.onLine ? "Connection issue — showing saved items" : undefined);
+            showTeacherCurriculumCachedCollection("recent", "Could not refresh recent topics; showing the last saved list.");
+        }
+    }
+
+    function addTeacherCurriculumLocalRecent(link) {
+        if (!link || !currentUser?.id) return;
+        const recent = [{ ...link, viewed_at: new Date().toISOString() }, ...teacherDashboardState.curriculumRecent].slice(0, 20);
+        teacherDashboardState.curriculumRecent = recent;
+        writeTeacherCurriculumCache(teacherCurriculumUserCacheKey("recent"), { items: recent });
+        renderTeacherCurriculumRecent();
     }
 
     function renderTeacherCurriculumDetail() {
@@ -2951,39 +3286,117 @@
         ];
         let content = "";
         if (teacherDashboardState.curriculumTab === "syllabus") {
-            content = link.syllabus_ref
-                ? teacherDetailItem("Syllabus reference", link.syllabus_ref)
-                : teacherEmptyMarkup("No syllabus reference supplied.");
+            content = `<div class="teacher-curriculum-detail-copy"><strong>Syllabus reference</strong><br>${escapeHtml(link.syllabus_ref || "Not provided")}</div>`;
         } else if (teacherDashboardState.curriculumTab === "learner-book") {
-            content = `<div class="teacher-detail-grid">
-                ${teacherDetailItem("Learner book page", link.learner_book_page)}
-                ${teacherDetailItem("Summary", link.summary_text)}
-            </div>`;
+            content = `<div class="teacher-curriculum-detail-copy"><strong>📄 Learner Book</strong><br>Page ${escapeHtml(link.learner_book_page || "Not provided")}</div>
+                <div class="teacher-curriculum-detail-copy"><strong>Summary</strong><br>${escapeHtml(link.summary_text || "Not provided")}</div>`;
         } else {
-            content = `<div class="teacher-detail-grid">
-                ${teacherDetailItem("Teacher guide page", link.teacher_guide_page)}
-                ${teacherDetailItem("Activity suggestion", link.activity_suggestion)}
-            </div>`;
+            content = `<div class="teacher-curriculum-detail-copy"><strong>📄 Teacher Guide</strong><br>Page ${escapeHtml(link.teacher_guide_page || "Not provided")}</div>
+                <div class="teacher-curriculum-detail-copy"><strong>Activity suggestion</strong><br>${escapeHtml(link.activity_suggestion || "Not provided")}</div>`;
         }
+        const isFavorite = teacherDashboardState.curriculumFavorites.some(item => item.id === link.id);
         detail.innerHTML = `
-            <div class="teacher-detail-top">
-                <div><p class="teacher-eyebrow">${escapeHtml(link.subject || "Curriculum link")} · ${escapeHtml(teacherClassLabel(link.class_level))}</p><h3>${escapeHtml(link.topic || "Untitled topic")}</h3></div>
-                <button type="button" class="teacher-secondary" data-curriculum-results-back>Results</button>
+            <header class="teacher-curriculum-detail-header">
+                <button type="button" class="teacher-back" data-curriculum-results-back><i class="fas fa-arrow-left" aria-hidden="true"></i> Back</button>
+                <div class="teacher-curriculum-detail-title"><h2>${escapeHtml(link.topic || "Untitled topic")}</h2><p>${escapeHtml(link.subject || "Subject not set")} · ${escapeHtml(teacherClassLabel(link.class_level))}</p></div>
+            </header>
+            <div class="teacher-curriculum-info-strip">
+                <div><strong>Subject</strong><br>${escapeHtml(link.subject || "Not provided")}</div>
+                <div><strong>Class</strong><br>${escapeHtml(teacherClassLabel(link.class_level))}</div>
+                <div><strong>Syllabus ref</strong><br>${escapeHtml(link.syllabus_ref || "Not provided")}</div>
             </div>
             <div class="teacher-curriculum-tabs" role="tablist" aria-label="Curriculum reference sections">
                 ${tabs.map(tab => `<button type="button" role="tab" aria-selected="${teacherDashboardState.curriculumTab === tab.id}" class="teacher-curriculum-tab ${teacherDashboardState.curriculumTab === tab.id ? "active" : ""}" data-curriculum-tab="${tab.id}">${tab.label}</button>`).join("")}
             </div>
-            <div>${content}</div>`;
+            <div>${content}</div>
+            <div class="teacher-curriculum-action-bar">
+                <button type="button" class="teacher-secondary" data-curriculum-favorite-toggle ${navigator.onLine ? "" : "disabled"}>${isFavorite ? "⭐ Remove favorite" : "☆ Add to favorites"}</button>
+                <button type="button" class="teacher-primary" data-curriculum-share>📋 Share summary</button>
+            </div>`;
     }
 
-    function openTeacherCurriculumLink(linkId) {
-        const link = teacherDashboardState.curriculumLinks.find(item => item.id === linkId);
+    async function toggleTeacherCurriculumFavorite(link = teacherDashboardState.selectedCurriculumLink) {
+        if (!link || !navigator.onLine) return;
+        const userId = String(currentUser?.id || "");
+        try {
+            const response = await api(`/api/curriculum-links/${encodeURIComponent(link.id)}/favorite`, { method: "POST" });
+            if (!userId || String(currentUser?.id || "") !== userId) return;
+            if (response.favorited) {
+                if (!teacherDashboardState.curriculumFavorites.some(item => item.id === link.id)) {
+                    teacherDashboardState.curriculumFavorites = [{ ...link, favorited_at: new Date().toISOString() }, ...teacherDashboardState.curriculumFavorites];
+                }
+            } else {
+                teacherDashboardState.curriculumFavorites = teacherDashboardState.curriculumFavorites.filter(item => item.id !== link.id);
+            }
+            writeTeacherCurriculumCache(teacherCurriculumUserCacheKey("favorites", userId), { items: teacherDashboardState.curriculumFavorites });
+            renderTeacherCurriculumFavorites();
+            if (teacherDashboardState.selectedCurriculumLink?.id === link.id) renderTeacherCurriculumDetail();
+            showNotification(response.favorited ? "Added to favorites." : "Removed from favorites.");
+        } catch (error) {
+            showNotification(error.message || "Could not update favorites.", "error");
+        }
+    }
+
+    async function shareTeacherCurriculumSummary() {
+        const link = teacherDashboardState.selectedCurriculumLink;
         if (!link) return;
-        teacherDashboardState.selectedCurriculumLink = link;
+        const summary = `${link.topic || "Untitled topic"} · ${link.subject || "Subject not set"} · ${teacherClassLabel(link.class_level)}\nSyllabus: ${link.syllabus_ref || "Not provided"}\nLearner Book p.${link.learner_book_page || "—"} | Teacher Guide p.${link.teacher_guide_page || "—"}`;
+        try {
+            await navigator.clipboard.writeText(summary);
+            showNotification("Copied to clipboard.");
+        } catch (_) {
+            showNotification("Could not copy the summary. Check clipboard permissions.", "error");
+        }
+    }
+
+    async function openTeacherCurriculumLink(linkId) {
+        const viewingUserId = String(currentUser?.id || "");
+        const allLinks = [
+            ...teacherDashboardState.curriculumLinks,
+            ...teacherDashboardState.curriculumFavorites,
+            ...teacherDashboardState.curriculumRecent
+        ];
+        const cachedLink = allLinks.find(item => item.id === linkId);
+        const home = document.getElementById("teacherCurriculumHome");
+        const homeHeader = document.getElementById("teacherCurriculumHomeHeader");
+        const detail = document.getElementById("teacherCurriculumDetail");
+        home.hidden = true;
+        homeHeader.hidden = true;
+        detail.hidden = false;
+        detail.innerHTML = teacherEmptyMarkup("Loading curriculum details…");
+        teacherDashboardState.selectedCurriculumLink = cachedLink || null;
         teacherDashboardState.curriculumTab = "syllabus";
-        document.getElementById("teacherCurriculumResults").hidden = true;
-        document.getElementById("teacherCurriculumDetail").hidden = false;
-        renderTeacherCurriculumDetail();
+        if (cachedLink) addTeacherCurriculumLocalRecent(cachedLink);
+        if (navigator.onLine) {
+            void api(`/api/curriculum-links/${encodeURIComponent(linkId)}/view`, { method: "POST" })
+                .then(() => {
+                    if (String(currentUser?.id || "") === viewingUserId) void loadTeacherCurriculumRecent();
+                })
+                .catch(() => {});
+        } else {
+            setTeacherCurriculumOfflineBanner(true);
+        }
+
+        try {
+            if (!navigator.onLine) {
+                if (!cachedLink) throw new Error("This topic is not available in the offline cache.");
+                teacherDashboardState.selectedCurriculumLink = cachedLink;
+            } else {
+                const response = await api(`/api/curriculum-links/${encodeURIComponent(linkId)}`);
+                teacherDashboardState.selectedCurriculumLink = response.link || cachedLink;
+                if (!teacherDashboardState.selectedCurriculumLink) throw new Error("Curriculum details were not found.");
+            }
+            renderTeacherCurriculumDetail();
+        } catch (error) {
+            if (cachedLink) {
+                teacherDashboardState.selectedCurriculumLink = cachedLink;
+                setTeacherCurriculumOfflineBanner(true, navigator.onLine ? "Connection issue — showing cached details" : undefined);
+                renderTeacherCurriculumDetail();
+            } else {
+                detail.innerHTML = `<div>${teacherEmptyMarkup(error.message || "Curriculum details could not be loaded.")}<button type="button" class="teacher-secondary" data-curriculum-results-back>Back to results</button></div>`;
+            }
+        }
+        detail.scrollIntoView({ behavior: "smooth", block: "start" });
     }
 
     async function loadTeacherRetooling() {
@@ -3070,8 +3483,15 @@
             document.getElementById("teacherProjectsList").hidden = false;
             void loadTeacherProjects();
         } else if (screenId === "curriculumLinkerScreen") {
-            document.getElementById("teacherCurriculumResults").hidden = false;
+            document.getElementById("teacherCurriculumHome").hidden = false;
+            document.getElementById("teacherCurriculumHomeHeader").hidden = false;
+            document.getElementById("teacherCurriculumDetail").hidden = true;
+            setTeacherCurriculumListTab(teacherDashboardState.curriculumListTab);
+            void loadTeacherCurriculumOptions();
             void loadTeacherCurriculumLinks();
+            void loadTeacherCurriculumFavorites();
+            void loadTeacherCurriculumRecent();
+            window.setTimeout(() => document.getElementById("teacherCurriculumQuery")?.focus({ preventScroll: true }), 0);
         } else if (screenId === "retoolingScreen") {
             void loadTeacherRetooling();
         }
@@ -3135,14 +3555,47 @@
                 if (!document.getElementById("curriculumLinkerScreen").hidden) void loadTeacherCurriculumLinks();
             });
         });
+        document.getElementById("teacherCurriculumHome")?.addEventListener("click", event => {
+            const tab = event.target.closest("[data-curriculum-list-tab]");
+            if (!tab) return;
+            const selected = tab.dataset.curriculumListTab;
+            setTeacherCurriculumListTab(selected);
+            if (selected === "favorites") void loadTeacherCurriculumFavorites();
+            if (selected === "recent") void loadTeacherCurriculumRecent();
+        });
         document.getElementById("teacherCurriculumResults")?.addEventListener("click", event => {
             const button = event.target.closest("[data-teacher-curriculum]");
             if (button) openTeacherCurriculumLink(button.dataset.teacherCurriculum);
         });
+        document.getElementById("teacherCurriculumFavorites")?.addEventListener("click", event => {
+            const removeButton = event.target.closest("[data-curriculum-unfavorite]");
+            if (removeButton) {
+                const link = teacherDashboardState.curriculumFavorites.find(item => item.id === removeButton.dataset.curriculumUnfavorite);
+                if (link) void toggleTeacherCurriculumFavorite(link);
+                return;
+            }
+            const button = event.target.closest("[data-teacher-curriculum]");
+            if (button) void openTeacherCurriculumLink(button.dataset.teacherCurriculum);
+        });
+        document.getElementById("teacherCurriculumRecent")?.addEventListener("click", event => {
+            const button = event.target.closest("[data-teacher-curriculum]");
+            if (button) void openTeacherCurriculumLink(button.dataset.teacherCurriculum);
+        });
         document.getElementById("teacherCurriculumDetail")?.addEventListener("click", event => {
             if (event.target.closest("[data-curriculum-results-back]")) {
                 document.getElementById("teacherCurriculumDetail").hidden = true;
-                document.getElementById("teacherCurriculumResults").hidden = false;
+                document.getElementById("teacherCurriculumHome").hidden = false;
+                document.getElementById("teacherCurriculumHomeHeader").hidden = false;
+                teacherDashboardState.selectedCurriculumLink = null;
+                setTeacherCurriculumListTab(teacherDashboardState.curriculumListTab);
+                return;
+            }
+            if (event.target.closest("[data-curriculum-favorite-toggle]")) {
+                void toggleTeacherCurriculumFavorite();
+                return;
+            }
+            if (event.target.closest("[data-curriculum-share]")) {
+                void shareTeacherCurriculumSummary();
                 return;
             }
             const tab = event.target.closest("[data-curriculum-tab]");
@@ -3150,6 +3603,29 @@
                 teacherDashboardState.curriculumTab = tab.dataset.curriculumTab;
                 renderTeacherCurriculumDetail();
             }
+        });
+
+        window.addEventListener("offline", () => {
+            if (document.getElementById("curriculumLinkerScreen")?.hidden) return;
+            setTeacherCurriculumOfflineBanner(true);
+            if (!document.getElementById("teacherCurriculumHome").hidden) {
+                void loadTeacherCurriculumOptions();
+                void loadTeacherCurriculumLinks();
+                if (teacherDashboardState.curriculumListTab === "favorites") void loadTeacherCurriculumFavorites();
+                if (teacherDashboardState.curriculumListTab === "recent") void loadTeacherCurriculumRecent();
+            }
+            if (teacherDashboardState.selectedCurriculumLink) renderTeacherCurriculumDetail();
+        });
+        window.addEventListener("online", () => {
+            if (document.getElementById("curriculumLinkerScreen")?.hidden) return;
+            setTeacherCurriculumOfflineBanner(false);
+            if (!document.getElementById("teacherCurriculumHome").hidden) {
+                void loadTeacherCurriculumOptions();
+                void loadTeacherCurriculumLinks();
+                if (teacherDashboardState.curriculumListTab === "favorites") void loadTeacherCurriculumFavorites();
+                if (teacherDashboardState.curriculumListTab === "recent") void loadTeacherCurriculumRecent();
+            }
+            if (teacherDashboardState.selectedCurriculumLink) renderTeacherCurriculumDetail();
         });
 
         document.getElementById("teacherRetoolingModules")?.addEventListener("click", event => {

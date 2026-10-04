@@ -216,7 +216,20 @@ foundationRoutes.get(
     const query = queryText(c.req.query("q"), "q", 240);
     const search = query === null ? null : `%${query}%`;
     const sql = getDb(c.env);
-    const rows = await sql`
+    const [countRows, rows] = await Promise.all([
+      sql`
+        SELECT COUNT(*)::int AS total
+        FROM curriculum_links
+        WHERE (${subject === null} OR subject = ${subject})
+          AND (${classLevel === null} OR class_level = ${classLevel})
+          AND (
+            ${search === null}
+            OR topic ILIKE ${search}
+            OR summary_text ILIKE ${search}
+            OR syllabus_ref ILIKE ${search}
+          )
+      `,
+      sql`
       SELECT id, subject, class_level, topic, syllabus_ref, learner_book_page,
              teacher_guide_page, summary_text, activity_suggestion, created_at
       FROM curriculum_links
@@ -224,15 +237,233 @@ foundationRoutes.get(
         AND (${classLevel === null} OR class_level = ${classLevel})
         AND (
           ${search === null}
-          OR subject ILIKE ${search}
-          OR class_level ILIKE ${search}
           OR topic ILIKE ${search}
+          OR summary_text ILIKE ${search}
           OR syllabus_ref ILIKE ${search}
         )
-      ORDER BY class_level ASC NULLS LAST, subject ASC NULLS LAST,
-               topic ASC NULLS LAST, created_at DESC
+      ORDER BY topic ASC NULLS LAST
+      LIMIT 100
+      `,
+    ]);
+    const response: {
+      results: typeof rows;
+      total: number;
+      links?: typeof rows;
+    } = {
+      results: rows,
+      total: Number(countRows[0]?.total ?? 0),
+    };
+
+    // Preserve the Command Center's existing unfiltered NCDC list contract.
+    if (
+      c.get("user").role === "superadmin" &&
+      subject === null &&
+      classLevel === null &&
+      query === null
+    ) {
+      response.links = await sql`
+        SELECT id, subject, class_level, topic, syllabus_ref, learner_book_page,
+               teacher_guide_page, summary_text, activity_suggestion, created_at
+        FROM curriculum_links
+        ORDER BY class_level ASC NULLS LAST, subject ASC NULLS LAST,
+                 topic ASC NULLS LAST, created_at DESC
+      `;
+    }
+
+    return c.json(response);
+  },
+);
+
+foundationRoutes.get(
+  "/curriculum-links/subjects",
+  authMiddleware,
+  requireRole("teacher", "superadmin"),
+  async (c) => {
+    const sql = getDb(c.env);
+    const rows = await sql`
+      SELECT DISTINCT subject
+      FROM curriculum_links
+      WHERE subject IS NOT NULL AND BTRIM(subject) <> ''
+      ORDER BY subject ASC
     `;
-    return c.json({ links: rows });
+    return c.json({ subjects: rows.map((row) => row.subject) });
+  },
+);
+
+foundationRoutes.get(
+  "/curriculum-links/classes",
+  authMiddleware,
+  requireRole("teacher", "superadmin"),
+  async (c) => {
+    const sql = getDb(c.env);
+    const rows = await sql`
+      SELECT DISTINCT class_level
+      FROM curriculum_links
+      WHERE class_level IS NOT NULL AND BTRIM(class_level) <> ''
+      ORDER BY class_level ASC
+    `;
+    return c.json({ classes: rows.map((row) => row.class_level) });
+  },
+);
+
+foundationRoutes.get(
+  "/curriculum-links/:id",
+  authMiddleware,
+  requireRole("teacher", "school", "superadmin"),
+  async (c) => {
+    const id = routeUuid(c.req.param("id"));
+    const sql = getDb(c.env);
+    const rows = await sql`
+      SELECT id, subject, class_level, topic, syllabus_ref, learner_book_page,
+             teacher_guide_page, summary_text, activity_suggestion, created_at
+      FROM curriculum_links
+      WHERE id = ${id}
+      LIMIT 1
+    `;
+    if (!rows[0]) {
+      throw new ApiError(404, "CURRICULUM_LINK_NOT_FOUND", "Curriculum link was not found.");
+    }
+    return c.json({ link: rows[0] });
+  },
+);
+
+foundationRoutes.post(
+  "/curriculum-links/:id/favorite",
+  authMiddleware,
+  requireRole("teacher"),
+  async (c) => {
+    const id = routeUuid(c.req.param("id"));
+    const user = c.get("user");
+    const sql = getDb(c.env);
+    const links = await sql`
+      SELECT id FROM curriculum_links WHERE id = ${id} LIMIT 1
+    `;
+    if (!links[0]) {
+      throw new ApiError(404, "CURRICULUM_LINK_NOT_FOUND", "Curriculum link was not found.");
+    }
+    const rows = await sql`
+      WITH deleted AS (
+        DELETE FROM curriculum_favorites
+        WHERE teacher_id = ${user.id}
+          AND curriculum_link_id = ${id}
+        RETURNING id
+      ),
+      inserted AS (
+        INSERT INTO curriculum_favorites (teacher_id, curriculum_link_id)
+        SELECT ${user.id}, ${id}
+        WHERE NOT EXISTS (SELECT 1 FROM deleted)
+        ON CONFLICT (teacher_id, curriculum_link_id) DO NOTHING
+        RETURNING id
+      )
+      SELECT NOT EXISTS (SELECT 1 FROM deleted) AS favorited
+    `;
+    return c.json({ favorited: Boolean(rows[0]?.favorited) });
+  },
+);
+
+foundationRoutes.get(
+  "/teacher/curriculum-favorites",
+  authMiddleware,
+  requireRole("teacher"),
+  async (c) => {
+    const user = c.get("user");
+    const sql = getDb(c.env);
+    const rows = await sql`
+      SELECT link.id, link.subject, link.class_level, link.topic,
+             link.syllabus_ref, link.learner_book_page, link.teacher_guide_page,
+             link.summary_text, link.activity_suggestion, link.created_at,
+             favorite.created_at AS favorited_at
+      FROM curriculum_favorites AS favorite
+      INNER JOIN curriculum_links AS link
+        ON link.id = favorite.curriculum_link_id
+      WHERE favorite.teacher_id = ${user.id}
+      ORDER BY favorite.created_at DESC, link.topic ASC
+    `;
+    return c.json(rows);
+  },
+);
+
+foundationRoutes.post(
+  "/curriculum-links/:id/view",
+  authMiddleware,
+  requireRole("teacher"),
+  async (c) => {
+    const id = routeUuid(c.req.param("id"));
+    const user = c.get("user");
+    const sql = getDb(c.env);
+    const links = await sql`
+      SELECT id FROM curriculum_links WHERE id = ${id} LIMIT 1
+    `;
+    if (!links[0]) {
+      throw new ApiError(404, "CURRICULUM_LINK_NOT_FOUND", "Curriculum link was not found.");
+    }
+
+    await sql`
+      INSERT INTO curriculum_recent (teacher_id, curriculum_link_id)
+      VALUES (${user.id}, ${id})
+    `;
+    await sql`
+      WITH ranked AS (
+        SELECT id,
+               ROW_NUMBER() OVER (ORDER BY viewed_at DESC, id DESC) AS position
+        FROM curriculum_recent
+        WHERE teacher_id = ${user.id}
+      )
+      DELETE FROM curriculum_recent
+      WHERE id IN (SELECT id FROM ranked WHERE position > 50)
+    `;
+
+    const dailyRows = await sql`
+      SELECT COUNT(*)::int AS view_count,
+             TO_CHAR(NOW(), 'YYYY-MM-DD') AS view_date
+      FROM curriculum_recent
+      WHERE teacher_id = ${user.id}
+        AND viewed_at >= DATE_TRUNC('day', NOW())
+    `;
+    const viewCount = Number(dailyRows[0]?.view_count ?? 0);
+    const viewDate = String(dailyRows[0]?.view_date ?? "");
+    if (viewCount >= 20) {
+      await sql`
+        INSERT INTO audit_log (actor_id, sector, action, target_table, target_id, metadata, ip)
+        SELECT ${user.id}, ${user.sector}, 'curriculum_link.view_threshold',
+               'curriculum_links', ${id},
+               ${JSON.stringify({ view_date: viewDate, daily_view_count: viewCount })}::jsonb,
+               ${requestIp(c.req.raw.headers)}
+        WHERE NOT EXISTS (
+          SELECT 1
+          FROM audit_log
+          WHERE actor_id = ${user.id}
+            AND action = 'curriculum_link.view_threshold'
+            AND metadata->>'view_date' = ${viewDate}
+        )
+        ON CONFLICT DO NOTHING
+      `;
+    }
+
+    return c.json({ ok: true });
+  },
+);
+
+foundationRoutes.get(
+  "/teacher/curriculum-recent",
+  authMiddleware,
+  requireRole("teacher"),
+  async (c) => {
+    const user = c.get("user");
+    const sql = getDb(c.env);
+    const rows = await sql`
+      SELECT link.id, link.subject, link.class_level, link.topic,
+             link.syllabus_ref, link.learner_book_page, link.teacher_guide_page,
+             link.summary_text, link.activity_suggestion, link.created_at,
+             recent.viewed_at
+      FROM curriculum_recent AS recent
+      INNER JOIN curriculum_links AS link
+        ON link.id = recent.curriculum_link_id
+      WHERE recent.teacher_id = ${user.id}
+      ORDER BY recent.viewed_at DESC, recent.id DESC
+      LIMIT 20
+    `;
+    return c.json(rows);
   },
 );
 
