@@ -77,6 +77,18 @@ teacherRoutes.get(
           WHERE progress.teacher_id = teacher.id
             AND progress.module_id BETWEEN 1 AND 10
             AND progress.completed IS TRUE
+            AND progress.module_started_at IS NOT NULL
+            AND progress.quiz_passed IS TRUE
+            AND progress.practical_photo_base64 IS NOT NULL
+            AND (
+              NOT EXISTS (
+                SELECT 1
+                FROM retooling_modules module
+                WHERE module.id = progress.module_id
+                  AND module.pdf_url IS NOT NULL
+              )
+              OR progress.pdf_read_at IS NOT NULL
+            )
         ) AS modules_completed
       FROM users teacher
       WHERE teacher.id = ${user.id}

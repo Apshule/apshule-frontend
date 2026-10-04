@@ -18,6 +18,7 @@ import ncdcLearningRoutes from "./routes/ncdc-learning.js";
 import ncdcTeacherRoutes from "./routes/ncdc-teacher.js";
 import reportCardsRoutes from "./routes/report-cards.js";
 import bulkImportRoutes from "./routes/bulk-import.js";
+import retoolingRoutes from "./routes/retooling.js";
 import type { AppEnv } from "./types.js";
 
 const app = new Hono<AppEnv>();
@@ -123,6 +124,7 @@ app.route("/api", ncdcLearningRoutes);
 app.route("/api", ncdcTeacherRoutes);
 app.route("/api", reportCardsRoutes);
 app.route("/api", bulkImportRoutes);
+app.route("/api", retoolingRoutes);
 app.route("/api/yopayments", paymentsRoutes);
 
 app.notFound((c) =>

@@ -662,6 +662,95 @@
             .rc-list-actions { justify-content:flex-start; }
             .rc-editor-header { flex-direction:column; }
         }
+        .teacher-retooling-card-top { display:flex; align-items:center; justify-content:space-between; gap:8px; }
+        .teacher-retooling-card-top > small { color:#817990; font-size:9px; font-weight:850; letter-spacing:.08em; }
+        .teacher-retooling-status, .cc-retooling-cert-status { display:inline-flex; align-items:center; padding:4px 7px; border-radius:999px; background:#f1eef6; color:#5e566f; font-size:9px; font-weight:800; }
+        .teacher-retooling-status.is-complete, .cc-retooling-cert-status.is-active { background:#e9f7ed; color:#26703e; }
+        .teacher-retooling-description { margin:0 0 14px; color:#625d70; font-size:12px; line-height:1.55; }
+        .teacher-retooling-step { margin:12px 0; padding:14px; border:1px solid #e7e3ed; border-radius:14px; background:#fff; }
+        .teacher-retooling-step-heading { display:flex; align-items:center; gap:10px; margin-bottom:12px; }
+        .teacher-retooling-step-heading > span { display:grid; place-items:center; width:30px; height:30px; flex:0 0 30px; border-radius:50%; background:#f1eef9; color:#493b8a; font-size:10px; font-weight:900; }
+        .teacher-retooling-step-heading h3 { margin:0; color:#302942; font-size:13px; }
+        .teacher-retooling-step-heading p, .teacher-retooling-step-note { margin:3px 0 0; color:#777184; font-size:10px; line-height:1.45; }
+        .teacher-retooling-video { display:block; width:100%; aspect-ratio:16 / 9; margin:0 0 10px; border:0; border-radius:10px; background:#17131f; }
+        .teacher-retooling-placeholder { margin:4px 0 10px; padding:12px; border-radius:10px; background:#f7f6fa; color:#6d677a; font-size:11px; line-height:1.5; }
+        .teacher-retooling-link { display:inline-flex; margin:3px 0 5px; color:#493b8a; font-size:11px; font-weight:800; }
+        .teacher-retooling-quiz { display:grid; gap:10px; margin-top:12px; }
+        .teacher-retooling-question { display:grid; gap:8px; padding:11px; border:1px solid #ebe7f0; border-radius:10px; }
+        .teacher-retooling-question legend { padding:0 4px; color:#302942; font-size:11px; font-weight:800; }
+        .teacher-retooling-question label { display:flex; align-items:flex-start; gap:8px; color:#514d5d; font-size:11px; line-height:1.4; }
+        .teacher-retooling-question input { margin-top:2px; accent-color:#493b8a; }
+        .teacher-retooling-result { margin:10px 0; padding:10px; border-radius:10px; font-size:11px; font-weight:750; line-height:1.45; }
+        .teacher-retooling-result.is-pass { background:#e9f7ed; color:#26703e; }
+        .teacher-retooling-result.is-fail { background:#fff2ed; color:#a3412b; }
+        .teacher-retooling-practical { display:grid; gap:10px; }
+        .teacher-retooling-practical label { color:#514d5d; font-size:11px; font-weight:750; }
+        .teacher-retooling-practical input[type=file] { width:100%; padding:9px; border:1px solid #e2deea; border-radius:9px; color:#514d5d; font-size:11px; }
+        .teacher-retooling-photo-preview { display:flex; align-items:center; gap:10px; color:#26703e; font-size:11px; font-weight:750; }
+        .teacher-retooling-photo-preview img { max-width:180px; max-height:150px; border:1px solid #ddd7e8; border-radius:10px; object-fit:contain; }
+        .teacher-retooling-complete-note { margin:12px 0; padding:12px; border-radius:10px; background:#e9f7ed; color:#26703e; font-size:12px; font-weight:850; }
+        .teacher-certificate-preview { display:grid; gap:12px; }
+        .teacher-certificate-preview iframe { width:100%; min-height:55vh; border:1px solid #e4dfeb; border-radius:12px; background:#fff; }
+        .teacher-certificate-meta { display:flex; flex-wrap:wrap; justify-content:space-between; gap:8px; color:#5e586a; font-size:11px; }
+        .teacher-certificate-meta strong { color:#34276d; }
+        .teacher-certificate-actions { display:flex; flex-wrap:wrap; gap:8px; }
+        .teacher-primary, .teacher-secondary { min-height:38px; padding:9px 13px; border:1px solid #493b8a; border-radius:9px; background:#493b8a; color:#fff; font:inherit; font-size:11px; font-weight:800; cursor:pointer; }
+        .teacher-secondary { border-color:#ded9e8; background:#fff; color:#493b8a; }
+        .teacher-primary:disabled, .teacher-secondary:disabled { cursor:not-allowed; opacity:.52; }
+        .teacher-screen-status.is-error, .cc-retooling-status.is-error { color:#a33737; }
+        .cc-retooling-panel { margin-top:16px; padding:16px; border:1px solid #e7e3ed; border-radius:15px; background:#fff; }
+        .cc-retooling-head { display:flex; align-items:center; justify-content:space-between; gap:12px; margin-bottom:12px; }
+        .cc-retooling-head h3 { margin:0; color:#34276d; font-size:15px; }
+        .cc-retooling-head p { margin:4px 0 0; color:#777184; font-size:10px; }
+        .cc-retooling-status { min-height:0; margin:5px 0; color:#665f73; font-size:11px; }
+        .cc-retooling-module-list { display:grid; grid-template-columns:repeat(auto-fit,minmax(240px,1fr)); gap:9px; }
+        .cc-retooling-module { display:flex; justify-content:space-between; align-items:center; gap:10px; padding:11px; border:1px solid #ebe7f0; border-radius:11px; }
+        .cc-retooling-module h4 { margin:3px 0; color:#302942; font-size:12px; }
+        .cc-retooling-module p, .cc-retooling-module small { margin:0; color:#777184; font-size:10px; line-height:1.4; }
+        .cc-retooling-module-number { color:#6f6582; font-size:9px; font-weight:900; letter-spacing:.08em; }
+        .cc-retooling-editor { display:grid; gap:10px; margin:13px 0; padding:13px; border:1px solid #e3dfee; border-radius:12px; background:#faf9fc; }
+        .cc-retooling-fields { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:10px; }
+        .cc-retooling-field { display:grid; gap:5px; min-width:0; }
+        .cc-retooling-field--wide { grid-column:1 / -1; }
+        .cc-retooling-field label { color:#5d586b; font-size:10px; font-weight:800; }
+        .cc-retooling-field input, .cc-retooling-field textarea { width:100%; padding:9px 10px; border:1px solid #dad6e3; border-radius:8px; background:#fff; color:#302942; font:inherit; font-size:11px; }
+        .cc-retooling-field textarea { min-height:200px; resize:vertical; font-family:ui-monospace,SFMono-Regular,Menlo,monospace; }
+        .cc-retooling-help { color:#777184; font-size:10px; line-height:1.45; }
+        .cc-retooling-table-wrap { max-width:100%; overflow:auto; border:1px solid #e9e5ee; border-radius:10px; }
+        .cc-retooling-table { width:100%; min-width:700px; border-collapse:collapse; text-align:left; }
+        .cc-retooling-table th, .cc-retooling-table td { padding:9px 10px; border-bottom:1px solid #eeecf2; color:#464253; font-size:10px; vertical-align:top; }
+        .cc-retooling-table th { background:#f6f4fa; color:#514671; font-size:9px; text-transform:uppercase; }
+        .cc-retooling-table td small { display:block; margin-top:3px; color:#777184; }
+        .cc-retooling-cert-status.is-revoked { background:#fff0ef; color:#a33737; }
+        .cc-retooling-cert-actions { display:flex; gap:6px; }
+        .cc-danger { min-height:32px; padding:6px 9px; border:1px solid #efc6c6; border-radius:8px; background:#fff7f7; color:#a33737; font:inherit; font-size:10px; font-weight:800; cursor:pointer; }
+        .cc-retooling-pagination { display:flex; justify-content:flex-end; align-items:center; gap:9px; margin-top:10px; color:#665f73; font-size:10px; }
+        .cc-retooling-toolbar { display:flex; flex-wrap:wrap; gap:8px; margin:10px 0; }
+        .cc-retooling-toolbar input, .cc-retooling-toolbar select { min-height:36px; padding:7px 9px; border:1px solid #dad6e3; border-radius:8px; background:white; color:#302942; font:inherit; font-size:11px; }
+        .cc-cpd-dialog { width:min(96vw,1000px); max-height:94vh; margin:auto; padding:0; border:0; border-radius:13px; box-shadow:0 16px 55px rgba(24,19,42,.28); }
+        .cc-cpd-dialog::backdrop { background:rgba(24,19,42,.62); }
+        .cc-cpd-dialog-head { display:flex; align-items:center; justify-content:space-between; gap:12px; padding:10px 14px; background:#34276d; color:white; font-size:12px; font-weight:800; }
+        .cc-cpd-dialog iframe { display:block; width:100%; height:min(72vh,720px); border:0; }
+        .cc-cpd-dialog-actions { display:flex; justify-content:flex-end; gap:8px; padding:10px 14px; }
+        .cpd-verify-screen { position:fixed; inset:0; z-index:20000; display:flex; align-items:center; justify-content:center; padding:20px; background:#f5f3fa; color:#302942; }
+        .cpd-verify-card { width:min(100%,520px); padding:clamp(24px,6vw,42px); border:1px solid #e7e3ed; border-radius:20px; background:white; box-shadow:0 20px 60px rgba(43,37,69,.12); text-align:center; }
+        .cpd-verify-card h1 { margin:0 0 8px; color:#34276d; font-size:clamp(20px,4vw,28px); }
+        .cpd-verify-card p { color:#716a7e; font-size:12px; line-height:1.5; }
+        .cpd-verify-number { display:inline-block; margin:14px 0; padding:8px 12px; border-radius:8px; background:#f3f0fa; color:#493b8a; font-size:12px; font-weight:850; }
+        .cpd-verify-status { min-height:1.6em; margin-top:10px; font-size:14px; line-height:1.5; }
+        .cpd-verify-status.is-valid { color:#26703e; }
+        .cpd-verify-status.is-invalid { color:#a33737; }
+        #teacherRetoolingHomeHeader[hidden], #teacherRetoolingSubviewHeader[hidden],
+        #teacherRetoolingHome[hidden], #teacherRetoolingModuleView[hidden],
+        #teacherRetoolingCertificateView[hidden], #teacherRetoolingComplete[hidden],
+        #teacherRetoolingViewCertificate[hidden], #ccRetoolingModuleEditor[hidden],
+        #cpdVerifyScreen[hidden] { display:none !important; }
+        @media (max-width:600px) {
+            .cc-retooling-fields { grid-template-columns:1fr; }
+            .cc-retooling-field--wide { grid-column:auto; }
+            .cc-retooling-module { align-items:flex-start; }
+            .teacher-certificate-preview iframe { min-height:42vh; }
+        }
 </style>
 </head>
 <body>
@@ -840,6 +929,58 @@
             <section id="ccEducationView" class="cc-view active" role="tabpanel">
                 <div class="cc-view-title"><h2>Education operations</h2><span class="cc-eyebrow" style="margin:0">Existing admin tools</span></div>
                 <div id="ccEducationMount"></div>
+                <section class="cc-retooling-panel" aria-labelledby="ccRetoolingHeading">
+                    <div class="cc-retooling-head">
+                        <div><h3 id="ccRetoolingHeading">🎓 Retooling Modules</h3><p>Manage the ten NCDC course modules, videos, PDFs, quiz questions and pass scores.</p></div>
+                        <button type="button" class="cc-refresh" id="ccRetoolingRefresh">Refresh</button>
+                    </div>
+                    <div id="ccRetoolingModulesStatus" class="cc-retooling-status" role="status" aria-live="polite"></div>
+                    <div id="ccRetoolingModulesList" class="cc-retooling-module-list"></div>
+                    <form id="ccRetoolingModuleEditor" class="cc-retooling-editor" hidden>
+                        <input type="hidden" id="ccRetoolingModuleId">
+                        <h4 id="ccRetoolingModuleEditorTitle">Edit Retooling Module</h4>
+                        <div class="cc-retooling-fields">
+                            <div class="cc-retooling-field"><label for="ccRetoolingTitle">Title</label><input id="ccRetoolingTitle" maxlength="160" required></div>
+                            <div class="cc-retooling-field"><label for="ccRetoolingYoutube">YouTube video ID</label><input id="ccRetoolingYoutube" maxlength="11" placeholder="11-character video ID"></div>
+                            <div class="cc-retooling-field cc-retooling-field--wide"><label for="ccRetoolingDescription">Description</label><textarea id="ccRetoolingDescription" maxlength="2000" rows="3"></textarea></div>
+                            <div class="cc-retooling-field cc-retooling-field--wide"><label for="ccRetoolingPdf">PDF summary URL</label><input id="ccRetoolingPdf" type="url" maxlength="2048" placeholder="https://…"></div>
+                            <div class="cc-retooling-field"><label for="ccRetoolingPassScore">Pass score (%)</label><input id="ccRetoolingPassScore" type="number" min="1" max="100" step="1" required></div>
+                            <div class="cc-retooling-field cc-retooling-field--wide"><label for="ccRetoolingQuestions">Quiz questions (JSON)</label><textarea id="ccRetoolingQuestions" spellcheck="false" aria-describedby="ccRetoolingQuizHelp"></textarea><small id="ccRetoolingQuizHelp" class="cc-retooling-help">Use [] while unconfigured, or exactly five objects shaped like {"q":"Question","options":["A","B","C","D"],"correct":0}. The correct value is the zero-based answer index.</small></div>
+                        </div>
+                        <div class="cc-ncdc-form-actions">
+                            <button type="submit" class="cc-ncdc-add" id="ccRetoolingModuleSave">Save module</button>
+                            <button type="button" class="cc-refresh" id="ccRetoolingModuleCancel">Cancel</button>
+                        </div>
+                        <div id="ccRetoolingModuleEditorStatus" class="cc-retooling-status" role="status" aria-live="polite"></div>
+                    </form>
+                </section>
+                <section class="cc-retooling-panel" aria-labelledby="ccCpdHeading">
+                    <div class="cc-retooling-head">
+                        <div><h3 id="ccCpdHeading">🎓 CPD Certificates</h3><p>Review issued certificates, download PDFs and revoke certificates with a recorded reason.</p></div>
+                        <button type="button" class="cc-refresh" id="ccCpdRefresh">Refresh</button>
+                    </div>
+                    <div class="cc-retooling-toolbar">
+                        <input type="search" id="ccCpdSearch" placeholder="Search teacher or certificate number" aria-label="Search CPD certificates">
+                        <select id="ccCpdStatusFilter" aria-label="Filter certificates by status"><option value="all">All statuses</option><option value="false">Active</option><option value="true">Revoked</option></select>
+                    </div>
+                    <div id="ccCpdCertificatesStatus" class="cc-retooling-status" role="status" aria-live="polite"></div>
+                    <div class="cc-retooling-table-wrap">
+                        <table class="cc-retooling-table">
+                            <thead><tr><th>Teacher</th><th>Certificate</th><th>Issued</th><th>Status</th><th>Actions</th></tr></thead>
+                            <tbody id="ccCpdCertificateRows"><tr><td colspan="5" class="cc-state">Loading CPD certificates…</td></tr></tbody>
+                        </table>
+                    </div>
+                    <div class="cc-retooling-pagination">
+                        <button type="button" class="cc-refresh" id="ccCpdPrevious" disabled>Previous</button>
+                        <span id="ccCpdPageText">Page 1 of 1</span>
+                        <button type="button" class="cc-refresh" id="ccCpdNext" disabled>Next</button>
+                    </div>
+                </section>
+                <dialog id="ccCpdPdfDialog" class="cc-cpd-dialog" aria-labelledby="ccCpdPdfTitle">
+                    <div class="cc-cpd-dialog-head"><span id="ccCpdPdfTitle">CPD Certificate</span><button type="button" class="cc-refresh" id="ccCpdPdfClose">Close</button></div>
+                    <iframe id="ccCpdPdfFrame" title="CPD certificate PDF"></iframe>
+                    <div class="cc-cpd-dialog-actions"><a id="ccCpdPdfDownload" class="cc-refresh" download>Download PDF</a></div>
+                </dialog>
             </section>
             <section id="ccNcdcView" class="cc-view" role="tabpanel" aria-labelledby="ccNcdcTab" tabindex="0">
                 <div class="cc-view-title">
@@ -1116,20 +1257,36 @@
                 </section>
 
                 <section id="retoolingScreen" class="teacher-screen" hidden aria-labelledby="teacherRetoolingTitle">
-                    <header class="teacher-screen-header">
+                    <header id="teacherRetoolingHomeHeader" class="teacher-screen-header">
                         <button type="button" class="teacher-back" data-teacher-back><i class="fas fa-arrow-left" aria-hidden="true"></i> Back</button>
-                        <div><h2 id="teacherRetoolingTitle">Retooling Progress</h2><p>Complete the 10 teacher development modules.</p></div>
+                        <div><h2 id="teacherRetoolingTitle">🎓 NCDC Retooling</h2><p>Video, summary, quiz and practical learning across ten modules.</p></div>
                     </header>
-                    <div class="teacher-progress-summary">
-                        <span id="teacherRetoolingProgressText">0 of 10 modules complete</span>
-                        <span id="teacherRetoolingPercent">0%</span>
+                    <header id="teacherRetoolingSubviewHeader" class="teacher-screen-header" hidden>
+                        <button type="button" class="teacher-back" id="teacherRetoolingSubviewBack"><i class="fas fa-arrow-left" aria-hidden="true"></i> Modules</button>
+                        <div><h2 id="teacherRetoolingSubviewTitle">Retooling</h2><p>Complete each course activity to earn your CPD certificate.</p></div>
+                    </header>
+                    <div id="teacherRetoolingHome">
+                        <div class="teacher-progress-summary">
+                            <span id="teacherRetoolingProgressText">0 of 10 modules complete</span>
+                            <span id="teacherRetoolingPercent">0%</span>
+                        </div>
+                        <div id="teacherRetoolingProgressBar" class="teacher-progress-track" role="progressbar" aria-label="Retooling modules completed" aria-valuemin="0" aria-valuemax="10" aria-valuenow="0">
+                            <div id="teacherRetoolingProgressFill" class="teacher-progress-fill"></div>
+                        </div>
+                        <div id="teacherRetoolingStatus" class="teacher-screen-status" role="status" aria-live="polite"></div>
+                        <div id="teacherRetoolingModules" class="teacher-module-grid"></div>
+                        <div id="teacherRetoolingComplete" class="teacher-complete-banner" hidden>
+                            <span id="teacherRetoolingCompleteText">Course complete.</span>
+                            <button type="button" class="teacher-primary" id="teacherRetoolingViewCertificate" hidden>View your CPD certificate</button>
+                        </div>
                     </div>
-                    <div id="teacherRetoolingProgressBar" class="teacher-progress-track" role="progressbar" aria-label="Retooling modules completed" aria-valuemin="0" aria-valuemax="10" aria-valuenow="0">
-                        <div id="teacherRetoolingProgressFill" class="teacher-progress-fill"></div>
-                    </div>
-                    <div id="teacherRetoolingStatus" class="teacher-screen-status" role="status" aria-live="polite"></div>
-                    <div id="teacherRetoolingModules" class="teacher-module-grid"></div>
-                    <div id="teacherRetoolingComplete" class="teacher-complete-banner" hidden>🎉 Complete! Certificate coming soon.</div>
+                    <section id="teacherRetoolingModuleView" hidden aria-label="Retooling module detail">
+                        <div id="teacherRetoolingModuleBody"></div>
+                    </section>
+                    <section id="teacherRetoolingCertificateView" hidden aria-label="CPD certificate">
+                        <div id="teacherRetoolingCertificateStatus" class="teacher-screen-status" role="status" aria-live="polite"></div>
+                        <div id="teacherRetoolingCertificateBody"></div>
+                    </section>
                 </section>
             </section>
             <section id="studentReportCardSection" class="rc-student-launch" hidden aria-label="My report cards">
@@ -1427,6 +1584,14 @@
     </footer>
 </div>
 <div id="notification" class="notification"></div>
+<main id="cpdVerifyScreen" class="cpd-verify-screen" hidden aria-live="polite" aria-labelledby="cpdVerifyTitle">
+    <section class="cpd-verify-card">
+        <h1 id="cpdVerifyTitle">APSHULE CPD Certificate Verification</h1>
+        <p>Check whether this NCDC Teacher Retooling Course certificate is current.</p>
+        <span id="cpdVerifyNumber" class="cpd-verify-number"></span>
+        <div id="cpdVerifyStatus" class="cpd-verify-status" role="status">Checking certificate…</div>
+    </section>
+</main>
 
 <script type="module">
     // ============================================================
@@ -1438,6 +1603,7 @@
     import { initReportCardUI } from "./report-cards-ui.js";
     import { initBulkImportUI } from "./bulk-import-ui.js";
     import { initAccountProfileUI } from "./account-profile-ui.js";
+    import { initRetoolingUI } from "./retooling-ui.js";
 
     const API_BASE = "https://apshule-api.apshule-migration.workers.dev";
 
@@ -1466,6 +1632,13 @@
 
     // ---------- GLOBAL STATE ----------
     let currentUser = null;
+    const retoolingUI = initRetoolingUI({
+        api,
+        getCurrentUser: () => currentUser,
+        escapeHtml,
+        notify: showNotification,
+    });
+    void retoolingUI.verifyFromLocation();
     let reportCardsUI = null;
     let bulkImportUI = null;
     let profileUI = null;
@@ -1490,18 +1663,6 @@
     let currentLevel = "nursery";
     let currentLibraryClass = null;
     let currentLibraryPdfs = [];
-    const TEACHER_RETOOLING_MODULES = [
-        "Familiarisation",
-        "Curriculum Documents",
-        "Learner-Centred Methods",
-        "Assessment in CBC",
-        "Planning & Monitoring",
-        "Projects & PBL",
-        "ICT Integration",
-        "Inclusion",
-        "Record Keeping",
-        "Ethics"
-    ];
     let teacherCurriculumCacheUserId = null;
     let teacherDashboardState = {
         students: [],
@@ -2562,6 +2723,7 @@
         if (isSuper) {
             renderFeedbackAdmin();
             renderGlobalMostWatched();
+            void retoolingUI.loadAdmin();
         }
         currentLevel = document.querySelector('.level-btn.active')?.getAttribute('data-level') || currentLevel;
         renderClasses();
@@ -2637,6 +2799,7 @@
     }
 
     function initializeTeacherDashboard(user) {
+        retoolingUI.setUser(user);
         const section = document.getElementById("teacherDashboardSection");
         const dashboard = document.getElementById("teacherDashboard");
         if (!section || !dashboard) return;
@@ -3399,67 +3562,6 @@
         detail.scrollIntoView({ behavior: "smooth", block: "start" });
     }
 
-    async function loadTeacherRetooling() {
-        const moduleList = document.getElementById("teacherRetoolingModules");
-        moduleList.innerHTML = teacherEmptyMarkup("Loading modules…");
-        try {
-            const response = await api("/api/teacher-retooling-progress");
-            teacherDashboardState.retooling = responseList(response, "progress") || [];
-            renderTeacherRetooling();
-            setTeacherStatus("teacherRetoolingStatus", "");
-        } catch (error) {
-            teacherDashboardState.retooling = [];
-            moduleList.innerHTML = teacherEmptyMarkup("Retooling progress could not be loaded.");
-            setTeacherStatus("teacherRetoolingStatus", error.message || "Could not load retooling progress.", true);
-        }
-    }
-
-    function renderTeacherRetooling() {
-        const progress = teacherDashboardState.retooling;
-        const completed = new Set(progress.filter(row => row.completed).map(row => Number(row.module_id)));
-        const completedCount = TEACHER_RETOOLING_MODULES.filter((_, index) => completed.has(index + 1)).length;
-        const percent = completedCount * 10;
-        document.getElementById("teacherRetoolingProgressText").textContent = `${completedCount} of 10 modules complete`;
-        document.getElementById("teacherRetoolingPercent").textContent = `${percent}%`;
-        document.getElementById("teacherRetoolingProgressBar").setAttribute("aria-valuenow", String(completedCount));
-        document.getElementById("teacherRetoolingProgressFill").style.width = `${percent}%`;
-        document.getElementById("teacherRetoolingComplete").hidden = completedCount !== 10;
-        document.getElementById("teacherRetoolingCardCount").textContent = String(completedCount);
-        document.getElementById("teacherRetoolingModules").innerHTML = TEACHER_RETOOLING_MODULES.map((name, index) => {
-            const moduleId = index + 1;
-            const isComplete = completed.has(moduleId);
-            const score = progress.find(row => Number(row.module_id) === moduleId)?.quiz_score;
-            return `<button type="button" class="teacher-module-card ${isComplete ? "teacher-module-card--done" : ""}" data-teacher-module="${moduleId}" ${isComplete ? "disabled" : ""}>
-                <strong>Module ${moduleId} — ${escapeHtml(name)}</strong>
-                <small>${isComplete ? "✅ Done" : "⏳ Pending"}${isComplete && score !== null && score !== undefined ? ` · Quiz score ${escapeHtml(score)}` : ""}</small>
-            </button>`;
-        }).join("");
-    }
-
-    async function markTeacherModuleComplete(moduleId) {
-        const existing = teacherDashboardState.retooling.find(row => Number(row.module_id) === moduleId);
-        if (existing?.completed) return;
-        const enteredScore = window.prompt(`Mark Module ${moduleId} as complete? Enter quiz score (0–100).`, "");
-        if (enteredScore === null) return;
-        const scoreText = enteredScore.trim();
-        if (!/^(?:100|[0-9]{1,2})$/.test(scoreText)) {
-            showNotification("Enter a whole-number quiz score from 0 to 100.", "error");
-            return;
-        }
-        setTeacherStatus("teacherRetoolingStatus", "Saving module progress…");
-        try {
-            await api(`/api/teacher-retooling-progress/${moduleId}`, {
-                method: "PATCH",
-                body: { completed: true, quiz_score: Number(scoreText) }
-            });
-            showNotification(`Module ${moduleId} marked complete.`);
-            await Promise.all([loadTeacherRetooling(), loadTeacherDashboardStats()]);
-        } catch (error) {
-            setTeacherStatus("teacherRetoolingStatus", error.message || "Could not save module progress.", true);
-            showNotification(error.message || "Could not save module progress.", "error");
-        }
-    }
-
     function showTeacherWorkspaceHome() {
         document.querySelectorAll("#teacherDashboardSection .teacher-screen").forEach(screen => { screen.hidden = true; });
         document.getElementById("teacherDashboard").hidden = false;
@@ -3493,7 +3595,7 @@
             void loadTeacherCurriculumRecent();
             window.setTimeout(() => document.getElementById("teacherCurriculumQuery")?.focus({ preventScroll: true }), 0);
         } else if (screenId === "retoolingScreen") {
-            void loadTeacherRetooling();
+            void retoolingUI.loadCourse();
         }
     }
 
@@ -3628,10 +3730,6 @@
             if (teacherDashboardState.selectedCurriculumLink) renderTeacherCurriculumDetail();
         });
 
-        document.getElementById("teacherRetoolingModules")?.addEventListener("click", event => {
-            const button = event.target.closest("[data-teacher-module]");
-            if (button) void markTeacherModuleComplete(Number(button.dataset.teacherModule));
-        });
     }
 
     // ---------- DATA REFRESH (replaces Firestore onSnapshot) ----------
