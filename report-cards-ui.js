@@ -681,7 +681,12 @@ export function initReportCardUI({ api, getCurrentUser, getToken, apiBase, notif
     }
     setStatus(workspaceStatus, "Saving marks…");
     try {
-      await api(`/api/report-cards/${encodeURIComponent(state.activeCardId)}/marks`, { method: "POST", body });
+      const response = await api(`/api/report-cards/${encodeURIComponent(state.activeCardId)}/marks`, { method: "POST", body });
+      if (response?.queued) {
+        setStatus(workspaceStatus, "Mark saved on this device. It will sync after your account is verified online.", "success");
+        tell("Report-card mark saved on this device and waiting to sync.", "info");
+        return;
+      }
       tell("Subject mark saved.");
       await openEditor(state.activeCardId, state.mode);
     } catch (error) {
@@ -959,6 +964,16 @@ export function initReportCardUI({ api, getCurrentUser, getToken, apiBase, notif
       await loadWorkspaceCards();
     });
     $("rcMarkForm").addEventListener("submit", saveMark);
+    window.addEventListener("apshule:offline-queue-item-synced", (event) => {
+      const detail = event.detail;
+      if (
+        !state.activeCardId ||
+        String(detail?.userId) !== String(state.user?.id || "") ||
+        detail.path !== `/api/report-cards/${encodeURIComponent(state.activeCardId)}/marks` ||
+        editorView.hidden
+      ) return;
+      void openEditor(state.activeCardId, state.mode);
+    });
     $("rcCommentsForm").addEventListener("submit", (event) => event.preventDefault());
     $("rcSaveDraft").addEventListener("click", async () => {
       if (await saveComments()) tell("Draft comments saved.");

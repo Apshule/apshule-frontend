@@ -295,6 +295,15 @@ export function initRetoolingUI({ api, getCurrentUser, escapeHtml, notify }) {
                 method: "POST",
                 body: { answers },
             });
+            if (response?.queued) {
+                setStatus(
+                    "teacherRetoolingDetailStatus",
+                    "Your answers are saved on this device. The quiz will be checked after your account is verified online.",
+                );
+                notify("Quiz answers saved on this device and waiting to sync.", "info");
+                button.disabled = false;
+                return;
+            }
             await refreshActiveModule();
             setStatus(
                 "teacherRetoolingDetailStatus",
@@ -568,6 +577,16 @@ export function initRetoolingUI({ api, getCurrentUser, escapeHtml, notify }) {
         if (event.target.id === "teacherRetoolingPhoto") {
             void previewPracticalPhoto(event.target.files?.[0]);
         }
+    });
+    window.addEventListener("apshule:offline-queue-item-synced", (event) => {
+        const detail = event.detail;
+        const match = String(detail?.path || "").match(/^\/api\/teacher\/retooling\/(\d+)\/quiz$/u);
+        if (
+            !match ||
+            String(detail.userId) !== String(getCurrentUser?.()?.id || "") ||
+            Number(match[1]) !== Number(activeModule?.id)
+        ) return;
+        void refreshActiveModule();
     });
     byId("teacherRetoolingCertificateBody")?.addEventListener("click", (event) => {
         void handleTeacherDetailClick(event);

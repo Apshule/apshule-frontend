@@ -9,6 +9,7 @@
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="default">
     <meta name="apple-mobile-web-app-title" content="APSHULE">
+    <script src="/idb.js"></script>
     <link rel="icon" type="image/png" href="https://i.ibb.co/YFrCtRW8/IMG-20260328-WA0041-9.jpg">
     <link rel="apple-touch-icon" href="https://i.ibb.co/YFrCtRW8/IMG-20260328-WA0041-9.jpg">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
@@ -887,7 +888,7 @@
 </head>
 <body>
 
-<div id="offlineBanner" role="status" aria-live="polite" hidden>📶 Offline — showing cached content</div>
+<div id="offlineBanner" role="status" aria-live="polite" hidden>📶 Offline — read-only mode; showing saved data</div>
 
 <div id="impersonationBanner" role="status" aria-live="polite">
     <span>🔍 Viewing as <strong id="impersonationUserName"></strong> (<span id="impersonationUserEmail"></span>)</span>
@@ -1863,26 +1864,48 @@
     import { initBulkImportUI } from "./bulk-import-ui.js";
     import { initAccountProfileUI } from "./account-profile-ui.js";
     import { initRetoolingUI } from "./retooling-ui.js";
+    import { createOfflineDataLayer } from "./offline-data.js";
 
     const API_BASE = "https://apshule-api.apshule-migration.workers.dev";
 
     const IMPERSONATION_TOKEN_KEY = 'apshule_impersonation_token';
     const ORIGINAL_SUPERADMIN_TOKEN_KEY = 'original_superadmin_token';
     let AUTH_TOKEN = sessionStorage.getItem(IMPERSONATION_TOKEN_KEY) || localStorage.getItem('apshule_token') || null;
+    let currentUser = null;
 
-    // ---------- HTTP HELPER ----------
-    async function api(path, { method = 'GET', body, auth = true } = {}) {
-        const headers = { 'Content-Type': 'application/json' };
-        if (auth && AUTH_TOKEN) headers['Authorization'] = 'Bearer ' + AUTH_TOKEN;
-        const res = await fetch(API_BASE + path, {
-            method, headers,
-            body: body ? JSON.stringify(body) : undefined,
-        });
-        if (res.status === 204) return null;
-        const data = await res.json().catch(() => ({}));
-        if (!res.ok) throw new Error(data.error || res.statusText || 'Request failed');
-        return data;
-    }
+    const offlineData = createOfflineDataLayer({
+        apiBase: API_BASE,
+        idb: window.idb,
+        getToken: () => AUTH_TOKEN,
+        setToken: (token) => {
+            AUTH_TOKEN = token;
+            try {
+                if (token) localStorage.setItem('apshule_token', token);
+                else localStorage.removeItem('apshule_token');
+            } catch (_) {}
+        },
+        getCurrentUser: () => currentUser,
+        onOfflineStateChange: (state) => {
+            document.body.classList.toggle('offline-readonly', state.readOnly);
+            if (state.readOnly && window._pollInterval) {
+                clearInterval(window._pollInterval);
+                window._pollInterval = null;
+            }
+            window.dispatchEvent(new CustomEvent('apshule:offline-state-change', { detail: state }));
+        },
+        onUnauthorized: async () => {
+            if (currentUser) {
+                await logoutCurrentUser("Your session expired. Please sign in again.");
+                return;
+            }
+            AUTH_TOKEN = null;
+            try { localStorage.removeItem('apshule_token'); } catch (_) {}
+            sessionStorage.removeItem(IMPERSONATION_TOKEN_KEY);
+            sessionStorage.removeItem(ORIGINAL_SUPERADMIN_TOKEN_KEY);
+        },
+    });
+    const api = offlineData.api;
+
     function responseList(data, key) {
         if (Array.isArray(data)) return data;
         if (data && Array.isArray(data[key])) return data[key];
@@ -1890,7 +1913,6 @@
     }
 
     // ---------- GLOBAL STATE ----------
-    let currentUser = null;
     const retoolingUI = initRetoolingUI({
         api,
         getCurrentUser: () => currentUser,
@@ -2318,74 +2340,47 @@
             return [];
         }
     }
-    function writeQueuedVideoViews(items, userId = currentUser?.id) {
-        if (!userId) return;
-        try {
-            const key = videoViewQueueKey(userId);
-            if (items.length) localStorage.setItem(key, JSON.stringify(items));
-            else localStorage.removeItem(key);
-            updatePendingViewsBadge();
-        } catch (error) {
-            showNotification("This device could not save pending lesson views. They will not sync offline.", "error");
-        }
-    }
-    function updatePendingViewsBadge() {
+    async function updatePendingViewsBadge() {
         const badge = document.getElementById("teacherPendingViewsBadge");
         if (!badge) return;
-        const pending = currentUser?.role === "teacher" ? readQueuedVideoViews().length : 0;
+        let pending = 0;
+        if (currentUser?.id && currentUser.role === "teacher") {
+            try {
+                const status = await offlineData.getQueueStatus(String(currentUser.id));
+                pending = status.pendingVideoViews || 0;
+            } catch (error) {
+                console.warn("[Offline] Could not refresh the pending lesson-view count", error);
+            }
+        }
         badge.hidden = pending === 0;
         badge.textContent = pending ? `${pending} view${pending === 1 ? "" : "s"} waiting to sync` : "";
     }
-    function queueVideoView(body) {
-        const queued = readQueuedVideoViews();
-        if (!queued.some(item => String(item.lessonId) === String(body.lessonId))) {
-            queued.push(body);
-            writeQueuedVideoViews(queued);
-        } else updatePendingViewsBadge();
-    }
-    async function flushQueuedVideoViews() {
-        if (!currentUser?.id || !["teacher", "individual"].includes(currentUser.role) || !navigator.onLine) return;
-        const userId = String(currentUser.id);
+    async function migrateLegacyVideoViews(userId = currentUser?.id) {
+        if (!userId) return;
+        const legacyKey = videoViewQueueKey(userId);
         const pending = readQueuedVideoViews(userId);
-        if (!pending.length) { updatePendingViewsBadge(); return; }
-        const remaining = [...pending];
-        for (const item of pending) {
-            if (!currentUser?.id || !["teacher", "individual"].includes(currentUser.role) || String(currentUser.id) !== userId || !navigator.onLine) break;
-            try {
-                await api("/api/video-views", { method: "POST", body: item });
-                const index = remaining.findIndex(view => String(view.lessonId) === String(item.lessonId));
-                if (index >= 0) remaining.splice(index, 1);
-                writeQueuedVideoViews(remaining, userId);
-            } catch (error) {
-                showNotification(`A pending lesson view could not sync: ${error.message || "server error"}`, "error");
-                break;
-            }
-        }
-        updatePendingViewsBadge();
-        if (remaining.length < pending.length && currentUser?.id && String(currentUser.id) === userId) {
-            showNotification(`${pending.length - remaining.length} pending lesson view${pending.length - remaining.length === 1 ? "" : "s"} synced.`);
-            if (currentUser.role === "teacher") {
-                if (!document.getElementById("teacherEarningsScreen").hidden) void loadTeacherEarnings();
-                else void loadTeacherEarningsCard();
-            }
+        if (!pending.length) return;
+        try {
+            await offlineData.importLegacyVideoViews(pending, String(userId));
+            localStorage.removeItem(legacyKey);
+            await updatePendingViewsBadge();
+        } catch (error) {
+            console.warn("[Offline] Legacy lesson views remain in local storage", error);
         }
     }
     async function saveVideoView(lessonId, subject, classId, className) {
         if (!currentUser?.id || !["teacher", "individual"].includes(currentUser.role)) return;
         const body = { lessonId: String(lessonId), subject, classId, className };
-        const queued = readQueuedVideoViews();
-        if (queued.some(item => String(item.lessonId) === body.lessonId)) {
-            if (navigator.onLine) void flushQueuedVideoViews();
-            return;
-        }
         try {
-            await api("/api/video-views", { method: "POST", body });
-        } catch (error) {
-            if (!navigator.onLine && error instanceof TypeError) {
-                queueVideoView(body);
-                showNotification("Lesson view saved on this device and will sync when you are online.", "info");
-                return;
+            const result = await api("/api/video-views", { method: "POST", body });
+            if (result?.queued) {
+                showNotification("Lesson view saved on this device and will sync when your account is verified online.", "info");
+                await updatePendingViewsBadge();
+            } else if (currentUser?.role === "teacher") {
+                if (!document.getElementById("teacherEarningsScreen").hidden) void loadTeacherEarnings();
+                else void loadTeacherEarningsCard();
             }
+        } catch (error) {
             showNotification(`Lesson view could not be recorded: ${error.message || "request failed"}`, "error");
         }
     }
@@ -3673,29 +3668,119 @@
     }
 
     async function loadCurrentUser() {
-        if (!AUTH_TOKEN) return null;
+        if (!AUTH_TOKEN) {
+            if (!navigator.onLine) {
+                const cachedUser = await offlineData.restoreSession();
+                if (cachedUser) return cachedUser;
+                const status = document.getElementById('sessionMessage');
+                if (status) {
+                    status.textContent = 'No saved session is available on this device. Connect to the internet and sign in once to enable offline access.';
+                    status.style.display = 'block';
+                }
+            }
+            return null;
+        }
+        const tokenAtStart = AUTH_TOKEN;
+        const sessionImpersonation = sessionStorage.getItem(IMPERSONATION_TOKEN_KEY) === tokenAtStart;
+        if (!navigator.onLine && sessionImpersonation) {
+            const status = document.getElementById('sessionMessage');
+            if (status) {
+                status.textContent = 'Impersonation requires an internet connection. Reconnect to continue.';
+                status.style.display = 'block';
+            }
+            return null;
+        }
+        if (!navigator.onLine && !offlineData.isTokenLocallyUsable(tokenAtStart)) {
+            await offlineData.clearSession();
+            AUTH_TOKEN = null;
+            localStorage.removeItem('apshule_token');
+            sessionStorage.removeItem(IMPERSONATION_TOKEN_KEY);
+            sessionStorage.removeItem(ORIGINAL_SUPERADMIN_TOKEN_KEY);
+            const status = document.getElementById('sessionMessage');
+            if (status) {
+                status.textContent = 'Your saved session has expired. Connect to the internet and sign in again.';
+                status.style.display = 'block';
+            }
+            return null;
+        }
+        if (!navigator.onLine) {
+            const cachedUser = await offlineData.restoreSession(tokenAtStart);
+            if (cachedUser) return cachedUser;
+        }
         try { return await requestCurrentUser(); }
-        catch(e) {
-            const sessionImpersonation = sessionStorage.getItem(IMPERSONATION_TOKEN_KEY) === AUTH_TOKEN;
+        catch (error) {
+            const isTransientFailure = (candidate) => {
+                if ([401, 403, 404].includes(candidate?.status)) return false;
+                return !navigator.onLine ||
+                    candidate?.name === 'TypeError' ||
+                    candidate?.status === 408 ||
+                    candidate?.status === 429 ||
+                    candidate?.status >= 500;
+            };
+
             if (sessionImpersonation) {
+                if (isTransientFailure(error)) {
+                    const status = document.getElementById('sessionMessage');
+                    if (status) {
+                        status.textContent = 'Impersonation requires an internet connection. Reconnect to continue.';
+                        status.style.display = 'block';
+                    }
+                    return null;
+                }
+
                 const originalToken = sessionStorage.getItem(ORIGINAL_SUPERADMIN_TOKEN_KEY) || localStorage.getItem('apshule_token');
                 sessionStorage.removeItem(IMPERSONATION_TOKEN_KEY);
                 sessionStorage.removeItem(ORIGINAL_SUPERADMIN_TOKEN_KEY);
-                if (originalToken && originalToken !== AUTH_TOKEN) {
+                if (originalToken && originalToken !== tokenAtStart) {
                     AUTH_TOKEN = originalToken;
-                    try { return await requestCurrentUser(); } catch (restoreError) {}
+                    try {
+                        return await requestCurrentUser();
+                    } catch (restoreError) {
+                        const restoreFailureIsTransient = isTransientFailure(restoreError);
+                        const cachedUser = restoreFailureIsTransient
+                            ? await offlineData.restoreSession(originalToken)
+                            : null;
+                        if (cachedUser) return cachedUser;
+                        if (restoreFailureIsTransient) {
+                            const status = document.getElementById('sessionMessage');
+                            if (status) {
+                                status.textContent = 'The saved superadmin session could not be verified. Reconnect to continue.';
+                                status.style.display = 'block';
+                            }
+                            return null;
+                        }
+                    }
                 }
             }
+
+            if (isTransientFailure(error)) {
+                const cachedUser = await offlineData.restoreSession(tokenAtStart);
+                if (cachedUser) return cachedUser;
+                const status = document.getElementById('sessionMessage');
+                if (status) {
+                    status.textContent = 'This device has no saved offline session. Connect to the internet to sign in.';
+                    status.style.display = 'block';
+                }
+                return null;
+            }
+
+            if (error?.status === 401 || error?.status === 403) return null;
             AUTH_TOKEN = null;
             sessionStorage.removeItem(IMPERSONATION_TOKEN_KEY);
             sessionStorage.removeItem(ORIGINAL_SUPERADMIN_TOKEN_KEY);
             localStorage.removeItem('apshule_token');
+            await offlineData.clearSession();
             return null;
         }
     }
 
     async function showAppFor(user) {
         currentUser = user;
+        await offlineData.saveSession(currentUser);
+        const shownUserId = String(currentUser.id);
+        await migrateLegacyVideoViews(shownUserId);
+        await offlineData.notifyQueueState();
+        void updatePendingViewsBadge();
         const isSuper = currentUser.role === 'superadmin';
         const isSchool = currentUser.role === 'school';
         document.getElementById('adminMenuItem').style.display = (isSuper || isSchool) ? "flex" : "none";
@@ -3734,6 +3819,7 @@
             if (schoolName) document.getElementById('attendanceSchoolName').innerText = ` - ${schoolName}`;
         }
         await profileUI?.setUser(currentUser);
+        if (!AUTH_TOKEN || !currentUser || String(currentUser.id) !== shownUserId) return;
         user = currentUser;
         initializeTeacherDashboard(user);
         renderImpersonationBanner(currentUser);
@@ -3756,6 +3842,7 @@
         renderEventsTicker();
         renderAboutPage(await loadAboutContent());
         if (isSuper) loadAllUsers();
+        if (!offlineData.isReadOnly()) void offlineData.syncQueuedChanges();
     }
 
     function teacherClassLabel(value) {
@@ -3874,7 +3961,7 @@
         updatePendingViewsBadge();
         setTeacherStatus("teacherDashboardStatus", "");
         if (navigator.onLine && user?.id && ["teacher", "individual"].includes(user.role)) {
-            void flushQueuedVideoViews();
+            void offlineData.syncQueuedChanges();
         }
         if (!isTeacher) return;
 
@@ -4031,7 +4118,7 @@
         saveButton.disabled = true;
         setTeacherStatus("teacherCaStatus", "Saving CA record…");
         try {
-            await api("/api/ca-records", {
+            const result = await api("/api/ca-records", {
                 method: "POST",
                 body: {
                     learner_id: learnerId,
@@ -4046,8 +4133,12 @@
             document.getElementById("teacherCaForm").reset();
             document.getElementById("teacherCaEditor").hidden = true;
             setTeacherStatus("teacherCaStatus", "");
-            showNotification("CA record saved.");
-            await Promise.all([loadTeacherCaRecords(), loadTeacherDashboardStats()]);
+            if (result?.queued) {
+                showNotification("CA record saved on this device and will sync when your account is verified online.", "info");
+            } else {
+                showNotification("CA record saved.");
+                await Promise.all([loadTeacherCaRecords(), loadTeacherDashboardStats()]);
+            }
         } catch (error) {
             setTeacherStatus("teacherCaStatus", error.message || "Could not save the CA record.", true);
             showNotification(error.message || "Could not save the CA record.", "error");
@@ -4852,8 +4943,72 @@
     }
     function startPolling() {
         if (window._pollInterval) clearInterval(window._pollInterval);
+        if (offlineData.isReadOnly()) {
+            window._pollInterval = null;
+            return;
+        }
         window._pollInterval = setInterval(refreshAllData, 15000);
     }
+
+    function syncOfflineIndicator() {
+        const state = {
+            online: navigator.onLine,
+            sessionOffline: offlineData.isOfflineSessionActive(),
+            readOnly: offlineData.isReadOnly(),
+        };
+        document.body.classList.toggle('offline-readonly', state.readOnly);
+        window.dispatchEvent(new CustomEvent('apshule:offline-state-change', { detail: state }));
+    }
+
+    let onlineRecoveryInProgress = false;
+    async function refreshSessionAfterReconnect() {
+        if (!navigator.onLine || !AUTH_TOKEN || onlineRecoveryInProgress) return;
+        onlineRecoveryInProgress = true;
+        const previousUserId = currentUser?.id ? String(currentUser.id) : null;
+        try {
+            const verifiedUser = await requestCurrentUser();
+            if (!verifiedUser?.id) return;
+            if (offlineData.isOfflineSessionActive()) {
+                if (!currentUser) await showAppFor(verifiedUser);
+                syncOfflineIndicator();
+                return;
+            }
+            if (previousUserId && previousUserId !== String(verifiedUser.id)) {
+                await logoutCurrentUser("Your account changed. Sign in again.");
+                return;
+            }
+            offlineData.setOfflineSession(false);
+            await showAppFor(verifiedUser);
+            if (!AUTH_TOKEN || !currentUser) return;
+            if (offlineData.isReadOnly()) {
+                await refreshAllData();
+                syncOfflineIndicator();
+                return;
+            }
+            startPolling();
+            await refreshAllData();
+            if (!offlineData.isReadOnly()) {
+                await offlineData.syncQueuedChanges();
+                await updatePendingViewsBadge();
+            }
+        } catch (error) {
+            if (error?.status === 404 || error?.status === 403) {
+                await logoutCurrentUser("Your session could not be verified. Sign in again.");
+            } else if (
+                AUTH_TOKEN &&
+                (!navigator.onLine ||
+                    error?.name === 'TypeError' ||
+                    error?.status === 408 ||
+                    error?.status === 429 ||
+                    error?.status >= 500)
+            ) {
+                offlineData.setOfflineSession(true);
+            }
+        } finally {
+            onlineRecoveryInProgress = false;
+        }
+    }
+
     function updateSubjects(subjects) {
         nurserySubjects = subjects.nursery || [];
         primarySubjects = subjects.primary || [];
@@ -5148,6 +5303,7 @@
                 else await api('/api/auth/logout', { method: 'POST' });
             } catch (error) {}
         }
+        await offlineData.clearSession();
         AUTH_TOKEN = null;
         localStorage.removeItem('apshule_token');
         currentUser = null;
@@ -5191,8 +5347,13 @@
         profileUI = initAccountProfileUI({
             api,
             getCurrentUser: () => currentUser,
+            offlineSync: {
+                getStatus: () => offlineData.getQueueStatus(),
+                syncNow: () => offlineData.syncQueuedChanges({ force: true }),
+            },
             setCurrentUser: (user) => {
                 currentUser = user;
+                void offlineData.saveSession(user);
                 updateGreeting();
                 renderImpersonationBanner(user);
             },
@@ -5243,7 +5404,42 @@
             if (button) editVideoMapping(button.dataset.mappingEdit);
             if (event.target.closest("[data-mapping-retry]")) void loadAdminVideoMappings();
         });
-        window.addEventListener("online", () => { void flushQueuedVideoViews(); });
+        window.addEventListener("online", () => {
+            syncOfflineIndicator();
+            void refreshSessionAfterReconnect();
+        });
+        window.addEventListener("offline", () => {
+            if (window._pollInterval) clearInterval(window._pollInterval);
+            window._pollInterval = null;
+            if (AUTH_TOKEN) offlineData.setOfflineSession(true);
+            else syncOfflineIndicator();
+        });
+        window.addEventListener("apshule:offline-state-change", (event) => {
+            if (event.detail?.sessionOffline && event.detail.online && AUTH_TOKEN) {
+                void refreshSessionAfterReconnect();
+            }
+        });
+        window.addEventListener("apshule:offline-queue-state-change", () => {
+            void updatePendingViewsBadge();
+        });
+        window.addEventListener("apshule:offline-queue-item-synced", (event) => {
+            const detail = event.detail;
+            if (!detail || String(detail.userId) !== String(currentUser?.id || "")) return;
+            if (
+                detail.path === "/api/ca-records" ||
+                detail.path === "/api/projects" ||
+                detail.path === "/api/video-views"
+            ) {
+                void refreshAllData();
+                if (detail.path === "/api/ca-records" && currentUser?.role === "teacher") {
+                    void loadTeacherCaRecords();
+                    void loadTeacherDashboardStats();
+                }
+                if (detail.path === "/api/video-views" && currentUser?.role === "teacher") {
+                    void loadTeacherEarningsCard();
+                }
+            }
+        });
         document.getElementById('ccRefreshGlobal')?.addEventListener('click', loadGlobalOverview);
         document.getElementById('ccRefreshUsers')?.addEventListener('click', loadCommandCenterUsers);
         document.getElementById('ccRefreshNcdc')?.addEventListener('click', loadNcdcDashboard);
@@ -5719,7 +5915,9 @@
                 const loginError = document.getElementById('loginError');
                 loginError.className = 'error-message';
                 loginError.style.display = 'block';
-                loginError.innerText = "Invalid email/password";
+                loginError.innerText = err.code === 'OFFLINE_WRITE_BLOCKED'
+                    ? 'Connect to the internet to sign in. Previously saved sessions can be restored offline automatically.'
+                    : "Invalid email/password";
             }
         });
         const resetSection = document.getElementById('resetSection');
@@ -5937,11 +6135,33 @@
 <script>
 (() => {
     const offlineBanner = document.getElementById("offlineBanner");
+    let queueState = { pending: 0 };
 
-    function updateOnlineStatus() {
-        if (offlineBanner) offlineBanner.hidden = navigator.onLine;
+    function updateOnlineStatus(event) {
+        const state = event?.detail;
+        const readOnly = typeof state?.readOnly === "boolean"
+            ? state.readOnly
+            : !navigator.onLine || document.body.classList.contains("offline-readonly");
+        if (!offlineBanner) return;
+        const pending = Number(queueState.pending) || 0;
+        offlineBanner.hidden = !readOnly && pending === 0;
+        if (readOnly) {
+            const stateText = state?.sessionOffline && navigator.onLine
+                ? "Connection unavailable — read-only mode; showing saved data"
+                : "Offline — read-only mode; showing saved data";
+            offlineBanner.textContent = pending
+                ? `📶 ${stateText} · ${pending} change${pending === 1 ? "" : "s"} pending sync`
+                : `📶 ${stateText}`;
+        } else if (pending) {
+            offlineBanner.textContent = `↻ ${pending} offline change${pending === 1 ? "" : "s"} waiting to sync`;
+        }
     }
 
+    window.addEventListener("apshule:offline-queue-state-change", (event) => {
+        queueState = event.detail || { pending: 0 };
+        updateOnlineStatus();
+    });
+    window.addEventListener("apshule:offline-state-change", updateOnlineStatus);
     window.addEventListener("online", updateOnlineStatus);
     window.addEventListener("offline", updateOnlineStatus);
     updateOnlineStatus();

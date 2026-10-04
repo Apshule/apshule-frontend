@@ -97,7 +97,7 @@ app.use(
   cors({
     origin: "*",
     allowMethods: ["GET", "POST", "PATCH", "PUT", "DELETE", "OPTIONS"],
-    allowHeaders: ["Content-Type", "Authorization"],
+    allowHeaders: ["Content-Type", "Authorization", "Idempotency-Key"],
   }),
 );
 app.use(
@@ -105,7 +105,7 @@ app.use(
   cors({
     origin: "*",
     allowMethods: ["GET", "POST", "PATCH", "PUT", "DELETE", "OPTIONS"],
-    allowHeaders: ["Content-Type", "Authorization"],
+    allowHeaders: ["Content-Type", "Authorization", "Idempotency-Key"],
   }),
 );
 

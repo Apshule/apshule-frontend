@@ -25,7 +25,7 @@ export async function resolve(specifier, context, nextResolve) {
   if (
     (
       specifier === "./db.js" &&
-      /\/src\/(yopayments|yo-platform-settings|platform-settings-crypto)\.ts$/u.test(
+      /\/src\/(idempotency|yopayments|yo-platform-settings|platform-settings-crypto)\.ts$/u.test(
         context.parentURL ?? "",
       )
     ) ||

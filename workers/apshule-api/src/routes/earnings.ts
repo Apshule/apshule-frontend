@@ -4,6 +4,14 @@ import { createMiddleware } from "hono/factory";
 import { ApiError, getDb } from "../db.js";
 import { authMiddleware, requireRealSuperAdmin, requireRole } from "../auth.js";
 import { optionalString, readJson, requiredString } from "../http.js";
+import {
+  findIdempotencyReplay,
+  idempotencyClaimQuery,
+  idempotencyLookupQuery,
+  readIdempotencyKey,
+  resolveIdempotencyTransaction,
+  scheduleIdempotencyCleanup,
+} from "../idempotency.js";
 import type { AppEnv, AuthenticatedUser } from "../types.js";
 
 const earnings = new Hono<AppEnv>();
@@ -373,15 +381,38 @@ function payoutIdFromRequest(value: string): string {
 earnings.post("/video-views", authMiddleware, requireRole("individual", "teacher"), async (c) => {
   const viewer = c.get("user");
   assertRealUser(viewer);
+  const sql = getDb(c.env);
+  const idempotency = {
+    key: readIdempotencyKey(c.req.header("Idempotency-Key") ?? null),
+    userId: viewer.id,
+    route: c.req.path,
+  };
+  const replay = await findIdempotencyReplay(sql, idempotency);
+  if (replay) {
+    scheduleIdempotencyCleanup(c, sql);
+    return c.json(replay, 200);
+  }
+
   const body = await readJson(c);
   const lessonId = requiredString(body, "lessonId", { max: 160 });
   const classId = optionalString(body, "classId", { max: 120 }) ?? null;
   const className = optionalString(body, "className", { max: 120 }) ?? null;
-  const sql = getDb(c.env);
 
-  const rows = await sql`
-    WITH viewer_lock AS MATERIALIZED (
+  const operationQuery = sql`
+    WITH idempotency_guard AS MATERIALIZED (
+      SELECT TRUE AS allowed
+      WHERE ${idempotency.key === null}
+      UNION ALL
+      SELECT TRUE
+      FROM idempotency_keys
+      WHERE key = ${idempotency.key}
+        AND user_id = ${idempotency.userId}
+        AND route = ${idempotency.route}
+        AND response_body IS NULL
+    ),
+    viewer_lock AS MATERIALIZED (
       SELECT pg_advisory_xact_lock(hashtextextended(${`${viewer.id}:${lessonId}`}, 0))
+      FROM idempotency_guard
     ),
     mapping AS MATERIALIZED (
       SELECT
@@ -424,24 +455,60 @@ earnings.post("/video-views", authMiddleware, requireRole("individual", "teacher
       CROSS JOIN rate
       CROSS JOIN viewer_lock
       CROSS JOIN recent_view
+      CROSS JOIN idempotency_guard
       WHERE NOT recent_view.already_counted
         AND (mapping.teacher_id IS NULL OR mapping.teacher_id <> ${viewer.id})
       RETURNING id
+    ), outcome AS (
+      SELECT
+        EXISTS(SELECT 1 FROM inserted) AS counted,
+        CASE
+          WHEN NOT EXISTS(SELECT 1 FROM mapping) THEN 'lesson_not_found'
+          WHEN EXISTS(SELECT 1 FROM mapping WHERE teacher_id = ${viewer.id}) THEN 'self_view'
+          WHEN (SELECT already_counted FROM recent_view) THEN 'duplicate'
+          WHEN EXISTS(SELECT 1 FROM inserted) THEN NULL
+          ELSE 'rate_not_configured'
+        END AS reason
+      FROM idempotency_guard
+    ), response_payload AS (
+      SELECT jsonb_build_object(
+        'counted', outcome.counted,
+        'reason', outcome.reason
+      ) AS body
+      FROM outcome
+    ), saved_response AS (
+      UPDATE idempotency_keys AS saved
+      SET response_body = response_payload.body
+      FROM response_payload
+      WHERE saved.key = ${idempotency.key}
+        AND saved.user_id = ${idempotency.userId}
+        AND saved.route = ${idempotency.route}
+        AND saved.response_body IS NULL
+        AND ${idempotency.key !== null}
+      RETURNING saved.key
     )
-    SELECT
-      EXISTS(SELECT 1 FROM inserted) AS counted,
-      CASE
-        WHEN NOT EXISTS(SELECT 1 FROM mapping) THEN 'lesson_not_found'
-        WHEN EXISTS(SELECT 1 FROM mapping WHERE teacher_id = ${viewer.id}) THEN 'self_view'
-        WHEN (SELECT already_counted FROM recent_view) THEN 'duplicate'
-        WHEN EXISTS(SELECT 1 FROM inserted) THEN NULL
-        ELSE 'rate_not_configured'
-      END AS reason
+    SELECT body AS response_body
+    FROM response_payload
   `;
-  return c.json({
-    counted: Boolean((rows[0] as { counted?: boolean } | undefined)?.counted),
-    reason: (rows[0] as { reason?: string | null } | undefined)?.reason ?? null,
-  });
+  if (idempotency.key) {
+    const [claimedRows, operationRows, storedRows] = await sql.transaction([
+      idempotencyClaimQuery(sql, idempotency),
+      operationQuery,
+      idempotencyLookupQuery(sql, idempotency),
+    ]);
+    const result = resolveIdempotencyTransaction(
+      idempotency,
+      claimedRows,
+      operationRows,
+      storedRows,
+      200,
+    );
+    scheduleIdempotencyCleanup(c, sql);
+    return c.json(result.body, result.status);
+  }
+
+  const rows = await operationQuery;
+  return c.json(rows[0]?.response_body as { counted: boolean; reason: string | null });
 });
 
 earnings.get(

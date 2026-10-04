@@ -4,6 +4,7 @@ export function initAccountProfileUI({
     setCurrentUser,
     notify,
     escapeHtml,
+    offlineSync = null,
     onPasswordChanged,
     onOpenSchoolBranding,
     getSiteBrandLogo,
@@ -73,6 +74,13 @@ export function initAccountProfileUI({
         .ap-profile .ap-role-panel { margin-top:22px; padding-top:19px; border-top:1px solid var(--ap-line); }
         .ap-profile .ap-role-panel h3 { margin:0 0 3px; font-size:.98rem; }
         .ap-profile .ap-role-grid { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:13px; margin-top:14px; }
+        .ap-profile .ap-offline-summary { display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:9px; margin-top:14px; }
+        .ap-profile .ap-offline-stat { padding:11px 12px; border:1px solid var(--ap-line); border-radius:11px; background:#fff; }
+        .ap-profile .ap-offline-stat span { display:block; color:var(--ap-muted); font-size:.76rem; }
+        .ap-profile .ap-offline-stat strong { display:block; margin-top:3px; font-size:1.15rem; }
+        .ap-profile .ap-conflict-list { display:grid; gap:7px; margin:10px 0 0; padding:0; list-style:none; }
+        .ap-profile .ap-conflict-list li { display:grid; gap:3px; padding:9px 11px; border:1px solid #f0d8b0; border-radius:10px; background:#fff9ef; font-size:.8rem; }
+        .ap-profile .ap-conflict-list span { color:var(--ap-muted); }
         .ap-profile .ap-record-list { display:grid; gap:10px; margin-top:13px; }
         .ap-profile .ap-record { display:flex; flex-wrap:wrap; justify-content:space-between; align-items:center; gap:12px; padding:12px 13px; border:1px solid var(--ap-line); border-radius:12px; background:#fff; }
         .ap-profile .ap-record-main { min-width:0; display:grid; gap:4px; }
@@ -104,6 +112,7 @@ export function initAccountProfileUI({
         .ap-profile .ap-modal .ap-field + .ap-field { margin-top:14px; }
         @media(max-width:620px) {
           .ap-profile .ap-form-grid,.ap-profile .ap-role-grid { grid-template-columns:1fr; }
+          .ap-profile .ap-offline-summary { grid-template-columns:1fr; }
           .ap-profile .ap-field--wide { grid-column:auto; }
           .ap-profile .ap-profile-head { align-items:flex-start; }
           .ap-profile .ap-avatar { width:66px; height:66px; }
@@ -158,6 +167,54 @@ export function initAccountProfileUI({
         accountMount.innerHTML = `<section class="ap-profile ap-card" aria-label="Loading account profile" aria-busy="true"><div class="ap-skeleton ap-wide"></div><div class="ap-skeleton"></div><div class="ap-skeleton"></div><div class="ap-skeleton"></div></section>`;
     }
 
+    function offlineRouteLabel(path) {
+        if (path === "/api/ca-records") return "Continuous assessment record";
+        if (path === "/api/video-views") return "Lesson view";
+        if (path === "/api/projects") return "Learner project";
+        if (/^\/api\/teacher\/retooling\/\d+\/quiz$/u.test(String(path || ""))) return "Retooling quiz";
+        if (/^\/api\/report-cards\/[^/]+\/marks$/u.test(String(path || ""))) return "Report-card mark";
+        return "Saved change";
+    }
+
+    function renderOfflineModeStatus(status) {
+        if (!status || String(status.userId || "") !== String(currentUser?.id || "")) return;
+        const pending = document.getElementById("apOfflinePending");
+        const conflicts = document.getElementById("apOfflineConflicts");
+        const failed = document.getElementById("apOfflineFailed");
+        const note = document.getElementById("apOfflineModeNote");
+        const button = document.getElementById("apOfflineSyncNow");
+        const syncStatus = document.getElementById("apOfflineSyncStatus");
+        const conflictList = document.getElementById("apOfflineConflictList");
+        if (!pending || !conflicts || !failed || !note || !button || !conflictList) return;
+
+        pending.textContent = String(status.pending || 0);
+        conflicts.textContent = String(status.conflicts || 0);
+        failed.textContent = String(status.failed || 0);
+        note.textContent = status.sessionOffline
+            ? "Reconnect and verify your account before changes can sync."
+            : status.online
+                ? "Queued changes sync in order while this account is verified."
+                : "Changes are saved on this device until you reconnect.";
+        button.disabled = !status.canSync || !status.pending || status.syncing;
+        button.textContent = status.syncing ? "Syncing…" : "Sync now";
+        if (syncStatus && status.syncing) syncStatus.textContent = "Syncing saved changes…";
+        conflictList.innerHTML = (status.conflictLog || []).map((entry) => {
+            const when = Number(entry.at) ? new Date(Number(entry.at)).toLocaleString() : "";
+            return `<li><strong>${esc(offlineRouteLabel(entry.path))}</strong><span>Server version kept${when ? ` · ${esc(when)}` : ""}</span></li>`;
+        }).join("");
+        conflictList.hidden = !status.conflicts;
+    }
+
+    async function refreshOfflineModeStatus() {
+        if (typeof offlineSync?.getStatus !== "function" || !currentUser?.id) return;
+        try {
+            renderOfflineModeStatus(await offlineSync.getStatus());
+        } catch (error) {
+            const note = document.getElementById("apOfflineModeNote");
+            if (note) note.textContent = "Offline queue status could not be read on this device.";
+        }
+    }
+
     function renderProfile(user) {
         if (!accountMount) return;
         const locked = isImpersonated(user);
@@ -199,6 +256,19 @@ export function initAccountProfileUI({
             <button type="button" class="ap-button ap-button--link" id="apOpenBranding">${esc(schoolName || "Open school branding")} <span aria-hidden="true">→</span></button>
           </section>` : "";
         const lockNotice = locked ? `<p class="ap-hint" role="note">Profile editing is unavailable during an impersonation session.</p>` : "";
+        const offlineMode = offlineSync ? `
+            <section class="ap-role-panel" aria-labelledby="ap-offline-heading">
+              <h3 id="ap-offline-heading">Offline Mode</h3>
+              <p class="ap-subheading" id="apOfflineModeNote">Checking saved changes…</p>
+              <div class="ap-offline-summary" aria-live="polite">
+                <div class="ap-offline-stat"><span>Pending sync</span><strong id="apOfflinePending">0</strong></div>
+                <div class="ap-offline-stat"><span>Server conflicts</span><strong id="apOfflineConflicts">0</strong></div>
+                <div class="ap-offline-stat"><span>Needs attention</span><strong id="apOfflineFailed">0</strong></div>
+              </div>
+              <ul class="ap-conflict-list" id="apOfflineConflictList" aria-label="Recent offline sync conflicts" hidden></ul>
+              <div class="ap-actions"><button class="ap-button ap-button--primary" id="apOfflineSyncNow" type="button" disabled>Sync now</button></div>
+              <p class="ap-status" id="apOfflineSyncStatus" role="status" aria-live="polite"></p>
+            </section>` : "";
 
         accountMount.innerHTML = `
           <section class="ap-profile ap-card" aria-labelledby="ap-profile-title">
@@ -229,6 +299,7 @@ export function initAccountProfileUI({
               </div>
               ${statusMarkup("apProfileStatus")}
             </form>
+            ${offlineMode}
             <section class="ap-role-panel" aria-labelledby="ap-subscriptions-heading">
               <h3 id="ap-subscriptions-heading">💳 My Subscriptions</h3>
               <div id="apSubscriptionsList" class="ap-record-list" aria-live="polite"><p class="ap-empty-state">Loading subscriptions…</p></div>
@@ -253,6 +324,7 @@ export function initAccountProfileUI({
 
         passwordDialog = accountMount.querySelector("#apPasswordBackdrop");
         wireProfileEvents(user);
+        void refreshOfflineModeStatus();
         void refreshPaymentData();
     }
 
@@ -261,6 +333,26 @@ export function initAccountProfileUI({
         const avatarInput = document.getElementById("apAvatarInput");
         const saveButton = document.getElementById("apSaveProfile");
         const locked = isImpersonated(user);
+        document.getElementById("apOfflineSyncNow")?.addEventListener("click", async (event) => {
+            const button = event.currentTarget;
+            const syncStatus = document.getElementById("apOfflineSyncStatus");
+            if (typeof offlineSync?.syncNow !== "function" || button.disabled) return;
+            button.disabled = true;
+            if (syncStatus) syncStatus.textContent = "Syncing saved changes…";
+            try {
+                const result = await offlineSync.syncNow();
+                if (syncStatus) {
+                    syncStatus.textContent = result?.skipped
+                        ? result.reason || "Sync is unavailable until your account is verified online."
+                        : `${result?.synced || 0} change${result?.synced === 1 ? "" : "s"} synced; ${result?.conflicts || 0} conflict${result?.conflicts === 1 ? "" : "s"} kept the server version.`;
+                }
+                if (result?.synced) tell(`${result.synced} saved change${result.synced === 1 ? "" : "s"} synced.`);
+            } catch (error) {
+                if (syncStatus) syncStatus.textContent = error?.message || "Saved changes could not be synced.";
+            } finally {
+                await refreshOfflineModeStatus();
+            }
+        });
         form?.addEventListener("submit", async (event) => {
             event.preventDefault();
             if (locked || profileBusy) return;
@@ -832,6 +924,17 @@ export function initAccountProfileUI({
         }
         const results = await Promise.all([refreshProfile(), refreshBranding()]);
         return results[0];
+    }
+
+    if (typeof window !== "undefined") {
+        window.addEventListener("apshule:offline-queue-state-change", (event) => {
+            renderOfflineModeStatus(event.detail);
+        });
+        window.addEventListener("apshule:offline-state-change", () => {
+            void refreshOfflineModeStatus();
+        });
+        window.addEventListener("online", () => void refreshOfflineModeStatus());
+        window.addEventListener("offline", () => void refreshOfflineModeStatus());
     }
 
     return {

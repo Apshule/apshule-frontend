@@ -1,5 +1,15 @@
-const CACHE_NAME = "apshule-cache-v1";
-const APP_SHELL_URLS = ["/", "/index.html", "/manifest.webmanifest"];
+const CACHE_NAME = "apshule-cache-v2";
+const APP_SHELL_URLS = [
+    "/",
+    "/index.html",
+    "/manifest.webmanifest",
+    "/idb.js",
+    "/offline-data.js",
+    "/report-cards-ui.js",
+    "/bulk-import-ui.js",
+    "/account-profile-ui.js",
+    "/retooling-ui.js"
+];
 
 function offlineResponse() {
     return new Response("Offline", {
@@ -20,31 +30,6 @@ function isCacheableResponse(response) {
     if (!response || response.status === 206 || isNoStore(response)) return false;
     if ((response.headers.get("Vary") || "").trim() === "*") return false;
     return response.type === "opaque" || response.ok;
-}
-
-function apiResponseForCache(request, response) {
-    if (!isCacheableResponse(response)) return null;
-
-    const responseCopy = response.clone();
-    if (!request.headers.has("Authorization") || response.type === "opaque") {
-        return responseCopy;
-    }
-
-    const headers = new Headers(responseCopy.headers);
-    const varyValues = (headers.get("Vary") || "")
-        .split(",")
-        .map((value) => value.trim())
-        .filter(Boolean);
-    if (!varyValues.some((value) => value.toLowerCase() === "authorization")) {
-        varyValues.push("Authorization");
-        headers.set("Vary", varyValues.join(", "));
-    }
-
-    return new Response(responseCopy.body, {
-        status: responseCopy.status,
-        statusText: responseCopy.statusText,
-        headers
-    });
 }
 
 function isAppShellRequest(url, request) {
@@ -91,23 +76,17 @@ async function cacheFirst(request) {
     }
 }
 
-async function networkFirst(request, isApiRequest) {
+async function networkFirst(request) {
     const cache = await caches.open(CACHE_NAME);
 
     try {
         const response = await fetch(request);
-        const cacheResponse = isApiRequest
-            ? apiResponseForCache(request, response)
-            : isCacheableResponse(response) ? response.clone() : null;
-
-        if (cacheResponse) {
+        if (isCacheableResponse(response)) {
             try {
-                await cache.put(request, cacheResponse);
+                await cache.put(request, response.clone());
             } catch (error) {
                 console.warn("[SW] cache write failed", error);
             }
-        } else if (isApiRequest && isNoStore(response)) {
-            await cache.delete(request);
         }
         return response;
     } catch {
@@ -142,7 +121,10 @@ self.addEventListener("fetch", (event) => {
     const isApiRequest = url.pathname.includes("/api/");
 
     if (isApiRequest) {
-        event.respondWith(networkFirst(request, true));
+        // User-scoped API data is cached by offline-data.js in IndexedDB with TTLs.
+        // Do not cache API responses here: CacheStorage would retain sensitive routes
+        // such as admin reports indefinitely and bypass the explicit data allowlist.
+        event.respondWith(fetch(request).catch(() => offlineResponse()));
         return;
     }
 
@@ -154,5 +136,5 @@ self.addEventListener("fetch", (event) => {
     }
 
     if (isExternalVideo(url, request)) return;
-    event.respondWith(networkFirst(request, false));
+    event.respondWith(networkFirst(request));
 });

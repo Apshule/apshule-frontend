@@ -19,6 +19,14 @@ import {
   type ReportCardPdfData,
   type ReportImage,
 } from "../pdf/report.js";
+import {
+  findIdempotencyReplay,
+  idempotencyClaimQuery,
+  idempotencyLookupQuery,
+  readIdempotencyKey,
+  resolveIdempotencyTransaction,
+  scheduleIdempotencyCleanup,
+} from "../idempotency.js";
 import type { AppEnv, AuthenticatedUser } from "../types.js";
 
 const reportRoutes = new Hono<AppEnv>();
@@ -709,12 +717,23 @@ reportRoutes.post(
   requireRole(...STAFF_ROLES),
   async (c) => {
     const id = routeUuid(c.req.param("id"));
+    const user = c.get("user");
+    const sql = getDb(c.env);
+    const idempotency = {
+      key: readIdempotencyKey(c.req.header("Idempotency-Key") ?? null),
+      userId: user.id,
+      route: c.req.path,
+    };
+    const replay = await findIdempotencyReplay(sql, idempotency);
+    if (replay) {
+      scheduleIdempotencyCleanup(c, sql);
+      return c.json(replay, 200);
+    }
+
     const body = await readJson(c);
     const subjectName = requiredString(body, "subject_name", { max: 120 });
     const subjectCode = optionalString(body, "subject_code", { max: 30, allowNull: true });
     const teacherInitials = optionalString(body, "teacher_initials", { max: 12, allowNull: true });
-    const user = c.get("user");
-    const sql = getDb(c.env);
     const card = await loadReportCard(sql, id);
     if (card.status === "published") {
       throw new ApiError(409, "REPORT_CARD_PUBLISHED", "Published report cards are read-only.");
@@ -751,20 +770,31 @@ reportRoutes.post(
       grade: calculated.grade,
       pct_100: calculated.pct_100,
     });
-    const rows = await sql`
-      WITH upserted AS (
+    const operationQuery = sql`
+      WITH idempotency_guard AS MATERIALIZED (
+        SELECT TRUE AS allowed
+        WHERE ${idempotency.key === null}
+        UNION ALL
+        SELECT TRUE
+        FROM idempotency_keys
+        WHERE key = ${idempotency.key}
+          AND user_id = ${idempotency.userId}
+          AND route = ${idempotency.route}
+          AND response_body IS NULL
+      ),
+      upserted AS (
         INSERT INTO report_marks (
           report_card_id, subject_code, subject_name, a1, a2, a3, avg,
           pct_20, eot, pct_80, pct_100, identifier, grade, remarks,
           teacher_initials, teacher_id
         )
-        VALUES (
+        SELECT
           ${id}, ${subjectCode ?? null}, ${subjectName}, ${a1}, ${a2}, ${a3},
           ${calculated.avg}, ${calculated.pct_20}, ${eot}, ${calculated.pct_80},
           ${calculated.pct_100}, ${calculated.identifier}, ${calculated.grade},
           ${remarks}, ${teacherInitials ?? null},
           CASE WHEN ${user.role === "teacher"} THEN ${user.id}::uuid ELSE NULL END
-        )
+        FROM idempotency_guard
         ON CONFLICT (report_card_id, subject_name)
         DO UPDATE SET
           subject_code = EXCLUDED.subject_code,
@@ -781,6 +811,7 @@ reportRoutes.post(
         UPDATE report_cards
         SET teacher_id = CASE WHEN ${user.role === "teacher"} THEN ${user.id}::uuid ELSE teacher_id END
         WHERE id = ${id}
+          AND EXISTS (SELECT 1 FROM upserted)
         RETURNING id
       ), audit AS (
         INSERT INTO audit_log (actor_id, sector, action, target_table, target_id, metadata, ip)
@@ -788,13 +819,44 @@ reportRoutes.post(
           upserted.id, ${metadata}::jsonb, ${requestIp(c.req.raw.headers)}
         FROM upserted
         RETURNING target_id
+      ), response_payload AS (
+        SELECT jsonb_build_object('mark', to_jsonb(upserted)) AS body
+        FROM upserted
+        INNER JOIN card_teacher ON card_teacher.id = upserted.report_card_id
+        INNER JOIN audit ON audit.target_id = upserted.id
+      ), saved_response AS (
+        UPDATE idempotency_keys AS saved
+        SET response_body = response_payload.body
+        FROM response_payload
+        WHERE saved.key = ${idempotency.key}
+          AND saved.user_id = ${idempotency.userId}
+          AND saved.route = ${idempotency.route}
+          AND saved.response_body IS NULL
+          AND ${idempotency.key !== null}
+        RETURNING saved.key
       )
-      SELECT upserted.*
-      FROM upserted
-      INNER JOIN card_teacher ON card_teacher.id = upserted.report_card_id
-      INNER JOIN audit ON audit.target_id = upserted.id
+      SELECT body AS response_body
+      FROM response_payload
     `;
-    return c.json({ mark: rows[0] }, 201);
+    if (idempotency.key) {
+      const [claimedRows, operationRows, storedRows] = await sql.transaction([
+        idempotencyClaimQuery(sql, idempotency),
+        operationQuery,
+        idempotencyLookupQuery(sql, idempotency),
+      ]);
+      const result = resolveIdempotencyTransaction(
+        idempotency,
+        claimedRows,
+        operationRows,
+        storedRows,
+        201,
+      );
+      scheduleIdempotencyCleanup(c, sql);
+      return c.json(result.body, result.status);
+    }
+
+    const rows = await operationQuery;
+    return c.json(rows[0]?.response_body as { mark: unknown }, 201);
   },
 );
 

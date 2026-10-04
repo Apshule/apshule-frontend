@@ -3,6 +3,14 @@ import { ApiError, getDb } from "../db.js";
 import { authMiddleware, requireRole } from "../auth.js";
 import { readJson } from "../http.js";
 import {
+  findIdempotencyReplay,
+  idempotencyClaimQuery,
+  idempotencyLookupQuery,
+  readIdempotencyKey,
+  resolveIdempotencyTransaction,
+  scheduleIdempotencyCleanup,
+} from "../idempotency.js";
+import {
   assertSameSchool,
   assertTeacherCanAccessLearner,
   linkedSchoolId,
@@ -170,15 +178,26 @@ learningRoutes.post(
   authMiddleware,
   requireRole("teacher", "school", "superadmin"),
   async (c) => {
-    const body = await readJson(c);
     const user = c.get("user");
+    const sql = getDb(c.env);
+    const idempotency = {
+      key: readIdempotencyKey(c.req.header("Idempotency-Key") ?? null),
+      userId: user.id,
+      route: c.req.path,
+    };
+    const replay = await findIdempotencyReplay(sql, idempotency);
+    if (replay) {
+      scheduleIdempotencyCleanup(c, sql);
+      return c.json(replay, 200);
+    }
+
+    const body = await readJson(c);
     const rawLearnerId = optionalBodyUuid(body, "learner_id") ?? null;
     const rawSchoolId = optionalBodyUuid(body, "school_id") ?? null;
     const rawTeacherId = optionalBodyUuid(body, "teacher_id") ?? null;
     if (!rawLearnerId && user.role !== "superadmin") {
       throw new ApiError(400, "VALIDATION_ERROR", "learner_id is required.");
     }
-    const sql = getDb(c.env);
     const learner = rawLearnerId ? await requireLearner(sql, rawLearnerId) : null;
     const teacherScope =
       user.role === "teacher" ? await requireTeacherScope(sql, user.id) : null;
@@ -217,16 +236,27 @@ learningRoutes.post(
       subject,
       term,
     });
-    const rows = await sql`
-      WITH inserted AS (
+    const operationQuery = sql`
+      WITH idempotency_guard AS MATERIALIZED (
+        SELECT TRUE AS allowed
+        WHERE ${idempotency.key === null}
+        UNION ALL
+        SELECT TRUE
+        FROM idempotency_keys
+        WHERE key = ${idempotency.key}
+          AND user_id = ${idempotency.userId}
+          AND route = ${idempotency.route}
+          AND response_body IS NULL
+      ),
+      inserted AS (
         INSERT INTO ca_records (
           learner_id, school_id, subject, competency, evidence_1, evidence_2,
           evidence_3, final_level, term, teacher_id, synced_at
         )
-        VALUES (
+        SELECT
           ${rawLearnerId}, ${schoolId}, ${subject}, ${competency}, ${evidence1},
           ${evidence2}, ${evidence3}, ${finalLevel}, ${term}, ${teacherId}, ${syncedAt}
-        )
+        FROM idempotency_guard
         RETURNING id, learner_id, school_id, subject, competency, evidence_1, evidence_2,
                   evidence_3, final_level, term, teacher_id, synced_at, created_at
       ), audit AS (
@@ -235,12 +265,43 @@ learningRoutes.post(
                inserted.id, ${metadata}::jsonb, ${requestIp(c.req.raw.headers)}
         FROM inserted
         RETURNING target_id
+      ), response_payload AS (
+        SELECT jsonb_build_object('record', to_jsonb(inserted)) AS body
+        FROM inserted
+        INNER JOIN audit ON audit.target_id = inserted.id
+      ), saved_response AS (
+        UPDATE idempotency_keys AS saved
+        SET response_body = response_payload.body
+        FROM response_payload
+        WHERE saved.key = ${idempotency.key}
+          AND saved.user_id = ${idempotency.userId}
+          AND saved.route = ${idempotency.route}
+          AND saved.response_body IS NULL
+          AND ${idempotency.key !== null}
+        RETURNING saved.key
       )
-      SELECT inserted.*
-      FROM inserted
-      INNER JOIN audit ON audit.target_id = inserted.id
+      SELECT body AS response_body
+      FROM response_payload
     `;
-    return c.json({ record: rows[0] }, 201);
+    if (idempotency.key) {
+      const [claimedRows, operationRows, storedRows] = await sql.transaction([
+        idempotencyClaimQuery(sql, idempotency),
+        operationQuery,
+        idempotencyLookupQuery(sql, idempotency),
+      ]);
+      const result = resolveIdempotencyTransaction(
+        idempotency,
+        claimedRows,
+        operationRows,
+        storedRows,
+        201,
+      );
+      scheduleIdempotencyCleanup(c, sql);
+      return c.json(result.body, result.status);
+    }
+
+    const rows = await operationQuery;
+    return c.json(rows[0]?.response_body as { record: unknown }, 201);
   },
 );
 
@@ -418,11 +479,22 @@ learningRoutes.post(
   authMiddleware,
   requireRole("individual", "teacher", "school", "superadmin"),
   async (c) => {
-    const body = await readJson(c);
     const user = c.get("user");
+    const sql = getDb(c.env);
+    const idempotency = {
+      key: readIdempotencyKey(c.req.header("Idempotency-Key") ?? null),
+      userId: user.id,
+      route: c.req.path,
+    };
+    const replay = await findIdempotencyReplay(sql, idempotency);
+    if (replay) {
+      scheduleIdempotencyCleanup(c, sql);
+      return c.json(replay, 200);
+    }
+
+    const body = await readJson(c);
     const rawLearnerId = optionalBodyUuid(body, "learner_id") ?? null;
     const rawSchoolId = optionalBodyUuid(body, "school_id") ?? null;
-    const sql = getDb(c.env);
     const ownership = await resolveLearnerSchool(sql, rawLearnerId, rawSchoolId, user);
     const className = optionalBodyText(body, "class_name", 120) ?? null;
     const subject = optionalBodyText(body, "subject", 120) ?? null;
@@ -449,8 +521,19 @@ learningRoutes.post(
       subject,
       title,
     });
-    const rows = await sql`
-      WITH inserted AS (
+    const operationQuery = sql`
+      WITH idempotency_guard AS MATERIALIZED (
+        SELECT TRUE AS allowed
+        WHERE ${idempotency.key === null}
+        UNION ALL
+        SELECT TRUE
+        FROM idempotency_keys
+        WHERE key = ${idempotency.key}
+          AND user_id = ${idempotency.userId}
+          AND route = ${idempotency.route}
+          AND response_body IS NULL
+      ),
+      inserted AS (
         INSERT INTO projects (
           learner_id, school_id, class_name, subject, title, lin, qr_code,
           milestone_1_date, milestone_1_photo, milestone_1_status,
@@ -458,7 +541,7 @@ learningRoutes.post(
           final_date, final_photo, final_status, teacher_observed_tick,
           viva_audio_path, similarity_flag, previous_title_check
         )
-        VALUES (
+        SELECT
           ${ownership.learnerId}, ${ownership.schoolId}, ${className}, ${subject},
           ${title}, ${lin}, ${qrCode}, ${milestone1Date}, ${milestone1Photo},
           ${milestone1Status === undefined ? "pending" : milestone1Status},
@@ -466,7 +549,7 @@ learningRoutes.post(
           ${milestone2Status === undefined ? "pending" : milestone2Status},
           ${finalDate}, ${finalPhoto}, ${finalStatus === undefined ? "pending" : finalStatus},
           ${teacherObservedTick}, ${vivaAudioPath}, ${similarityFlag}, ${previousTitleCheck}
-        )
+        FROM idempotency_guard
         RETURNING id, learner_id, school_id, class_name, subject, title, lin, qr_code,
                   milestone_1_date, milestone_1_photo, milestone_1_status,
                   milestone_2_date, milestone_2_photo, milestone_2_status,
@@ -478,12 +561,43 @@ learningRoutes.post(
                inserted.id, ${metadata}::jsonb, ${requestIp(c.req.raw.headers)}
         FROM inserted
         RETURNING target_id
+      ), response_payload AS (
+        SELECT jsonb_build_object('project', to_jsonb(inserted)) AS body
+        FROM inserted
+        INNER JOIN audit ON audit.target_id = inserted.id
+      ), saved_response AS (
+        UPDATE idempotency_keys AS saved
+        SET response_body = response_payload.body
+        FROM response_payload
+        WHERE saved.key = ${idempotency.key}
+          AND saved.user_id = ${idempotency.userId}
+          AND saved.route = ${idempotency.route}
+          AND saved.response_body IS NULL
+          AND ${idempotency.key !== null}
+        RETURNING saved.key
       )
-      SELECT inserted.*
-      FROM inserted
-      INNER JOIN audit ON audit.target_id = inserted.id
+      SELECT body AS response_body
+      FROM response_payload
     `;
-    return c.json({ project: rows[0] }, 201);
+    if (idempotency.key) {
+      const [claimedRows, operationRows, storedRows] = await sql.transaction([
+        idempotencyClaimQuery(sql, idempotency),
+        operationQuery,
+        idempotencyLookupQuery(sql, idempotency),
+      ]);
+      const result = resolveIdempotencyTransaction(
+        idempotency,
+        claimedRows,
+        operationRows,
+        storedRows,
+        201,
+      );
+      scheduleIdempotencyCleanup(c, sql);
+      return c.json(result.body, result.status);
+    }
+
+    const rows = await operationQuery;
+    return c.json(rows[0]?.response_body as { project: unknown }, 201);
   },
 );
 

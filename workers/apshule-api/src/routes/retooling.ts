@@ -13,6 +13,14 @@ import {
 } from "../retooling-domain.js";
 import type { RetoolingQuizQuestion } from "../retooling-domain.js";
 import { requestIp, requiredInteger, routeUuid } from "../ncdc-helpers.js";
+import {
+  findIdempotencyReplay,
+  idempotencyClaimQuery,
+  idempotencyLookupQuery,
+  readIdempotencyKey,
+  resolveIdempotencyTransaction,
+  scheduleIdempotencyCleanup,
+} from "../idempotency.js";
 import type { AppEnv } from "../types.js";
 
 const retoolingRoutes = new Hono<AppEnv>();
@@ -600,8 +608,20 @@ retoolingRoutes.post(
   requireRole("teacher"),
   async (c) => {
     const id = moduleIdFromParam(c.req.param("moduleId"));
-    const body = await readJson(c);
+    const user = c.get("user");
     const sql = getDb(c.env);
+    const idempotency = {
+      key: readIdempotencyKey(c.req.header("Idempotency-Key") ?? null),
+      userId: user.id,
+      route: c.req.path,
+    };
+    const replay = await findIdempotencyReplay(sql, idempotency);
+    if (replay) {
+      scheduleIdempotencyCleanup(c, sql);
+      return c.json(replay, 200);
+    }
+
+    const body = await readJson(c);
     const module = await getModule(sql, id);
     let questions: RetoolingQuizQuestion[];
     let result: ReturnType<typeof gradeRetoolingQuiz>;
@@ -611,7 +631,6 @@ retoolingRoutes.post(
     } catch (error) {
       throw validationError(error);
     }
-    const user = c.get("user");
     const progress = await getProgress(sql, user.id, id);
     if (!progress?.module_started_at) {
       throw new ApiError(409, "MODULE_NOT_STARTED", "Mark the video as watched before taking the quiz.");
@@ -625,8 +644,19 @@ retoolingRoutes.post(
       score: result.score,
       passed,
     });
-    const rows = await sql`
-      WITH updated AS (
+    const operationQuery = sql`
+      WITH idempotency_guard AS MATERIALIZED (
+        SELECT TRUE AS allowed
+        WHERE ${idempotency.key === null}
+        UNION ALL
+        SELECT TRUE
+        FROM idempotency_keys
+        WHERE key = ${idempotency.key}
+          AND user_id = ${idempotency.userId}
+          AND route = ${idempotency.route}
+          AND response_body IS NULL
+      ),
+      updated AS (
         UPDATE teacher_retooling_progress
         SET quiz_answers = ${JSON.stringify(result.passableAnswers)}::jsonb,
             quiz_score = ${result.score},
@@ -644,7 +674,9 @@ retoolingRoutes.post(
               ELSE NULL
             END,
             updated_at = NOW()
-        WHERE teacher_id = ${user.id} AND module_id = ${id}
+        WHERE teacher_id = ${user.id}
+          AND module_id = ${id}
+          AND EXISTS (SELECT 1 FROM idempotency_guard)
         RETURNING id, teacher_id, module_id, module_started_at, pdf_read_at,
                   quiz_score, quiz_passed,
                   practical_photo_base64 IS NOT NULL AS has_practical_photo,
@@ -656,27 +688,83 @@ retoolingRoutes.post(
                ${requestIp(c.req.raw.headers)}
         FROM updated
         RETURNING target_id
+      ), response_payload AS (
+        SELECT jsonb_build_object(
+          'score', ${result.score},
+          'pass', ${passed},
+          'correct_answers', ${JSON.stringify(result.correctAnswers)}::jsonb,
+          'progress', to_jsonb(updated),
+          'certificate', NULL::jsonb
+        ) AS body
+        FROM updated
+        INNER JOIN audit ON audit.target_id = updated.id
+      ), saved_response AS (
+        UPDATE idempotency_keys AS saved
+        SET response_body = response_payload.body
+        FROM response_payload
+        WHERE saved.key = ${idempotency.key}
+          AND saved.user_id = ${idempotency.userId}
+          AND saved.route = ${idempotency.route}
+          AND saved.response_body IS NULL
+          AND ${idempotency.key !== null}
+        RETURNING saved.key
       )
-      SELECT updated.*
-      FROM updated
-      INNER JOIN audit ON audit.target_id = updated.id
+      SELECT body AS response_body
+      FROM response_payload
     `;
-    if (!rows[0]) {
-      throw new ApiError(409, "MODULE_NOT_STARTED", "Start this module before submitting a quiz.");
+    let baseResponse: Record<string, unknown>;
+    let responseStatus: 200 | 201;
+    if (idempotency.key) {
+      const [claimedRows, operationRows, storedRows] = await sql.transaction([
+        idempotencyClaimQuery(sql, idempotency),
+        operationQuery,
+        idempotencyLookupQuery(sql, idempotency),
+      ]);
+      const result = resolveIdempotencyTransaction(
+        idempotency,
+        claimedRows,
+        operationRows,
+        storedRows,
+        200,
+      );
+      if (result.replayed) {
+        scheduleIdempotencyCleanup(c, sql);
+        return c.json(result.body, result.status);
+      }
+      baseResponse = result.body;
+      responseStatus = result.status;
+    } else {
+      const rows = await operationQuery;
+      if (!rows[0]) {
+        throw new ApiError(409, "MODULE_NOT_STARTED", "Start this module before submitting a quiz.");
+      }
+      baseResponse = rows[0].response_body as Record<string, unknown>;
+      responseStatus = 200;
     }
+
     const certificate = await issueCertificateIfEligible(
       sql,
       user.id,
       user.id,
       requestIp(c.req.raw.headers),
     );
-    return c.json({
-      score: result.score,
-      pass: passed,
-      correct_answers: result.correctAnswers,
-      progress: rows[0],
-      certificate,
-    });
+    const responseBody = { ...baseResponse, certificate };
+    if (idempotency.key && certificate) {
+      await sql`
+        UPDATE idempotency_keys
+        SET response_body = jsonb_set(
+          response_body,
+          '{certificate}',
+          ${JSON.stringify(certificate)}::jsonb,
+          TRUE
+        )
+        WHERE key = ${idempotency.key}
+          AND user_id = ${idempotency.userId}
+          AND route = ${idempotency.route}
+      `;
+    }
+    if (idempotency.key) scheduleIdempotencyCleanup(c, sql);
+    return c.json(responseBody, responseStatus);
   },
 );
 
