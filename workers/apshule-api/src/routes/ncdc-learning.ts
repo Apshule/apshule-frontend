@@ -4,6 +4,7 @@ import { authMiddleware, requireRole } from "../auth.js";
 import { readJson } from "../http.js";
 import {
   assertSameSchool,
+  assertTeacherCanAccessLearner,
   linkedSchoolId,
   optionalBodyText,
   optionalBodyUuid,
@@ -17,6 +18,7 @@ import {
   requiredInteger,
   requireLearner,
   requireTeacher,
+  requireTeacherScope,
   routeUuid,
 } from "../ncdc-helpers.js";
 import type { AuthenticatedUser, AppEnv } from "../types.js";
@@ -48,7 +50,18 @@ async function resolveLearnerSchool(
     return { learnerId: user.id, schoolId: user.schoolId };
   }
 
-  if (user.role === "teacher" || user.role === "school") {
+  if (user.role === "teacher") {
+    const teacher = await requireTeacherScope(sql, user.id);
+    if (!learner) {
+      throw new ApiError(400, "VALIDATION_ERROR", "learner_id is required for teacher projects.");
+    }
+    assertTeacherCanAccessLearner(teacher, learner);
+    const schoolId = teacher.school_id ?? learner.school_id;
+    assertRequestedSchool(requestedSchoolId, schoolId);
+    return { learnerId, schoolId };
+  }
+
+  if (user.role === "school") {
     const schoolId = linkedSchoolId(user);
     assertRequestedSchool(requestedSchoolId, schoolId);
     if (learner && learner.school_id !== schoolId) {
@@ -105,22 +118,48 @@ learningRoutes.get(
     const learnerId = queryUuid(c.req.query("learner_id"), "learner_id");
     const schoolId = queryUuid(c.req.query("school_id"), "school_id");
     const term = queryText(c.req.query("term"), "term", 80);
-    const staffSchoolId =
-      user.role === "teacher" || user.role === "school" ? linkedSchoolId(user) : null;
+    const classLevel = queryText(c.req.query("class_level"), "class_level", 20);
+    const staffSchoolId = user.role === "school" ? linkedSchoolId(user) : null;
     const sql = getDb(c.env);
     const rows = await sql`
-      SELECT id, learner_id, school_id, subject, competency, evidence_1, evidence_2,
-             evidence_3, final_level, term, teacher_id, synced_at, created_at
-      FROM ca_records
+      SELECT record.id, record.learner_id, record.school_id, record.subject,
+             record.competency, record.evidence_1, record.evidence_2,
+             record.evidence_3, record.final_level, record.term, record.teacher_id,
+             record.synced_at, record.created_at, learner.name AS learner_name,
+             learner.class_level
+      FROM ca_records record
+      LEFT JOIN users learner ON learner.id = record.learner_id
       WHERE (
         ${user.role === "superadmin"}
-        OR (${user.role === "teacher" || user.role === "school"} AND school_id = ${staffSchoolId})
-        OR (${user.role === "individual"} AND learner_id = ${user.id})
+        OR (${user.role === "school"} AND record.school_id = ${staffSchoolId})
+        OR (${user.role === "individual"} AND record.learner_id = ${user.id})
+        OR (
+          ${user.role === "teacher"}
+          AND EXISTS (
+            SELECT 1
+            FROM users teacher
+            WHERE teacher.id = ${user.id}
+              AND teacher.role = 'teacher'
+              AND learner.class_level = ANY(
+                COALESCE(teacher.assigned_classes, ARRAY[]::text[])
+              )
+              AND (
+                teacher.school_id IS NULL
+                OR (
+                  learner.school_id = teacher.school_id
+                  AND record.school_id = teacher.school_id
+                )
+              )
+          )
+        )
       )
-        AND (${learnerId === null} OR learner_id = ${learnerId})
-        AND (${schoolId === null} OR school_id = ${schoolId})
-        AND (${term === null} OR term = ${term})
-      ORDER BY created_at DESC
+        AND (${learnerId === null} OR record.learner_id = ${learnerId})
+        AND (${schoolId === null} OR record.school_id = ${schoolId})
+        AND (${term === null} OR record.term = ${term})
+        AND (${classLevel === null} OR learner.class_level = ${classLevel})
+        AND (${user.role !== "teacher"} OR record.teacher_id = ${user.id})
+      ORDER BY record.created_at DESC
+      LIMIT ${user.role === "teacher" ? 20 : null}
     `;
     return c.json({ records: rows });
   },
@@ -141,8 +180,17 @@ learningRoutes.post(
     }
     const sql = getDb(c.env);
     const learner = rawLearnerId ? await requireLearner(sql, rawLearnerId) : null;
+    const teacherScope =
+      user.role === "teacher" ? await requireTeacherScope(sql, user.id) : null;
     let schoolId = rawSchoolId ?? learner?.school_id ?? null;
-    if (user.role === "teacher" || user.role === "school") {
+    if (teacherScope) {
+      if (!learner) {
+        throw new ApiError(400, "VALIDATION_ERROR", "learner_id is required for teacher records.");
+      }
+      assertTeacherCanAccessLearner(teacherScope, learner);
+      schoolId = teacherScope.school_id ?? learner.school_id;
+      assertRequestedSchool(rawSchoolId, schoolId);
+    } else if (user.role === "school") {
       schoolId = linkedSchoolId(user);
       assertRequestedSchool(rawSchoolId, schoolId);
       if (!learner) throw new ApiError(400, "VALIDATION_ERROR", "learner_id is required.");
@@ -294,26 +342,72 @@ learningRoutes.get(
     const schoolId = queryUuid(c.req.query("school_id"), "school_id");
     const className = queryText(c.req.query("class_name"), "class_name", 120);
     const subject = queryText(c.req.query("subject"), "subject", 120);
-    const staffSchoolId =
-      user.role === "teacher" || user.role === "school" ? linkedSchoolId(user) : null;
+    const status = queryText(c.req.query("status"), "status", 20);
+    if (status && !["pending", "approved", "rejected"].includes(status)) {
+      throw new ApiError(
+        400,
+        "VALIDATION_ERROR",
+        "status must be pending, approved, or rejected.",
+      );
+    }
+    const staffSchoolId = user.role === "school" ? linkedSchoolId(user) : null;
     const sql = getDb(c.env);
     const rows = await sql`
-      SELECT id, learner_id, school_id, class_name, subject, title, lin, qr_code,
-             milestone_1_date, milestone_1_photo, milestone_1_status,
-             milestone_2_date, milestone_2_photo, milestone_2_status,
-             final_date, final_photo, final_status, teacher_observed_tick,
-             viva_audio_path, similarity_flag, previous_title_check, created_at
-      FROM projects
+      SELECT project.id, project.learner_id, project.school_id, project.class_name,
+             project.subject, project.title, project.lin, project.qr_code,
+             project.milestone_1_date, project.milestone_1_photo,
+             project.milestone_1_status, project.milestone_2_date,
+             project.milestone_2_photo, project.milestone_2_status,
+             project.final_date, project.final_photo, project.final_status,
+             project.teacher_observed_tick, project.viva_audio_path,
+             project.similarity_flag, project.previous_title_check,
+             project.created_at, learner.name AS learner_name,
+             learner.class_level AS learner_class_level
+      FROM projects project
+      LEFT JOIN users learner ON learner.id = project.learner_id
       WHERE (
         ${user.role === "superadmin"}
-        OR (${user.role === "teacher" || user.role === "school"} AND school_id = ${staffSchoolId})
-        OR (${user.role === "individual"} AND learner_id = ${user.id})
+        OR (${user.role === "school"} AND project.school_id = ${staffSchoolId})
+        OR (${user.role === "individual"} AND project.learner_id = ${user.id})
+        OR (
+          ${user.role === "teacher"}
+          AND EXISTS (
+            SELECT 1
+            FROM users teacher
+            WHERE teacher.id = ${user.id}
+              AND teacher.role = 'teacher'
+              AND COALESCE(learner.class_level, project.class_name) = ANY(
+                COALESCE(teacher.assigned_classes, ARRAY[]::text[])
+              )
+              AND (
+                teacher.school_id IS NULL
+                OR (
+                  COALESCE(learner.school_id, project.school_id) = teacher.school_id
+                  AND (
+                    project.school_id IS NULL
+                    OR project.school_id = teacher.school_id
+                  )
+                )
+              )
+          )
+        )
       )
-        AND (${learnerId === null} OR learner_id = ${learnerId})
-        AND (${schoolId === null} OR school_id = ${schoolId})
-        AND (${className === null} OR class_name = ${className})
-        AND (${subject === null} OR subject = ${subject})
-      ORDER BY created_at DESC
+        AND (${learnerId === null} OR project.learner_id = ${learnerId})
+        AND (${schoolId === null} OR project.school_id = ${schoolId})
+        AND (
+          ${className === null}
+          OR (
+            ${user.role === "teacher"}
+            AND COALESCE(learner.class_level, project.class_name) = ${className}
+          )
+          OR (${user.role !== "teacher"} AND project.class_name = ${className})
+        )
+        AND (${subject === null} OR project.subject = ${subject})
+        AND (
+          ${status === null}
+          OR COALESCE(project.final_status, 'pending') = ${status}
+        )
+      ORDER BY project.created_at DESC
     `;
     return c.json({ projects: rows });
   },
@@ -396,7 +490,7 @@ learningRoutes.post(
 learningRoutes.patch(
   "/projects/:id",
   authMiddleware,
-  requireRole("teacher", "school", "superadmin"),
+  requireRole("school", "superadmin"),
   async (c) => {
     const id = routeUuid(c.req.param("id"));
     const body = await readJson(c);
@@ -514,6 +608,106 @@ learningRoutes.patch(
   },
 );
 
+learningRoutes.patch(
+  "/projects/:id/verify",
+  authMiddleware,
+  requireRole("teacher"),
+  async (c) => {
+    const id = routeUuid(c.req.param("id"));
+    const body = await readJson(c);
+    const status = optionalBodyText(body, "status", 20);
+    if (status !== "approved" && status !== "rejected") {
+      throw new ApiError(
+        400,
+        "VALIDATION_ERROR",
+        "status must be approved or rejected.",
+      );
+    }
+    const comment = optionalBodyText(body, "comment", 2000) ?? null;
+    const user = c.get("user");
+    const metadata = JSON.stringify({ status, comment });
+    const sql = getDb(c.env);
+    const rows = await sql`
+      WITH scoped_project AS (
+        SELECT project.id
+        FROM projects project
+        INNER JOIN users teacher
+          ON teacher.id = ${user.id}
+         AND teacher.role = 'teacher'
+        LEFT JOIN users learner ON learner.id = project.learner_id
+        WHERE project.id = ${id}
+          AND COALESCE(learner.class_level, project.class_name) = ANY(
+            COALESCE(teacher.assigned_classes, ARRAY[]::text[])
+          )
+          AND (
+            teacher.school_id IS NULL
+            OR (
+              COALESCE(learner.school_id, project.school_id) = teacher.school_id
+              AND (
+                project.school_id IS NULL
+                OR project.school_id = teacher.school_id
+              )
+            )
+          )
+      ), updated AS (
+        UPDATE projects project
+        SET final_status = ${status}
+        WHERE project.id IN (SELECT id FROM scoped_project)
+        RETURNING project.id, project.learner_id, project.school_id,
+                  project.class_name, project.subject, project.title, project.lin,
+                  project.qr_code, project.milestone_1_date,
+                  project.milestone_1_photo, project.milestone_1_status,
+                  project.milestone_2_date, project.milestone_2_photo,
+                  project.milestone_2_status, project.final_date,
+                  project.final_photo, project.final_status,
+                  project.teacher_observed_tick, project.viva_audio_path,
+                  project.similarity_flag, project.previous_title_check,
+                  project.created_at
+      ), audit AS (
+        INSERT INTO audit_log (
+          actor_id, sector, action, target_table, target_id, metadata, ip
+        )
+        SELECT ${user.id}, 'education', 'project.verify', 'projects',
+               updated.id, ${metadata}::jsonb, ${requestIp(c.req.raw.headers)}
+        FROM updated
+        RETURNING target_id
+      )
+      SELECT updated.*
+      FROM updated
+      INNER JOIN audit ON audit.target_id = updated.id
+    `;
+    if (!rows[0]) {
+      throw new ApiError(404, "PROJECT_NOT_FOUND", "Project was not found.");
+    }
+    return c.json({ project: rows[0] });
+  },
+);
+
+learningRoutes.get(
+  "/teacher-retooling-progress",
+  authMiddleware,
+  requireRole("teacher"),
+  async (c) => {
+    const user = c.get("user");
+    const sql = getDb(c.env);
+    await sql`
+      INSERT INTO teacher_retooling_progress (teacher_id, module_id, completed)
+      SELECT ${user.id}, module_id, FALSE
+      FROM generate_series(1, 10) AS modules(module_id)
+      ON CONFLICT (teacher_id, module_id) DO NOTHING
+    `;
+    const rows = await sql`
+      SELECT id, teacher_id, module_id, completed, quiz_score,
+             practical_upload_path, certificate_issued, completed_at, updated_at
+      FROM teacher_retooling_progress
+      WHERE teacher_id = ${user.id}
+        AND module_id BETWEEN 1 AND 10
+      ORDER BY module_id ASC
+    `;
+    return c.json({ progress: rows });
+  },
+);
+
 learningRoutes.get(
   "/teacher-retooling-progress/:teacher_id",
   authMiddleware,
@@ -604,12 +798,67 @@ learningRoutes.post(
 );
 
 learningRoutes.patch(
-  "/teacher-retooling-progress/:id",
+  "/teacher-retooling-progress/:module_id",
   authMiddleware,
   requireRole("teacher", "school", "superadmin"),
   async (c) => {
-    const id = routeUuid(c.req.param("id"));
+    const user = c.get("user");
     const body = await readJson(c);
+    if (user.role === "teacher") {
+      const moduleId = Number(c.req.param("module_id"));
+      if (!Number.isInteger(moduleId) || moduleId < 1 || moduleId > 10) {
+        throw new ApiError(
+          400,
+          "VALIDATION_ERROR",
+          "module_id must be an integer from 1 to 10.",
+        );
+      }
+      if (!("completed" in body)) {
+        throw new ApiError(400, "VALIDATION_ERROR", "completed is required.");
+      }
+      const completed = requiredBoolean(body, "completed", false);
+      const quizScore = requiredInteger(body, "quiz_score", { min: 0, max: 100 });
+      const metadata = JSON.stringify({ module_id: moduleId, completed, quiz_score: quizScore });
+      const sql = getDb(c.env);
+      const rows = await sql`
+        WITH updated AS (
+          INSERT INTO teacher_retooling_progress (
+            teacher_id, module_id, completed, quiz_score, completed_at
+          )
+          VALUES (
+            ${user.id}, ${moduleId}, ${completed}, ${quizScore},
+            CASE WHEN ${completed} THEN NOW() ELSE NULL END
+          )
+          ON CONFLICT (teacher_id, module_id)
+          DO UPDATE SET
+            completed = EXCLUDED.completed,
+            quiz_score = EXCLUDED.quiz_score,
+            completed_at = CASE
+              WHEN EXCLUDED.completed
+                THEN COALESCE(teacher_retooling_progress.completed_at, NOW())
+              ELSE NULL
+            END,
+            updated_at = NOW()
+          RETURNING id, teacher_id, module_id, completed, quiz_score,
+                    practical_upload_path, certificate_issued, completed_at, updated_at
+        ), audit AS (
+          INSERT INTO audit_log (
+            actor_id, sector, action, target_table, target_id, metadata, ip
+          )
+          SELECT ${user.id}, 'education', 'teacher_retooling_progress.update',
+                 'teacher_retooling_progress', updated.id, ${metadata}::jsonb,
+                 ${requestIp(c.req.raw.headers)}
+          FROM updated
+          RETURNING target_id
+        )
+        SELECT updated.*
+        FROM updated
+        INNER JOIN audit ON audit.target_id = updated.id
+      `;
+      return c.json({ progress: rows[0] });
+    }
+
+    const id = routeUuid(c.req.param("module_id"));
     const fields = [
       "completed",
       "quiz_score",
@@ -628,7 +877,6 @@ learningRoutes.patch(
         "Provide at least one teacher retooling progress field to update.",
       );
     }
-    const user = c.get("user");
     const scopeSchoolId = user.role === "school" ? linkedSchoolId(user) : null;
     const completed = has.completed ? optionalBoolean(body, "completed") : null;
     const quizScore = has.quiz_score
@@ -656,7 +904,6 @@ learningRoutes.patch(
         WHERE progress.id = ${id}
           AND (
             ${user.role === "superadmin"}
-            OR (${user.role === "teacher"} AND progress.teacher_id = ${user.id})
             OR (
               ${user.role === "school"}
               AND EXISTS (

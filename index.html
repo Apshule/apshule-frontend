@@ -436,6 +436,101 @@
         .book-reader-controls button:disabled { opacity:.45; cursor:not-allowed; }
         .book-reader-page-count { min-width:104px; color:#e6e3ec; font-size:13px; text-align:center; }
         body.library-open, body.reader-open { overflow:hidden; }
+        #teacherDashboardSection[hidden], .teacher-dashboard[hidden], .teacher-screen[hidden],
+        .teacher-record-editor[hidden], .teacher-project-detail[hidden],
+        .teacher-curriculum-detail[hidden] { display:none !important; }
+        #homePage.teacher-workspace-active > :not(#teacherDashboardSection) { display:none !important; }
+        .teacher-workspace { margin:0 0 22px; color:#302942; }
+        .teacher-dashboard { padding:18px; border:1px solid #e7e0f1; border-radius:18px; background:linear-gradient(145deg,#faf8ff,#fffaf5); }
+        .teacher-workspace-heading { display:flex; align-items:center; justify-content:space-between; gap:12px; margin-bottom:16px; }
+        .teacher-workspace-heading h2 { margin:0; color:#302942; font-size:20px; }
+        .teacher-workspace-heading p { margin:5px 0 0; color:#777184; font-size:12px; line-height:1.45; }
+        .teacher-eyebrow { margin:0 0 4px !important; color:#6a5a9b !important; font-size:10px !important; font-weight:800; letter-spacing:.1em; text-transform:uppercase; }
+        .teacher-refresh, .teacher-back, .teacher-secondary, .teacher-primary, .teacher-danger {
+            min-height:40px; display:inline-flex; align-items:center; justify-content:center; gap:7px;
+            padding:9px 13px; border:1px solid #ded7eb; border-radius:10px; background:#fff;
+            color:#493b8a; font:inherit; font-size:12px; font-weight:750; cursor:pointer;
+            transition:transform .16s ease,background .16s ease,border-color .16s ease;
+        }
+        .teacher-refresh:hover, .teacher-back:hover, .teacher-secondary:hover { background:#f5f2fb; border-color:#bdb2d8; }
+        .teacher-primary { border-color:#493b8a; background:#493b8a; color:#fff; }
+        .teacher-primary:hover { transform:translateY(-1px); background:#3d3175; }
+        .teacher-danger { border-color:#f0cccc; background:#fff7f7; color:#a33737; }
+        .teacher-danger:hover { background:#ffeded; }
+        .teacher-refresh:focus-visible, .teacher-back:focus-visible, .teacher-secondary:focus-visible,
+        .teacher-primary:focus-visible, .teacher-danger:focus-visible, .teacher-tool-card:focus-visible,
+        .teacher-list-row:focus-visible, .teacher-module-card:focus-visible {
+            outline:3px solid rgba(73,59,138,.28); outline-offset:2px;
+        }
+        .teacher-dashboard-grid { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:11px; }
+        .teacher-tool-card { min-width:0; min-height:144px; display:grid; align-content:start; justify-items:start; gap:7px; padding:14px; border:1px solid #e8e1ef; border-radius:15px; background:#fff; color:#302942; text-align:left; box-shadow:0 5px 16px rgba(48,41,66,.045); cursor:pointer; transition:transform .16s ease,box-shadow .16s ease,border-color .16s ease; }
+        .teacher-tool-card:hover { transform:translateY(-2px); border-color:#c7bcdf; box-shadow:0 9px 20px rgba(48,41,66,.08); }
+        .teacher-tool-icon { width:36px; height:36px; display:grid; place-items:center; border-radius:11px; background:#f0ecfa; font-size:18px; }
+        .teacher-tool-card strong { font-size:13px; line-height:1.25; }
+        .teacher-tool-card small { color:#7d7687; font-size:10px; line-height:1.4; }
+        .teacher-tool-count { color:#493b8a; font-size:17px; font-weight:800; }
+        .teacher-dashboard-status, .teacher-screen-status { min-height:18px; margin-top:10px; color:#6d6677; font-size:12px; }
+        .teacher-dashboard-status.is-error, .teacher-screen-status.is-error { color:#a33737; }
+        .teacher-dashboard-status:empty, .teacher-screen-status:empty { display:none; }
+        .teacher-screen { padding:17px; border:1px solid #e7e0f1; border-radius:18px; background:#fff; box-shadow:0 5px 18px rgba(48,41,66,.045); }
+        .teacher-screen-header { display:flex; align-items:center; gap:12px; margin-bottom:17px; }
+        .teacher-screen-header h2 { margin:0; color:#302942; font-size:19px; }
+        .teacher-screen-header p { margin:4px 0 0; color:#7d7687; font-size:11px; line-height:1.45; }
+        .teacher-back { flex:none; min-height:38px; padding:8px 10px; }
+        .teacher-filters { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:10px; margin-bottom:13px; }
+        .teacher-field { min-width:0; display:grid; gap:6px; }
+        .teacher-field label { color:#625d6e; font-size:11px; font-weight:750; }
+        .teacher-field input, .teacher-field select, .teacher-field textarea,
+        .teacher-search-input {
+            width:100%; min-height:42px; padding:10px 11px; border:1px solid #ded9e7;
+            border-radius:10px; background:#fff; color:#302942; font:inherit; font-size:13px;
+        }
+        .teacher-field textarea { min-height:92px; resize:vertical; }
+        .teacher-field input:focus, .teacher-field select:focus, .teacher-field textarea:focus,
+        .teacher-search-input:focus { outline:2px solid rgba(73,59,138,.2); border-color:#8e83bd; }
+        .teacher-form { display:grid; gap:12px; margin:12px 0 18px; padding:15px; border:1px solid #e8e1ef; border-radius:14px; background:#fbfaff; }
+        .teacher-form h3, .teacher-list-heading { margin:0 0 10px; color:#39364d; font-size:14px; }
+        .teacher-form-actions { display:flex; flex-wrap:wrap; gap:8px; }
+        .teacher-level-suggestion { display:flex; align-items:center; justify-content:space-between; gap:8px; min-height:40px; padding:8px 11px; border:1px solid #e5dfef; border-radius:10px; background:#f6f3fc; color:#514671; font-size:12px; font-weight:750; }
+        .teacher-list { display:grid; gap:9px; }
+        .teacher-list-row { width:100%; min-width:0; display:flex; align-items:center; gap:11px; padding:12px; border:1px solid #ebe6f0; border-radius:12px; background:#fff; color:#302942; text-align:left; cursor:pointer; transition:border-color .16s ease,background .16s ease; }
+        .teacher-list-row:hover { border-color:#c9bfdf; background:#fcfbff; }
+        .teacher-list-row-copy { flex:1; min-width:0; display:grid; gap:4px; }
+        .teacher-list-row-copy strong { overflow:hidden; font-size:12px; text-overflow:ellipsis; }
+        .teacher-list-row-copy small { color:#7d7687; font-size:10px; line-height:1.4; }
+        .teacher-level-badge, .teacher-status-badge { flex:none; padding:5px 8px; border-radius:999px; background:#f0ecfa; color:#493b8a; font-size:10px; font-weight:800; }
+        .teacher-status-badge--pending { background:#fff2dc; color:#986211; }
+        .teacher-status-badge--approved { background:#e8f6ec; color:#26703e; }
+        .teacher-status-badge--rejected { background:#ffeded; color:#a33737; }
+        .teacher-empty { padding:20px 14px; border:1px dashed #ded7e8; border-radius:12px; color:#797383; background:#fcfbfd; font-size:12px; text-align:center; line-height:1.5; }
+        .teacher-section-divider { margin:21px 0 13px; padding-top:17px; border-top:1px solid #eeeaf2; }
+        .teacher-project-detail, .teacher-curriculum-detail { margin-top:13px; padding:15px; border:1px solid #e7e0f1; border-radius:14px; background:#fcfbff; }
+        .teacher-detail-top { display:flex; align-items:flex-start; justify-content:space-between; gap:10px; margin-bottom:13px; }
+        .teacher-detail-top h3 { margin:0; color:#302942; font-size:16px; line-height:1.35; }
+        .teacher-detail-grid { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:10px; }
+        .teacher-detail-item { min-width:0; padding:10px; border:1px solid #eeeaf2; border-radius:10px; background:#fff; }
+        .teacher-detail-item small { display:block; margin-bottom:4px; color:#81798d; font-size:9px; font-weight:800; letter-spacing:.07em; text-transform:uppercase; }
+        .teacher-detail-item strong, .teacher-detail-item span { color:#433c53; font-size:12px; line-height:1.45; overflow-wrap:anywhere; }
+        .teacher-milestones { display:grid; gap:8px; margin:14px 0; }
+        .teacher-milestone { display:flex; align-items:center; justify-content:space-between; gap:10px; padding:10px; border:1px solid #eeeaf2; border-radius:10px; background:#fff; }
+        .teacher-milestone strong { color:#433c53; font-size:11px; }
+        .teacher-milestone small { display:block; margin-top:3px; color:#81798d; font-size:10px; }
+        .teacher-detail-actions { display:flex; flex-wrap:wrap; gap:8px; margin-top:14px; }
+        .teacher-curriculum-search { display:grid; grid-template-columns:minmax(0,1fr) auto; gap:9px; margin-bottom:10px; }
+        .teacher-curriculum-tabs { display:flex; flex-wrap:wrap; gap:6px; margin:14px 0; }
+        .teacher-curriculum-tab { min-height:35px; padding:7px 10px; border:1px solid #e1dbea; border-radius:9px; background:#fff; color:#6b6476; font-size:11px; font-weight:750; cursor:pointer; }
+        .teacher-curriculum-tab.active { border-color:#493b8a; background:#493b8a; color:#fff; }
+        .teacher-progress-summary { display:flex; align-items:center; justify-content:space-between; gap:10px; margin-bottom:9px; color:#514a60; font-size:12px; font-weight:750; }
+        .teacher-progress-track { height:10px; overflow:hidden; border-radius:999px; background:#eeeaf3; }
+        .teacher-progress-fill { width:0; height:100%; border-radius:inherit; background:linear-gradient(90deg,#6d5aae,#e9762d); transition:width .25s ease; }
+        .teacher-module-grid { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:9px; margin-top:15px; }
+        .teacher-module-card { min-width:0; display:grid; gap:7px; padding:12px; border:1px solid #ebe6f0; border-radius:12px; background:#fff; color:#302942; text-align:left; cursor:pointer; }
+        .teacher-module-card:hover:not(:disabled) { border-color:#c9bfdf; background:#fcfbff; }
+        .teacher-module-card:disabled { cursor:default; }
+        .teacher-module-card strong { font-size:11px; line-height:1.4; }
+        .teacher-module-card small { color:#7d7687; font-size:10px; }
+        .teacher-module-card--done { border-color:#cfe7d5; background:#f7fcf8; }
+        .teacher-complete-banner { margin-top:14px; padding:13px; border:1px solid #cfe7d5; border-radius:12px; background:#f0faf2; color:#26643b; font-size:13px; font-weight:800; text-align:center; }
         @media (max-width:560px) {
             .elibrary-header { gap:8px; padding:10px 12px; }
             .elibrary-brand { font-size:11px; }
@@ -451,9 +546,20 @@
             .book-reader-controls { gap:8px; }
             .book-reader-controls button { min-width:76px; padding:10px 8px; font-size:12px; }
             .book-reader-page-count { min-width:88px; font-size:12px; }
+            .teacher-dashboard { padding:14px; }
+            .teacher-tool-card { min-height:136px; padding:12px; }
+            .teacher-screen { padding:13px; }
+            .teacher-screen-header { align-items:flex-start; gap:8px; }
+            .teacher-screen-header h2 { font-size:17px; }
+            .teacher-back { min-height:36px; font-size:11px; }
+            .teacher-filters { gap:8px; }
+            .teacher-detail-grid { grid-template-columns:1fr; }
+            .teacher-workspace-heading h2 { font-size:18px; }
+            .teacher-refresh { padding:8px 10px; font-size:11px; }
         }
         @media (prefers-reduced-motion: reduce) {
-            .elibrary-launch-card, .library-book { transition:none; }
+            .elibrary-launch-card, .library-book, .teacher-tool-card, .teacher-primary, .teacher-list-row,
+            .teacher-progress-fill { transition:none; }
         }
     </style>
 </head>
@@ -714,6 +820,171 @@
             </section>
         </section>
         <div id="homePage" class="page active-page">
+            <section id="teacherDashboardSection" class="teacher-workspace" hidden aria-label="Teacher NCDC and UNEB tools">
+                <div id="teacherDashboard" class="teacher-dashboard">
+                    <div class="teacher-workspace-heading">
+                        <div>
+                            <p class="teacher-eyebrow">NCDC · UNEB</p>
+                            <h2>Teacher tools</h2>
+                            <p>Class assessment, project review, curriculum references and retooling.</p>
+                            <p id="teacherDashboardCoverage" class="teacher-dashboard-coverage"></p>
+                        </div>
+                        <button type="button" id="teacherDashboardRefresh" class="teacher-refresh" aria-label="Refresh teacher dashboard">
+                            <i class="fas fa-rotate" aria-hidden="true"></i> Refresh
+                        </button>
+                    </div>
+                    <div class="teacher-dashboard-grid">
+                        <button type="button" class="teacher-tool-card" data-teacher-open="caRecordsScreen">
+                            <span class="teacher-tool-icon" aria-hidden="true">📋</span>
+                            <strong>CA Records</strong>
+                            <small>Continuous assessment for your learners</small>
+                            <span id="teacherCaCardCount" class="teacher-tool-count">—</span>
+                            <small id="teacherCaCardSubtitle">records this term</small>
+                        </button>
+                        <button type="button" class="teacher-tool-card" data-teacher-open="verifyProjectsScreen">
+                            <span class="teacher-tool-icon" aria-hidden="true">✅</span>
+                            <strong>Verify Projects</strong>
+                            <small>Review work from your assigned classes</small>
+                            <span id="teacherProjectsCardCount" class="teacher-tool-count">—</span>
+                            <small id="teacherProjectsCardSubtitle">pending</small>
+                        </button>
+                        <button type="button" class="teacher-tool-card" data-teacher-open="curriculumLinkerScreen">
+                            <span class="teacher-tool-icon" aria-hidden="true">📚</span>
+                            <strong>Curriculum Linker</strong>
+                            <small>Find NCDC syllabus and teaching references</small>
+                            <span class="teacher-tool-count">Search</span>
+                            <small>topics and learning materials</small>
+                        </button>
+                        <button type="button" class="teacher-tool-card" data-teacher-open="retoolingScreen">
+                            <span class="teacher-tool-icon" aria-hidden="true">🎓</span>
+                            <strong>Retooling</strong>
+                            <small>Track your professional learning modules</small>
+                            <span id="teacherRetoolingCardCount" class="teacher-tool-count">—</span>
+                            <small>of 10 complete</small>
+                        </button>
+                    </div>
+                    <div id="teacherDashboardStatus" class="teacher-dashboard-status" role="status" aria-live="polite"></div>
+                </div>
+
+                <section id="caRecordsScreen" class="teacher-screen" hidden aria-labelledby="teacherCaTitle">
+                    <header class="teacher-screen-header">
+                        <button type="button" class="teacher-back" data-teacher-back><i class="fas fa-arrow-left" aria-hidden="true"></i> Back</button>
+                        <div><h2 id="teacherCaTitle">CA Records</h2><p>Record continuous assessment for learners in your assigned classes.</p></div>
+                    </header>
+                    <div class="teacher-filters">
+                        <div class="teacher-field">
+                            <label for="teacherCaClassFilter">Class</label>
+                            <select id="teacherCaClassFilter"><option value="">All assigned classes</option></select>
+                        </div>
+                        <div class="teacher-field">
+                            <label for="teacherCaTermFilter">Term</label>
+                            <select id="teacherCaTermFilter">
+                                <option>Term One</option><option>Term Two</option><option>Term Three</option><option>2025</option>
+                            </select>
+                        </div>
+                    </div>
+                    <div id="teacherCaStatus" class="teacher-screen-status" role="status" aria-live="polite"></div>
+                    <div id="teacherCaStudents" class="teacher-list" aria-label="Learners in assigned classes"></div>
+                    <div id="teacherCaEditor" class="teacher-form teacher-record-editor" hidden>
+                        <h3>New CA record for <span id="teacherCaSelectedStudent"></span></h3>
+                        <form id="teacherCaForm" class="teacher-form" style="margin:0;padding:0;border:0;background:transparent">
+                            <input id="teacherCaLearnerId" type="hidden">
+                            <div class="teacher-field">
+                                <label for="teacherCaSubject">Subject</label>
+                                <select id="teacherCaSubject" required><option value="">Choose a subject</option></select>
+                            </div>
+                            <div class="teacher-field">
+                                <label for="teacherCaCompetency">Competency</label>
+                                <input id="teacherCaCompetency" type="text" maxlength="2400" required placeholder="What skill or competency was assessed?">
+                            </div>
+                            <div class="teacher-field">
+                                <label for="teacherCaScore">Evidence 1 · Quiz score (0–100)</label>
+                                <input id="teacherCaScore" type="number" min="0" max="100" step="1" required inputmode="numeric">
+                            </div>
+                            <div class="teacher-level-suggestion" aria-live="polite">
+                                <span>Suggested final level</span><strong id="teacherCaFinalLevel">Needs Support</strong>
+                            </div>
+                            <div class="teacher-field">
+                                <label for="teacherCaNotes">Evidence 2 · Observation notes</label>
+                                <textarea id="teacherCaNotes" maxlength="4000" placeholder="Add brief observation notes"></textarea>
+                            </div>
+                            <div class="teacher-form-actions">
+                                <button type="submit" id="teacherCaSave" class="teacher-primary">Save CA record</button>
+                                <button type="button" id="teacherCaCancel" class="teacher-secondary">Cancel</button>
+                            </div>
+                        </form>
+                    </div>
+                    <div class="teacher-section-divider">
+                        <h3 class="teacher-list-heading">Recent CA records</h3>
+                        <div id="teacherCaRecentRecords" class="teacher-list"></div>
+                    </div>
+                </section>
+
+                <section id="verifyProjectsScreen" class="teacher-screen" hidden aria-labelledby="teacherProjectsTitle">
+                    <header class="teacher-screen-header">
+                        <button type="button" class="teacher-back" data-teacher-back><i class="fas fa-arrow-left" aria-hidden="true"></i> Back</button>
+                        <div><h2 id="teacherProjectsTitle">Project Verification</h2><p>Review and verify student projects from your classes.</p></div>
+                    </header>
+                    <div class="teacher-filters">
+                        <div class="teacher-field">
+                            <label for="teacherProjectClassFilter">Class</label>
+                            <select id="teacherProjectClassFilter"><option value="">All assigned classes</option></select>
+                        </div>
+                        <div class="teacher-field">
+                            <label for="teacherProjectStatusFilter">Status</label>
+                            <select id="teacherProjectStatusFilter">
+                                <option value="pending">Pending</option><option value="approved">Approved</option><option value="rejected">Rejected</option><option value="">All statuses</option>
+                            </select>
+                        </div>
+                    </div>
+                    <div id="teacherProjectsStatus" class="teacher-screen-status" role="status" aria-live="polite"></div>
+                    <div id="teacherProjectsList" class="teacher-list" aria-label="Projects to review"></div>
+                    <div id="teacherProjectDetail" class="teacher-project-detail" hidden></div>
+                </section>
+
+                <section id="curriculumLinkerScreen" class="teacher-screen" hidden aria-labelledby="teacherCurriculumTitle">
+                    <header class="teacher-screen-header">
+                        <button type="button" class="teacher-back" data-teacher-back><i class="fas fa-arrow-left" aria-hidden="true"></i> Back</button>
+                        <div><h2 id="teacherCurriculumTitle">Curriculum Linker</h2><p>Search curriculum references created by your school administrator.</p></div>
+                    </header>
+                    <form id="teacherCurriculumSearchForm">
+                        <div class="teacher-curriculum-search">
+                            <input id="teacherCurriculumQuery" class="teacher-search-input" type="search" placeholder="Search topics or learning outcomes" aria-label="Search curriculum links">
+                            <button type="submit" class="teacher-primary">Search</button>
+                        </div>
+                        <div class="teacher-filters">
+                            <div class="teacher-field">
+                                <label for="teacherCurriculumSubjectFilter">Subject</label>
+                                <select id="teacherCurriculumSubjectFilter"><option value="">All taught subjects</option></select>
+                            </div>
+                            <div class="teacher-field">
+                                <label for="teacherCurriculumClassFilter">Class</label>
+                                <select id="teacherCurriculumClassFilter"><option value="">All assigned classes</option></select>
+                            </div>
+                        </div>
+                    </form>
+                    <div id="teacherCurriculumStatus" class="teacher-screen-status" role="status" aria-live="polite"></div>
+                    <div id="teacherCurriculumResults" class="teacher-list"></div>
+                    <div id="teacherCurriculumDetail" class="teacher-curriculum-detail" hidden></div>
+                </section>
+
+                <section id="retoolingScreen" class="teacher-screen" hidden aria-labelledby="teacherRetoolingTitle">
+                    <header class="teacher-screen-header">
+                        <button type="button" class="teacher-back" data-teacher-back><i class="fas fa-arrow-left" aria-hidden="true"></i> Back</button>
+                        <div><h2 id="teacherRetoolingTitle">Retooling Progress</h2><p>Complete the 10 teacher development modules.</p></div>
+                    </header>
+                    <div class="teacher-progress-summary">
+                        <span id="teacherRetoolingProgressText">0 of 10 modules complete</span>
+                        <span id="teacherRetoolingPercent">0%</span>
+                    </div>
+                    <div id="teacherRetoolingProgressBar" class="teacher-progress-track" role="progressbar" aria-label="Retooling modules completed" aria-valuemin="0" aria-valuemax="10" aria-valuenow="0">
+                        <div id="teacherRetoolingProgressFill" class="teacher-progress-fill"></div>
+                    </div>
+                    <div id="teacherRetoolingStatus" class="teacher-screen-status" role="status" aria-live="polite"></div>
+                    <div id="teacherRetoolingModules" class="teacher-module-grid"></div>
+                    <div id="teacherRetoolingComplete" class="teacher-complete-banner" hidden>🎉 Complete! Certificate coming soon.</div>
+                </section>
+            </section>
             <div class="education-level"><button class="level-btn" data-level="nursery">🧒 Nursery</button><button class="level-btn" data-level="primary">🏫 Primary School</button><button class="level-btn" data-level="secondary">🎓 Secondary School</button></div>
             <div id="classSelectionSection"><div class="section-title">📚 Select Your Class</div><div id="classGrid" class="class-grid"></div></div>
             <div id="subjectsSection" style="display:none;"><button id="backToClasses" class="back-btn"><i class="fas fa-arrow-left"></i> Back to Classes</button><div class="section-title">📖 Available Subjects</div><div id="subjectsGrid" class="subjects-grid"></div></div>
@@ -923,6 +1194,29 @@
     let currentLevel = "nursery";
     let currentLibraryClass = null;
     let currentLibraryPdfs = [];
+    const TEACHER_RETOOLING_MODULES = [
+        "Familiarisation",
+        "Curriculum Documents",
+        "Learner-Centred Methods",
+        "Assessment in CBC",
+        "Planning & Monitoring",
+        "Projects & PBL",
+        "ICT Integration",
+        "Inclusion",
+        "Record Keeping",
+        "Ethics"
+    ];
+    let teacherDashboardState = {
+        students: [],
+        caRecords: [],
+        projects: [],
+        selectedLearner: null,
+        selectedProject: null,
+        curriculumLinks: [],
+        selectedCurriculumLink: null,
+        curriculumTab: "syllabus",
+        retooling: []
+    };
     let currentReaderPdf = null;
     let activePdfLoadingTask = null;
     let activePdfDocument = null;
@@ -1934,6 +2228,7 @@
 
     async function showAppFor(user) {
         currentUser = user;
+        initializeTeacherDashboard(user);
         renderImpersonationBanner(currentUser);
         document.getElementById('loginScreen').classList.add('hidden');
         document.getElementById('appScreen').classList.remove('hidden');
@@ -2003,6 +2298,630 @@
         if (isSuper) loadAllUsers();
     }
 
+    function teacherClassLabel(value) {
+        const labels = {
+            Baby: "Baby Class", Middle: "Middle Class", Top: "Top Class",
+            P1: "Primary 1", P2: "Primary 2", P3: "Primary 3", P4: "Primary 4",
+            P5: "Primary 5", P6: "Primary 6", P7: "Primary 7",
+            S1: "Senior 1", S2: "Senior 2", S3: "Senior 3",
+            S4: "Senior 4", S5: "Senior 5", S6: "Senior 6"
+        };
+        return labels[value] || value || "Class not set";
+    }
+
+    function teacherAssignedClasses() {
+        const classes = currentUser?.assigned_classes || currentUser?.assignedClasses;
+        return Array.isArray(classes) ? [...new Set(classes.filter(value => typeof value === "string"))] : [];
+    }
+
+    function teacherSubjects() {
+        const subjects = currentUser?.subjects_taught || currentUser?.subjectsTaught;
+        return Array.isArray(subjects) ? [...new Set(subjects.filter(value => typeof value === "string"))] : [];
+    }
+
+    function currentTeacherTerm() {
+        const month = new Date().getUTCMonth() + 1;
+        if (month <= 4) return "Term One";
+        if (month <= 8) return "Term Two";
+        return "Term Three";
+    }
+
+    function setTeacherStatus(elementId, message, isError = false) {
+        const element = document.getElementById(elementId);
+        if (!element) return;
+        element.textContent = message || "";
+        element.classList.toggle("is-error", Boolean(isError));
+    }
+
+    function setTeacherOptions(elementId, values, placeholder, labelForValue = value => value) {
+        const select = document.getElementById(elementId);
+        if (!select) return;
+        select.innerHTML = `<option value="">${escapeHtml(placeholder)}</option>` +
+            values.map(value => `<option value="${escapeHtml(value)}">${escapeHtml(labelForValue(value))}</option>`).join("");
+    }
+
+    function teacherStatusBadge(status) {
+        const safeStatus = ["pending", "approved", "rejected"].includes(String(status).toLowerCase())
+            ? String(status).toLowerCase()
+            : "pending";
+        const labels = { pending: "Pending", approved: "Approved", rejected: "Rejected" };
+        return `<span class="teacher-status-badge teacher-status-badge--${safeStatus}">${labels[safeStatus]}</span>`;
+    }
+
+    function teacherFormatDate(value, includeTime = false) {
+        if (!value) return "Not provided";
+        const date = new Date(value);
+        if (!Number.isFinite(date.getTime())) return escapeHtml(value);
+        return escapeHtml(date.toLocaleString(undefined, includeTime
+            ? { dateStyle: "medium", timeStyle: "short" }
+            : { dateStyle: "medium" }));
+    }
+
+    function teacherDetailItem(label, value) {
+        const shown = value === null || value === undefined || value === "" ? "Not provided" : String(value);
+        return `<div class="teacher-detail-item"><small>${escapeHtml(label)}</small><span>${escapeHtml(shown)}</span></div>`;
+    }
+
+    function initializeTeacherDashboard(user) {
+        const section = document.getElementById("teacherDashboardSection");
+        const dashboard = document.getElementById("teacherDashboard");
+        if (!section || !dashboard) return;
+        const isTeacher = user?.role === "teacher";
+        section.hidden = !isTeacher;
+        dashboard.hidden = false;
+        document.getElementById("homePage")?.classList.remove("teacher-workspace-active");
+        document.querySelectorAll("#teacherDashboardSection .teacher-screen").forEach(screen => { screen.hidden = true; });
+        ["teacherCaEditor", "teacherProjectDetail", "teacherCurriculumDetail"].forEach(id => {
+            const element = document.getElementById(id);
+            if (element) element.hidden = true;
+        });
+        teacherDashboardState = {
+            students: [],
+            caRecords: [],
+            projects: [],
+            selectedLearner: null,
+            selectedProject: null,
+            curriculumLinks: [],
+            selectedCurriculumLink: null,
+            curriculumTab: "syllabus",
+            retooling: []
+        };
+        ["teacherCaCardCount", "teacherProjectsCardCount", "teacherRetoolingCardCount"].forEach(id => {
+            const element = document.getElementById(id);
+            if (element) element.textContent = "—";
+        });
+        setTeacherStatus("teacherDashboardStatus", "");
+        if (!isTeacher) return;
+
+        const classes = teacherAssignedClasses();
+        setTeacherOptions("teacherCaClassFilter", classes, "All assigned classes", teacherClassLabel);
+        setTeacherOptions("teacherProjectClassFilter", classes, "All assigned classes", teacherClassLabel);
+        setTeacherOptions("teacherCurriculumClassFilter", classes, "All assigned classes", teacherClassLabel);
+        setTeacherOptions("teacherCurriculumSubjectFilter", teacherSubjects(), "All taught subjects");
+        document.getElementById("teacherCaTermFilter").value = currentTeacherTerm();
+        void loadTeacherDashboardStats();
+    }
+
+    async function loadTeacherDashboardStats() {
+        if (currentUser?.role !== "teacher") return;
+        setTeacherStatus("teacherDashboardStatus", "Loading your summary…");
+        try {
+            const stats = await api("/api/teacher/me/stats");
+            if (currentUser?.role !== "teacher") return;
+            document.getElementById("teacherCaCardCount").textContent = Number(stats.ca_records_count || 0).toLocaleString();
+            document.getElementById("teacherProjectsCardCount").textContent = Number(stats.pending_projects_count || 0).toLocaleString();
+            document.getElementById("teacherRetoolingCardCount").textContent = Number(stats.modules_completed || 0).toLocaleString();
+            document.getElementById("teacherDashboardCoverage").textContent =
+                `${Number(stats.students_count || 0).toLocaleString()} students across ${Number(stats.classes_count || 0).toLocaleString()} assigned classes`;
+            setTeacherStatus("teacherDashboardStatus", "");
+        } catch (error) {
+            setTeacherStatus("teacherDashboardStatus", error.message || "Could not load teacher summary.", true);
+        }
+    }
+
+    function teacherEmptyMarkup(message) {
+        return `<div class="teacher-empty">${escapeHtml(message)}</div>`;
+    }
+
+    async function loadTeacherCaStudents() {
+        const classLevel = document.getElementById("teacherCaClassFilter").value;
+        const query = classLevel ? `?class_level=${encodeURIComponent(classLevel)}` : "";
+        const list = document.getElementById("teacherCaStudents");
+        list.innerHTML = teacherEmptyMarkup("Loading learners…");
+        try {
+            const response = await api(`/api/teacher/students${query}`);
+            teacherDashboardState.students = responseList(response, "students") || [];
+            renderTeacherCaStudents();
+            setTeacherStatus("teacherCaStatus", "");
+        } catch (error) {
+            teacherDashboardState.students = [];
+            list.innerHTML = teacherEmptyMarkup("Learners could not be loaded.");
+            setTeacherStatus("teacherCaStatus", error.message || "Could not load learners.", true);
+        }
+    }
+
+    function renderTeacherCaStudents() {
+        const list = document.getElementById("teacherCaStudents");
+        if (!teacherDashboardState.students.length) {
+            list.innerHTML = teacherEmptyMarkup("No learners found for the selected class.");
+            return;
+        }
+        list.innerHTML = teacherDashboardState.students.map(student => `
+            <button type="button" class="teacher-list-row" data-teacher-ca-student="${escapeHtml(student.id)}">
+                <span class="teacher-list-row-copy">
+                    <strong>${escapeHtml(student.name || "Learner")}</strong>
+                    <small>${escapeHtml(teacherClassLabel(student.class_level))}${student.lin ? ` · LIN ${escapeHtml(student.lin)}` : ""}</small>
+                </span>
+                <span class="teacher-level-badge">${escapeHtml(student.class_level || "—")}</span>
+                <i class="fas fa-chevron-right" aria-hidden="true"></i>
+            </button>`).join("");
+    }
+
+    async function loadTeacherCaRecords() {
+        const term = document.getElementById("teacherCaTermFilter").value;
+        const classLevel = document.getElementById("teacherCaClassFilter").value;
+        const params = new URLSearchParams();
+        if (term) params.set("term", term);
+        if (classLevel) params.set("class_level", classLevel);
+        const list = document.getElementById("teacherCaRecentRecords");
+        list.innerHTML = teacherEmptyMarkup("Loading recent records…");
+        try {
+            const response = await api(`/api/ca-records?${params.toString()}`);
+            teacherDashboardState.caRecords = responseList(response, "records") || [];
+            renderTeacherCaRecords();
+        } catch (error) {
+            teacherDashboardState.caRecords = [];
+            list.innerHTML = teacherEmptyMarkup("Recent records could not be loaded.");
+            setTeacherStatus("teacherCaStatus", error.message || "Could not load CA records.", true);
+        }
+    }
+
+    function renderTeacherCaRecords() {
+        const list = document.getElementById("teacherCaRecentRecords");
+        if (!teacherDashboardState.caRecords.length) {
+            list.innerHTML = teacherEmptyMarkup("No CA records found for this term.");
+            return;
+        }
+        list.innerHTML = teacherDashboardState.caRecords.map(record => `
+            <article class="teacher-list-row">
+                <span class="teacher-list-row-copy">
+                    <strong>${escapeHtml(record.learner_name || "Learner")} · ${escapeHtml(record.subject || "Subject not set")}</strong>
+                    <small>${escapeHtml(teacherClassLabel(record.class_level))} · ${escapeHtml(record.competency || "No competency noted")} · ${teacherFormatDate(record.created_at, true)}</small>
+                </span>
+                <span class="teacher-level-badge">${escapeHtml(record.final_level || "Unrated")}</span>
+            </article>`).join("");
+    }
+
+    function teacherFinalLevel(score) {
+        if (score >= 80) return "Exceeds";
+        if (score >= 60) return "Meets";
+        if (score >= 40) return "Approaching";
+        return "Needs Support";
+    }
+
+    function openTeacherCaEditor(studentId) {
+        const student = teacherDashboardState.students.find(item => item.id === studentId);
+        if (!student) return;
+        teacherDashboardState.selectedLearner = student;
+        document.getElementById("teacherCaLearnerId").value = student.id;
+        document.getElementById("teacherCaSelectedStudent").textContent = student.name || "Learner";
+        const subjectSelect = document.getElementById("teacherCaSubject");
+        subjectSelect.innerHTML = `<option value="">Choose a subject</option>` +
+            teacherSubjects().map(subject => `<option value="${escapeHtml(subject)}">${escapeHtml(subject)}</option>`).join("");
+        document.getElementById("teacherCaCompetency").value = "";
+        document.getElementById("teacherCaScore").value = "";
+        document.getElementById("teacherCaNotes").value = "";
+        document.getElementById("teacherCaFinalLevel").textContent = "Needs Support";
+        document.getElementById("teacherCaEditor").hidden = false;
+        document.getElementById("teacherCaEditor").scrollIntoView({ behavior: "smooth", block: "start" });
+    }
+
+    async function saveTeacherCaRecord(event) {
+        event.preventDefault();
+        const learnerId = document.getElementById("teacherCaLearnerId").value;
+        const subject = document.getElementById("teacherCaSubject").value;
+        const competency = document.getElementById("teacherCaCompetency").value.trim();
+        const score = Number(document.getElementById("teacherCaScore").value);
+        const notes = document.getElementById("teacherCaNotes").value.trim();
+        const term = document.getElementById("teacherCaTermFilter").value;
+        const saveButton = document.getElementById("teacherCaSave");
+        if (!learnerId || !subject || !competency || !Number.isInteger(score) || score < 0 || score > 100) {
+            showNotification("Choose a subject, enter a competency, and use a whole-number score from 0 to 100.", "error");
+            return;
+        }
+        saveButton.disabled = true;
+        setTeacherStatus("teacherCaStatus", "Saving CA record…");
+        try {
+            await api("/api/ca-records", {
+                method: "POST",
+                body: {
+                    learner_id: learnerId,
+                    subject,
+                    competency,
+                    evidence_1: String(score),
+                    evidence_2: notes,
+                    final_level: teacherFinalLevel(score),
+                    term
+                }
+            });
+            document.getElementById("teacherCaForm").reset();
+            document.getElementById("teacherCaEditor").hidden = true;
+            setTeacherStatus("teacherCaStatus", "");
+            showNotification("CA record saved.");
+            await Promise.all([loadTeacherCaRecords(), loadTeacherDashboardStats()]);
+        } catch (error) {
+            setTeacherStatus("teacherCaStatus", error.message || "Could not save the CA record.", true);
+            showNotification(error.message || "Could not save the CA record.", "error");
+        } finally {
+            saveButton.disabled = false;
+        }
+    }
+
+    async function loadTeacherProjects() {
+        const className = document.getElementById("teacherProjectClassFilter").value;
+        const status = document.getElementById("teacherProjectStatusFilter").value;
+        const params = new URLSearchParams();
+        if (className) params.set("class_name", className);
+        if (status) params.set("status", status);
+        const list = document.getElementById("teacherProjectsList");
+        list.innerHTML = teacherEmptyMarkup("Loading projects…");
+        document.getElementById("teacherProjectDetail").hidden = true;
+        try {
+            const response = await api(`/api/projects?${params.toString()}`);
+            teacherDashboardState.projects = responseList(response, "projects") || [];
+            renderTeacherProjects();
+            setTeacherStatus("teacherProjectsStatus", "");
+        } catch (error) {
+            teacherDashboardState.projects = [];
+            list.innerHTML = teacherEmptyMarkup("Projects could not be loaded.");
+            setTeacherStatus("teacherProjectsStatus", error.message || "Could not load projects.", true);
+        }
+    }
+
+    function renderTeacherProjects() {
+        const list = document.getElementById("teacherProjectsList");
+        if (!teacherDashboardState.projects.length) {
+            list.innerHTML = teacherEmptyMarkup("No projects found for the selected class and status.");
+            return;
+        }
+        list.innerHTML = teacherDashboardState.projects.map(project => {
+            const status = String(project.final_status || "pending").toLowerCase();
+            return `
+                <button type="button" class="teacher-list-row" data-teacher-project="${escapeHtml(project.id)}">
+                    <span class="teacher-list-row-copy">
+                        <strong>${escapeHtml(project.learner_name || "Learner")} · ${escapeHtml(project.title || "Untitled project")}</strong>
+                        <small>${escapeHtml(project.subject || "Subject not set")} · ${escapeHtml(teacherClassLabel(project.learner_class_level || project.class_name))}</small>
+                    </span>
+                    ${teacherStatusBadge(status)}
+                    <i class="fas fa-chevron-right" aria-hidden="true"></i>
+                </button>`;
+        }).join("");
+    }
+
+    function teacherMilestoneMarkup(label, date, status, evidencePath) {
+        return `<div class="teacher-milestone">
+            <div><strong>${escapeHtml(label)}</strong><small>${teacherFormatDate(date)}</small>
+            <small>Evidence: ${evidencePath ? "recorded" : "not provided"}</small></div>
+            ${teacherStatusBadge(status || "pending")}
+        </div>`;
+    }
+
+    function openTeacherProject(projectId) {
+        const project = teacherDashboardState.projects.find(item => item.id === projectId);
+        if (!project) return;
+        teacherDashboardState.selectedProject = project;
+        const detail = document.getElementById("teacherProjectDetail");
+        const finalStatus = String(project.final_status || "pending").toLowerCase();
+        detail.innerHTML = `
+            <div class="teacher-detail-top">
+                <div><p class="teacher-eyebrow">Student project</p><h3>${escapeHtml(project.title || "Untitled project")}</h3></div>
+                ${teacherStatusBadge(finalStatus)}
+            </div>
+            <div class="teacher-detail-grid">
+                ${teacherDetailItem("Student", project.learner_name)}
+                ${teacherDetailItem("Class", teacherClassLabel(project.learner_class_level || project.class_name))}
+                ${teacherDetailItem("Subject", project.subject)}
+                ${teacherDetailItem("LIN", project.lin)}
+                ${teacherDetailItem("QR code", project.qr_code)}
+                ${teacherDetailItem("Teacher observed", project.teacher_observed_tick ? "Yes" : "No")}
+                ${teacherDetailItem("Similarity flag", project.similarity_flag ? "Flagged" : "Not flagged")}
+                ${teacherDetailItem("Previous title check", project.previous_title_check)}
+            </div>
+            <div class="teacher-milestones">
+                ${teacherMilestoneMarkup("Milestone 1", project.milestone_1_date, project.milestone_1_status, project.milestone_1_photo)}
+                ${teacherMilestoneMarkup("Milestone 2", project.milestone_2_date, project.milestone_2_status, project.milestone_2_photo)}
+                ${teacherMilestoneMarkup("Final submission", project.final_date, project.final_status, project.final_photo)}
+            </div>
+            <div class="teacher-detail-actions">
+                <button type="button" class="teacher-primary" data-project-verify="approved">✅ Approve</button>
+                <button type="button" class="teacher-danger" data-project-verify="rejected">❌ Reject</button>
+                <button type="button" class="teacher-secondary" data-project-detail-back>Back to projects</button>
+            </div>`;
+        document.getElementById("teacherProjectsList").hidden = true;
+        detail.hidden = false;
+        detail.scrollIntoView({ behavior: "smooth", block: "start" });
+    }
+
+    async function verifyTeacherProject(status) {
+        const project = teacherDashboardState.selectedProject;
+        if (!project || !["approved", "rejected"].includes(status)) return;
+        const comment = window.prompt(`Optional comment for ${status}:`, "");
+        if (comment === null) return;
+        setTeacherStatus("teacherProjectsStatus", "Saving project decision…");
+        try {
+            await api(`/api/projects/${encodeURIComponent(project.id)}/verify`, {
+                method: "PATCH",
+                body: { status, comment }
+            });
+            document.getElementById("teacherProjectDetail").hidden = true;
+            document.getElementById("teacherProjectsList").hidden = false;
+            teacherDashboardState.selectedProject = null;
+            showNotification(`Project ${status}.`);
+            await Promise.all([loadTeacherProjects(), loadTeacherDashboardStats()]);
+        } catch (error) {
+            setTeacherStatus("teacherProjectsStatus", error.message || "Could not update project status.", true);
+            showNotification(error.message || "Could not update project status.", "error");
+        }
+    }
+
+    async function loadTeacherCurriculumLinks() {
+        const params = new URLSearchParams();
+        const query = document.getElementById("teacherCurriculumQuery").value.trim();
+        const subject = document.getElementById("teacherCurriculumSubjectFilter").value;
+        const classLevel = document.getElementById("teacherCurriculumClassFilter").value;
+        if (query) params.set("q", query);
+        if (subject) params.set("subject", subject);
+        if (classLevel) params.set("class_level", classLevel);
+        setTeacherStatus("teacherCurriculumStatus", "Searching curriculum links…");
+        document.getElementById("teacherCurriculumResults").innerHTML = teacherEmptyMarkup("Searching…");
+        document.getElementById("teacherCurriculumDetail").hidden = true;
+        try {
+            const response = await api(`/api/curriculum-links?${params.toString()}`);
+            teacherDashboardState.curriculumLinks = responseList(response, "links") || [];
+            renderTeacherCurriculumLinks();
+            setTeacherStatus("teacherCurriculumStatus", "");
+        } catch (error) {
+            teacherDashboardState.curriculumLinks = [];
+            document.getElementById("teacherCurriculumResults").innerHTML = teacherEmptyMarkup("Curriculum links could not be loaded.");
+            setTeacherStatus("teacherCurriculumStatus", error.message || "Could not search curriculum links.", true);
+        }
+    }
+
+    function renderTeacherCurriculumLinks() {
+        const results = document.getElementById("teacherCurriculumResults");
+        if (!teacherDashboardState.curriculumLinks.length) {
+            results.innerHTML = teacherEmptyMarkup("No curriculum links found. Ask your school admin.");
+            return;
+        }
+        results.innerHTML = teacherDashboardState.curriculumLinks.map(link => `
+            <button type="button" class="teacher-list-row" data-teacher-curriculum="${escapeHtml(link.id)}">
+                <span class="teacher-list-row-copy">
+                    <strong>${escapeHtml(link.topic || "Untitled topic")}</strong>
+                    <small>${escapeHtml(link.subject || "Subject not set")} · ${escapeHtml(teacherClassLabel(link.class_level))}</small>
+                </span>
+                <i class="fas fa-chevron-right" aria-hidden="true"></i>
+            </button>`).join("");
+    }
+
+    function renderTeacherCurriculumDetail() {
+        const link = teacherDashboardState.selectedCurriculumLink;
+        if (!link) return;
+        const detail = document.getElementById("teacherCurriculumDetail");
+        const tabs = [
+            { id: "syllabus", label: "Syllabus" },
+            { id: "learner-book", label: "Learner Book" },
+            { id: "teacher-guide", label: "Teacher Guide" }
+        ];
+        let content = "";
+        if (teacherDashboardState.curriculumTab === "syllabus") {
+            content = link.syllabus_ref
+                ? teacherDetailItem("Syllabus reference", link.syllabus_ref)
+                : teacherEmptyMarkup("No syllabus reference supplied.");
+        } else if (teacherDashboardState.curriculumTab === "learner-book") {
+            content = `<div class="teacher-detail-grid">
+                ${teacherDetailItem("Learner book page", link.learner_book_page)}
+                ${teacherDetailItem("Summary", link.summary_text)}
+            </div>`;
+        } else {
+            content = `<div class="teacher-detail-grid">
+                ${teacherDetailItem("Teacher guide page", link.teacher_guide_page)}
+                ${teacherDetailItem("Activity suggestion", link.activity_suggestion)}
+            </div>`;
+        }
+        detail.innerHTML = `
+            <div class="teacher-detail-top">
+                <div><p class="teacher-eyebrow">${escapeHtml(link.subject || "Curriculum link")} · ${escapeHtml(teacherClassLabel(link.class_level))}</p><h3>${escapeHtml(link.topic || "Untitled topic")}</h3></div>
+                <button type="button" class="teacher-secondary" data-curriculum-results-back>Results</button>
+            </div>
+            <div class="teacher-curriculum-tabs" role="tablist" aria-label="Curriculum reference sections">
+                ${tabs.map(tab => `<button type="button" role="tab" aria-selected="${teacherDashboardState.curriculumTab === tab.id}" class="teacher-curriculum-tab ${teacherDashboardState.curriculumTab === tab.id ? "active" : ""}" data-curriculum-tab="${tab.id}">${tab.label}</button>`).join("")}
+            </div>
+            <div>${content}</div>`;
+    }
+
+    function openTeacherCurriculumLink(linkId) {
+        const link = teacherDashboardState.curriculumLinks.find(item => item.id === linkId);
+        if (!link) return;
+        teacherDashboardState.selectedCurriculumLink = link;
+        teacherDashboardState.curriculumTab = "syllabus";
+        document.getElementById("teacherCurriculumResults").hidden = true;
+        document.getElementById("teacherCurriculumDetail").hidden = false;
+        renderTeacherCurriculumDetail();
+    }
+
+    async function loadTeacherRetooling() {
+        const moduleList = document.getElementById("teacherRetoolingModules");
+        moduleList.innerHTML = teacherEmptyMarkup("Loading modules…");
+        try {
+            const response = await api("/api/teacher-retooling-progress");
+            teacherDashboardState.retooling = responseList(response, "progress") || [];
+            renderTeacherRetooling();
+            setTeacherStatus("teacherRetoolingStatus", "");
+        } catch (error) {
+            teacherDashboardState.retooling = [];
+            moduleList.innerHTML = teacherEmptyMarkup("Retooling progress could not be loaded.");
+            setTeacherStatus("teacherRetoolingStatus", error.message || "Could not load retooling progress.", true);
+        }
+    }
+
+    function renderTeacherRetooling() {
+        const progress = teacherDashboardState.retooling;
+        const completed = new Set(progress.filter(row => row.completed).map(row => Number(row.module_id)));
+        const completedCount = TEACHER_RETOOLING_MODULES.filter((_, index) => completed.has(index + 1)).length;
+        const percent = completedCount * 10;
+        document.getElementById("teacherRetoolingProgressText").textContent = `${completedCount} of 10 modules complete`;
+        document.getElementById("teacherRetoolingPercent").textContent = `${percent}%`;
+        document.getElementById("teacherRetoolingProgressBar").setAttribute("aria-valuenow", String(completedCount));
+        document.getElementById("teacherRetoolingProgressFill").style.width = `${percent}%`;
+        document.getElementById("teacherRetoolingComplete").hidden = completedCount !== 10;
+        document.getElementById("teacherRetoolingCardCount").textContent = String(completedCount);
+        document.getElementById("teacherRetoolingModules").innerHTML = TEACHER_RETOOLING_MODULES.map((name, index) => {
+            const moduleId = index + 1;
+            const isComplete = completed.has(moduleId);
+            const score = progress.find(row => Number(row.module_id) === moduleId)?.quiz_score;
+            return `<button type="button" class="teacher-module-card ${isComplete ? "teacher-module-card--done" : ""}" data-teacher-module="${moduleId}" ${isComplete ? "disabled" : ""}>
+                <strong>Module ${moduleId} — ${escapeHtml(name)}</strong>
+                <small>${isComplete ? "✅ Done" : "⏳ Pending"}${isComplete && score !== null && score !== undefined ? ` · Quiz score ${escapeHtml(score)}` : ""}</small>
+            </button>`;
+        }).join("");
+    }
+
+    async function markTeacherModuleComplete(moduleId) {
+        const existing = teacherDashboardState.retooling.find(row => Number(row.module_id) === moduleId);
+        if (existing?.completed) return;
+        const enteredScore = window.prompt(`Mark Module ${moduleId} as complete? Enter quiz score (0–100).`, "");
+        if (enteredScore === null) return;
+        const scoreText = enteredScore.trim();
+        if (!/^(?:100|[0-9]{1,2})$/.test(scoreText)) {
+            showNotification("Enter a whole-number quiz score from 0 to 100.", "error");
+            return;
+        }
+        setTeacherStatus("teacherRetoolingStatus", "Saving module progress…");
+        try {
+            await api(`/api/teacher-retooling-progress/${moduleId}`, {
+                method: "PATCH",
+                body: { completed: true, quiz_score: Number(scoreText) }
+            });
+            showNotification(`Module ${moduleId} marked complete.`);
+            await Promise.all([loadTeacherRetooling(), loadTeacherDashboardStats()]);
+        } catch (error) {
+            setTeacherStatus("teacherRetoolingStatus", error.message || "Could not save module progress.", true);
+            showNotification(error.message || "Could not save module progress.", "error");
+        }
+    }
+
+    function showTeacherWorkspaceHome() {
+        document.querySelectorAll("#teacherDashboardSection .teacher-screen").forEach(screen => { screen.hidden = true; });
+        document.getElementById("teacherDashboard").hidden = false;
+        document.getElementById("homePage")?.classList.remove("teacher-workspace-active");
+        void loadTeacherDashboardStats();
+    }
+
+    function openTeacherScreen(screenId) {
+        if (currentUser?.role !== "teacher") return;
+        const screen = document.getElementById(screenId);
+        if (!screen) return;
+        document.querySelectorAll("#teacherDashboardSection .teacher-screen").forEach(item => { item.hidden = item !== screen; });
+        document.getElementById("teacherDashboard").hidden = true;
+        document.getElementById("homePage")?.classList.add("teacher-workspace-active");
+        screen.hidden = false;
+        if (screenId === "caRecordsScreen") {
+            document.getElementById("teacherCaStudents").hidden = false;
+            document.getElementById("teacherCaRecentRecords").hidden = false;
+            void Promise.all([loadTeacherCaStudents(), loadTeacherCaRecords()]);
+        } else if (screenId === "verifyProjectsScreen") {
+            document.getElementById("teacherProjectsList").hidden = false;
+            void loadTeacherProjects();
+        } else if (screenId === "curriculumLinkerScreen") {
+            document.getElementById("teacherCurriculumResults").hidden = false;
+            void loadTeacherCurriculumLinks();
+        } else if (screenId === "retoolingScreen") {
+            void loadTeacherRetooling();
+        }
+    }
+
+    function wireTeacherDashboardEvents() {
+        document.querySelectorAll("[data-teacher-open]").forEach(button => {
+            button.addEventListener("click", () => openTeacherScreen(button.dataset.teacherOpen));
+        });
+        document.querySelectorAll("[data-teacher-back]").forEach(button => {
+            button.addEventListener("click", showTeacherWorkspaceHome);
+        });
+        document.getElementById("teacherDashboardRefresh")?.addEventListener("click", loadTeacherDashboardStats);
+
+        document.getElementById("teacherCaClassFilter")?.addEventListener("change", () => {
+            void Promise.all([loadTeacherCaStudents(), loadTeacherCaRecords()]);
+        });
+        document.getElementById("teacherCaTermFilter")?.addEventListener("change", loadTeacherCaRecords);
+        document.getElementById("teacherCaStudents")?.addEventListener("click", event => {
+            const button = event.target.closest("[data-teacher-ca-student]");
+            if (button) openTeacherCaEditor(button.dataset.teacherCaStudent);
+        });
+        document.getElementById("teacherCaScore")?.addEventListener("input", event => {
+            const value = event.target.value;
+            const score = value === "" ? 0 : Number(value);
+            document.getElementById("teacherCaFinalLevel").textContent =
+                Number.isFinite(score) && score >= 0 && score <= 100 ? teacherFinalLevel(score) : "Enter a score from 0 to 100";
+        });
+        document.getElementById("teacherCaForm")?.addEventListener("submit", saveTeacherCaRecord);
+        document.getElementById("teacherCaCancel")?.addEventListener("click", () => {
+            document.getElementById("teacherCaEditor").hidden = true;
+            teacherDashboardState.selectedLearner = null;
+        });
+
+        ["teacherProjectClassFilter", "teacherProjectStatusFilter"].forEach(id => {
+            document.getElementById(id)?.addEventListener("change", loadTeacherProjects);
+        });
+        document.getElementById("teacherProjectsList")?.addEventListener("click", event => {
+            const button = event.target.closest("[data-teacher-project]");
+            if (button) openTeacherProject(button.dataset.teacherProject);
+        });
+        document.getElementById("teacherProjectDetail")?.addEventListener("click", event => {
+            const action = event.target.closest("[data-project-verify]");
+            if (action) {
+                void verifyTeacherProject(action.dataset.projectVerify);
+                return;
+            }
+            if (event.target.closest("[data-project-detail-back]")) {
+                document.getElementById("teacherProjectDetail").hidden = true;
+                document.getElementById("teacherProjectsList").hidden = false;
+                teacherDashboardState.selectedProject = null;
+            }
+        });
+
+        document.getElementById("teacherCurriculumSearchForm")?.addEventListener("submit", event => {
+            event.preventDefault();
+            void loadTeacherCurriculumLinks();
+        });
+        ["teacherCurriculumSubjectFilter", "teacherCurriculumClassFilter"].forEach(id => {
+            document.getElementById(id)?.addEventListener("change", () => {
+                if (!document.getElementById("curriculumLinkerScreen").hidden) void loadTeacherCurriculumLinks();
+            });
+        });
+        document.getElementById("teacherCurriculumResults")?.addEventListener("click", event => {
+            const button = event.target.closest("[data-teacher-curriculum]");
+            if (button) openTeacherCurriculumLink(button.dataset.teacherCurriculum);
+        });
+        document.getElementById("teacherCurriculumDetail")?.addEventListener("click", event => {
+            if (event.target.closest("[data-curriculum-results-back]")) {
+                document.getElementById("teacherCurriculumDetail").hidden = true;
+                document.getElementById("teacherCurriculumResults").hidden = false;
+                return;
+            }
+            const tab = event.target.closest("[data-curriculum-tab]");
+            if (tab) {
+                teacherDashboardState.curriculumTab = tab.dataset.curriculumTab;
+                renderTeacherCurriculumDetail();
+            }
+        });
+
+        document.getElementById("teacherRetoolingModules")?.addEventListener("click", event => {
+            const button = event.target.closest("[data-teacher-module]");
+            if (button) void markTeacherModuleComplete(Number(button.dataset.teacherModule));
+        });
+    }
+
+    // ---------- DATA REFRESH (replaces Firestore onSnapshot) ----------
     // ---------- DATA REFRESH (replaces Firestore onSnapshot) ----------
     async function refreshAllData() {
         if (!AUTH_TOKEN || !currentUser) return;
@@ -2329,6 +3248,7 @@
 
     // ---------- EVENT WIRING (all DOM listeners) ----------
     function wireEvents() {
+        wireTeacherDashboardEvents();
         document.getElementById('sendBtn')?.addEventListener('click', sendChat);
         document.getElementById('chatInput')?.addEventListener('keypress', e => { if (e.key === 'Enter') sendChat(); });
         document.getElementById('openAIDrawerBtn')?.addEventListener('click', () => { document.getElementById('aiDrawer').classList.add('open'); document.getElementById('drawerOverlay').classList.add('show'); });
@@ -2826,6 +3746,7 @@
                 else await api('/api/auth/logout', { method: 'POST' });
             } catch(e) {}
             AUTH_TOKEN = null; localStorage.removeItem('apshule_token'); currentUser = null;
+            initializeTeacherDashboard(null);
             sessionStorage.removeItem(IMPERSONATION_TOKEN_KEY);
             sessionStorage.removeItem(ORIGINAL_SUPERADMIN_TOKEN_KEY);
             if (window._pollInterval) clearInterval(window._pollInterval);

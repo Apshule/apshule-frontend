@@ -155,22 +155,76 @@ export function requestIp(headers: Headers): string | null {
 }
 
 type LinkedUser = { id: string; role: string; school_id: string | null };
+type LearnerUser = LinkedUser & { class_level: string | null };
+export type TeacherScope = LinkedUser & {
+  assigned_classes: string[];
+  subjects_taught: string[];
+};
 
 export async function requireLearner(
   sql: ReturnType<typeof getDb>,
   id: string,
-): Promise<LinkedUser> {
+): Promise<LearnerUser> {
   const rows = await sql`
-    SELECT id, role, school_id
+    SELECT id, role, school_id, class_level
     FROM users
     WHERE id = ${id}
     LIMIT 1
   `;
-  const learner = rows[0] as LinkedUser | undefined;
+  const learner = rows[0] as LearnerUser | undefined;
   if (!learner || learner.role !== "individual") {
     throw new ApiError(404, "LEARNER_NOT_FOUND", "Learner was not found.");
   }
   return learner;
+}
+
+export async function requireTeacherScope(
+  sql: ReturnType<typeof getDb>,
+  id: string,
+): Promise<TeacherScope> {
+  const rows = await sql`
+    SELECT id, role, school_id, assigned_classes, subjects_taught
+    FROM users
+    WHERE id = ${id}
+    LIMIT 1
+  `;
+  const teacher = rows[0] as
+    | (LinkedUser & {
+        assigned_classes: string[] | null;
+        subjects_taught: string[] | null;
+      })
+    | undefined;
+  if (!teacher || teacher.role !== "teacher") {
+    throw new ApiError(404, "TEACHER_NOT_FOUND", "Teacher was not found.");
+  }
+  return {
+    ...teacher,
+    assigned_classes: teacher.assigned_classes ?? [],
+    subjects_taught: teacher.subjects_taught ?? [],
+  };
+}
+
+export function teacherHasClass(
+  teacher: TeacherScope,
+  classLevel: string | null | undefined,
+): boolean {
+  return Boolean(classLevel && teacher.assigned_classes.includes(classLevel));
+}
+
+export function assertTeacherCanAccessLearner(
+  teacher: TeacherScope,
+  learner: LearnerUser,
+): void {
+  if (
+    !teacherHasClass(teacher, learner.class_level) ||
+    (teacher.school_id !== null && teacher.school_id !== learner.school_id)
+  ) {
+    throw new ApiError(
+      403,
+      "FORBIDDEN",
+      "This learner is outside your assigned classes or school.",
+    );
+  }
 }
 
 export async function requireTeacher(
