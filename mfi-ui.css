@@ -1,0 +1,1068 @@
+@import url("https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=Manrope:wght@500;600;700;800&family=IBM+Plex+Mono:wght@400;500;600&display=swap");
+
+.mfi-portal,
+.mfi-command-panel {
+  --mfi-ink: #173b43;
+  --mfi-muted: #697e80;
+  --mfi-line: #dce7e3;
+  --mfi-paper: #f5f7f2;
+  --mfi-card: #fffefa;
+  --mfi-primary: #17645f;
+  --mfi-primary-strong: #104b49;
+  --mfi-accent: #dfa750;
+  --mfi-accent-wash: #fcf1dc;
+  --mfi-green-wash: #e8f2eb;
+  --mfi-red: #a0443e;
+  --mfi-red-wash: #faece8;
+  --mfi-shadow: 0 14px 42px rgba(29, 66, 61, .08);
+  color: var(--mfi-ink);
+  font-family: "DM Sans", sans-serif;
+  font-size: 14px;
+  line-height: 1.5;
+}
+
+.mfi-portal *,
+.mfi-command-panel * {
+  box-sizing: border-box;
+}
+
+.mfi-portal {
+  min-height: 100dvh;
+  padding: 24px clamp(16px, 3vw, 42px) 48px;
+  background:
+    radial-gradient(ellipse at 94% 0%, rgba(223, 167, 80, .13), transparent 27rem),
+    var(--mfi-paper);
+}
+
+.mfi-portal button,
+.mfi-command-panel button,
+.mfi-portal input,
+.mfi-command-panel input,
+.mfi-portal select,
+.mfi-command-panel select,
+.mfi-portal textarea,
+.mfi-command-panel textarea {
+  font: inherit;
+}
+
+.mfi-portal button,
+.mfi-command-panel button {
+  cursor: pointer;
+}
+
+.mfi-portal .mfi-shell,
+.mfi-command-panel .mfi-shell {
+  max-width: 1440px;
+  margin: 0 auto;
+}
+
+.mfi-portal .mfi-topbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 22px;
+  margin: 0 0 26px;
+}
+
+.mfi-portal .mfi-brand-lockup {
+  display: flex;
+  align-items: center;
+  gap: 13px;
+  min-width: 0;
+}
+
+.mfi-portal .mfi-brand-mark,
+.mfi-command-panel .mfi-brand-mark {
+  display: grid;
+  place-items: center;
+  width: 44px;
+  height: 44px;
+  overflow: hidden;
+  border-radius: 15px 15px 15px 5px;
+  background: var(--mfi-primary);
+  color: #fffefa;
+  font-family: Manrope, sans-serif;
+  font-weight: 800;
+  letter-spacing: -.08em;
+  box-shadow: 0 7px 16px color-mix(in srgb, var(--mfi-primary) 22%, transparent);
+}
+
+.mfi-portal .mfi-brand-mark img,
+.mfi-command-panel .mfi-brand-mark img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.mfi-portal .mfi-brand-copy strong {
+  display: block;
+  max-width: min(52vw, 420px);
+  overflow: hidden;
+  color: var(--mfi-ink);
+  font: 800 17px/1.2 Manrope, sans-serif;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.mfi-portal .mfi-brand-copy span {
+  display: block;
+  margin-top: 4px;
+  color: var(--mfi-muted);
+  font: 500 10px/1.2 "IBM Plex Mono", monospace;
+  letter-spacing: .1em;
+  text-transform: uppercase;
+}
+
+.mfi-portal .mfi-user-chip {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 7px 12px 7px 7px;
+  border: 1px solid var(--mfi-line);
+  border-radius: 999px;
+  background: rgba(255, 254, 250, .8);
+}
+
+.mfi-portal .mfi-user-avatar {
+  display: grid;
+  place-items: center;
+  width: 31px;
+  height: 31px;
+  border-radius: 50%;
+  background: #e6eee7;
+  color: var(--mfi-primary);
+  font: 700 11px Manrope, sans-serif;
+}
+
+.mfi-portal .mfi-user-chip strong {
+  display: block;
+  color: var(--mfi-ink);
+  font-size: 12px;
+  line-height: 1.15;
+}
+
+.mfi-portal .mfi-user-chip span {
+  color: var(--mfi-muted);
+  font-size: 10px;
+  text-transform: capitalize;
+}
+
+.mfi-portal .mfi-page-intro {
+  display: flex;
+  justify-content: space-between;
+  align-items: end;
+  gap: 18px;
+  margin: 0 0 24px;
+}
+
+.mfi-portal .mfi-eyebrow,
+.mfi-command-panel .mfi-eyebrow {
+  margin: 0 0 7px;
+  color: var(--mfi-primary);
+  font: 600 10px/1.2 "IBM Plex Mono", monospace;
+  letter-spacing: .13em;
+  text-transform: uppercase;
+}
+
+.mfi-portal .mfi-page-intro h1,
+.mfi-command-panel .mfi-page-intro h1 {
+  margin: 0;
+  color: var(--mfi-ink);
+  font: 800 clamp(24px, 3vw, 34px)/1.12 Manrope, sans-serif;
+  letter-spacing: -.045em;
+}
+
+.mfi-portal .mfi-page-intro p,
+.mfi-command-panel .mfi-page-intro p {
+  max-width: 620px;
+  margin: 8px 0 0;
+  color: var(--mfi-muted);
+}
+
+.mfi-portal .mfi-nav {
+  display: flex;
+  gap: 5px;
+  overflow-x: auto;
+  margin: 0 0 23px;
+  padding: 5px;
+  border: 1px solid var(--mfi-line);
+  border-radius: 14px;
+  background: rgba(255, 254, 250, .82);
+  scrollbar-width: thin;
+}
+
+.mfi-portal .mfi-nav button {
+  flex: 0 0 auto;
+  padding: 10px 15px;
+  border: 0;
+  border-radius: 10px;
+  background: transparent;
+  color: var(--mfi-muted);
+  font-size: 12px;
+  font-weight: 700;
+  transition: background .16s ease, color .16s ease, transform .16s ease;
+}
+
+.mfi-portal .mfi-nav button:hover {
+  color: var(--mfi-primary);
+  transform: translateY(-1px);
+}
+
+.mfi-portal .mfi-nav button[aria-current="page"] {
+  background: var(--mfi-primary);
+  color: #fffefa;
+  box-shadow: 0 4px 10px rgba(23, 100, 95, .17);
+}
+
+.mfi-portal .mfi-panel,
+.mfi-command-panel .mfi-panel {
+  padding: clamp(17px, 2.2vw, 27px);
+  border: 1px solid var(--mfi-line);
+  border-radius: 18px;
+  background: var(--mfi-card);
+  box-shadow: var(--mfi-shadow);
+}
+
+.mfi-portal .mfi-section-head,
+.mfi-command-panel .mfi-section-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  margin-bottom: 18px;
+}
+
+.mfi-portal .mfi-section-head h2,
+.mfi-command-panel .mfi-section-head h2 {
+  margin: 0;
+  font: 800 18px/1.2 Manrope, sans-serif;
+  letter-spacing: -.03em;
+}
+
+.mfi-portal .mfi-section-head p,
+.mfi-command-panel .mfi-section-head p {
+  margin: 5px 0 0;
+  color: var(--mfi-muted);
+  font-size: 12px;
+}
+
+.mfi-portal .mfi-action-row,
+.mfi-command-panel .mfi-action-row {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  flex-wrap: wrap;
+  gap: 9px;
+}
+
+.mfi-portal .mfi-btn,
+.mfi-command-panel .mfi-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  min-height: 39px;
+  padding: 9px 14px;
+  border: 1px solid transparent;
+  border-radius: 10px;
+  background: var(--mfi-primary);
+  color: #fffefa;
+  font-size: 12px;
+  font-weight: 700;
+  transition: transform .16s ease, background .16s ease, border-color .16s ease;
+}
+
+.mfi-portal .mfi-btn:hover,
+.mfi-command-panel .mfi-btn:hover {
+  background: var(--mfi-primary-strong);
+  transform: translateY(-1px);
+}
+
+.mfi-portal .mfi-btn:disabled,
+.mfi-command-panel .mfi-btn:disabled {
+  cursor: wait;
+  opacity: .62;
+  transform: none;
+}
+
+.mfi-portal .mfi-btn--quiet,
+.mfi-command-panel .mfi-btn--quiet {
+  border-color: var(--mfi-line);
+  background: var(--mfi-card);
+  color: var(--mfi-ink);
+}
+
+.mfi-portal .mfi-btn--quiet:hover,
+.mfi-command-panel .mfi-btn--quiet:hover {
+  border-color: #b6cbc3;
+  background: #f3f7f2;
+}
+
+.mfi-portal .mfi-btn--danger,
+.mfi-command-panel .mfi-btn--danger {
+  background: var(--mfi-red);
+}
+
+.mfi-portal .mfi-btn--danger:hover,
+.mfi-command-panel .mfi-btn--danger:hover {
+  background: #853934;
+}
+
+.mfi-portal .mfi-btn--small {
+  min-height: 32px;
+  padding: 6px 10px;
+  font-size: 11px;
+}
+
+.mfi-portal .mfi-icon-btn {
+  display: inline-grid;
+  place-items: center;
+  width: 32px;
+  height: 32px;
+  border: 1px solid var(--mfi-line);
+  border-radius: 9px;
+  background: #fffefa;
+  color: var(--mfi-primary);
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.mfi-portal .mfi-icon-btn:hover {
+  border-color: #a9c5bb;
+  background: #eff5ef;
+}
+
+.mfi-portal .mfi-metrics {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 13px;
+  margin-bottom: 18px;
+}
+
+.mfi-portal .mfi-metric {
+  position: relative;
+  min-height: 118px;
+  padding: 18px 19px;
+  overflow: hidden;
+  border: 1px solid var(--mfi-line);
+  border-radius: 16px;
+  background: var(--mfi-card);
+}
+
+.mfi-portal .mfi-metric::after {
+  position: absolute;
+  right: -14px;
+  bottom: -36px;
+  width: 95px;
+  height: 95px;
+  border: 1px solid rgba(23, 100, 95, .1);
+  border-radius: 50%;
+  box-shadow: 0 0 0 13px rgba(23, 100, 95, .025), 0 0 0 26px rgba(23, 100, 95, .02);
+  content: "";
+}
+
+.mfi-portal .mfi-metric-label {
+  color: var(--mfi-muted);
+  font-size: 11px;
+  font-weight: 600;
+}
+
+.mfi-portal .mfi-metric-value {
+  display: block;
+  margin-top: 11px;
+  color: var(--mfi-ink);
+  font: 800 30px/1 Manrope, sans-serif;
+  letter-spacing: -.05em;
+}
+
+.mfi-portal .mfi-metric-note {
+  display: block;
+  margin-top: 7px;
+  color: var(--mfi-muted);
+  font-size: 11px;
+  font-weight: 600;
+}
+
+.mfi-portal .mfi-dashboard-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1.4fr) minmax(280px, .8fr);
+  gap: 16px;
+}
+
+.mfi-portal .mfi-activity-list {
+  display: grid;
+  gap: 0;
+}
+
+.mfi-portal .mfi-activity-item {
+  display: grid;
+  grid-template-columns: 32px minmax(0, 1fr) auto;
+  align-items: start;
+  gap: 12px;
+  padding: 13px 0;
+  border-top: 1px solid #edf1ec;
+}
+
+.mfi-portal .mfi-activity-item:first-child {
+  border-top: 0;
+}
+
+.mfi-portal .mfi-activity-dot {
+  display: grid;
+  place-items: center;
+  width: 30px;
+  height: 30px;
+  border-radius: 10px;
+  background: var(--mfi-green-wash);
+  color: var(--mfi-primary);
+  font: 700 11px "IBM Plex Mono", monospace;
+}
+
+.mfi-portal .mfi-activity-item strong {
+  display: block;
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.mfi-portal .mfi-activity-item span {
+  display: block;
+  margin-top: 3px;
+  color: var(--mfi-muted);
+  font-size: 11px;
+}
+
+.mfi-portal .mfi-activity-item time {
+  color: var(--mfi-muted);
+  font: 10px "IBM Plex Mono", monospace;
+  white-space: nowrap;
+}
+
+.mfi-portal .mfi-quick-panel {
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  min-height: 220px;
+  padding: 22px;
+  border-radius: 17px;
+  background:
+    linear-gradient(145deg, rgba(16, 75, 73, .96), rgba(23, 100, 95, .96)),
+    var(--mfi-primary);
+  color: #fffefa;
+}
+
+.mfi-portal .mfi-quick-panel .mfi-eyebrow {
+  color: #f0c873;
+}
+
+.mfi-portal .mfi-quick-panel h2 {
+  max-width: 330px;
+  margin: 0;
+  font: 800 23px/1.2 Manrope, sans-serif;
+  letter-spacing: -.04em;
+}
+
+.mfi-portal .mfi-quick-panel p {
+  max-width: 340px;
+  margin: 10px 0 0;
+  color: rgba(255, 254, 250, .76);
+  font-size: 12px;
+}
+
+.mfi-portal .mfi-quick-panel .mfi-btn {
+  align-self: start;
+  margin-top: 23px;
+  background: #f1c36c;
+  color: #173b43;
+}
+
+.mfi-portal .mfi-quick-panel .mfi-btn:hover {
+  background: #f6d48f;
+}
+
+.mfi-portal .mfi-toolbar {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin: 0 0 15px;
+}
+
+.mfi-portal .mfi-field,
+.mfi-command-panel .mfi-field {
+  display: grid;
+  gap: 6px;
+  min-width: 0;
+}
+
+.mfi-portal .mfi-field label,
+.mfi-command-panel .mfi-field label {
+  color: #50696b;
+  font-size: 11px;
+  font-weight: 700;
+}
+
+.mfi-portal .mfi-control,
+.mfi-command-panel .mfi-control {
+  width: 100%;
+  min-height: 39px;
+  padding: 9px 11px;
+  border: 1px solid #d7e2dd;
+  border-radius: 9px;
+  outline: none;
+  background: #fffefa;
+  color: var(--mfi-ink);
+  font-size: 12px;
+  transition: border-color .15s ease, box-shadow .15s ease;
+}
+
+.mfi-portal .mfi-control:focus,
+.mfi-command-panel .mfi-control:focus {
+  border-color: var(--mfi-primary);
+  box-shadow: 0 0 0 3px rgba(23, 100, 95, .11);
+}
+
+.mfi-portal textarea.mfi-control,
+.mfi-command-panel textarea.mfi-control {
+  min-height: 84px;
+  resize: vertical;
+}
+
+.mfi-portal .mfi-search {
+  position: relative;
+  flex: 1;
+  min-width: 160px;
+}
+
+.mfi-portal .mfi-search .mfi-control {
+  padding-left: 36px;
+}
+
+.mfi-portal .mfi-search::before {
+  position: absolute;
+  top: 8px;
+  left: 13px;
+  z-index: 1;
+  color: #78908c;
+  content: "⌕";
+  font-size: 20px;
+  line-height: 1;
+}
+
+.mfi-portal .mfi-select-compact {
+  width: min(210px, 34vw);
+}
+
+.mfi-portal .mfi-table-wrap,
+.mfi-command-panel .mfi-table-wrap {
+  overflow-x: auto;
+  border: 1px solid #e4ebe6;
+  border-radius: 12px;
+}
+
+.mfi-portal .mfi-table,
+.mfi-command-panel .mfi-table {
+  width: 100%;
+  border-collapse: collapse;
+  text-align: left;
+}
+
+.mfi-portal .mfi-table th,
+.mfi-command-panel .mfi-table th {
+  padding: 11px 13px;
+  background: #f3f6f1;
+  color: #728682;
+  font: 600 9px "IBM Plex Mono", monospace;
+  letter-spacing: .1em;
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+
+.mfi-portal .mfi-table td,
+.mfi-command-panel .mfi-table td {
+  padding: 12px 13px;
+  border-top: 1px solid #edf1ed;
+  color: #405d60;
+  font-size: 12px;
+  vertical-align: middle;
+}
+
+.mfi-portal .mfi-table tbody tr:hover,
+.mfi-command-panel .mfi-table tbody tr:hover {
+  background: #fbfcf8;
+}
+
+.mfi-portal .mfi-primary-cell {
+  min-width: 170px;
+}
+
+.mfi-portal .mfi-primary-cell strong,
+.mfi-command-panel .mfi-primary-cell strong {
+  display: block;
+  color: var(--mfi-ink);
+  font-size: 12px;
+}
+
+.mfi-portal .mfi-primary-cell span,
+.mfi-command-panel .mfi-primary-cell span {
+  display: block;
+  margin-top: 3px;
+  color: var(--mfi-muted);
+  font-size: 10px;
+}
+
+.mfi-portal .mfi-status {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 8px;
+  border-radius: 999px;
+  background: var(--mfi-green-wash);
+  color: #2e6d50;
+  font: 600 10px "IBM Plex Mono", monospace;
+  text-transform: capitalize;
+}
+
+.mfi-portal .mfi-status::before {
+  width: 5px;
+  height: 5px;
+  border-radius: 50%;
+  background: currentColor;
+  content: "";
+}
+
+.mfi-portal .mfi-status--inactive {
+  background: #eff1ee;
+  color: #778681;
+}
+
+.mfi-portal .mfi-status--attention {
+  background: var(--mfi-accent-wash);
+  color: #8c641d;
+}
+
+.mfi-portal .mfi-row-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 6px;
+  white-space: nowrap;
+}
+
+.mfi-portal .mfi-skeleton {
+  display: grid;
+  gap: 10px;
+  padding: 12px 0;
+}
+
+.mfi-portal .mfi-skeleton span {
+  display: block;
+  height: 42px;
+  border-radius: 8px;
+  background: linear-gradient(90deg, #edf2ed 20%, #f7f8f4 45%, #edf2ed 70%);
+}
+
+.mfi-portal .mfi-state {
+  display: grid;
+  justify-items: center;
+  padding: 38px 18px;
+  color: var(--mfi-muted);
+  text-align: center;
+}
+
+.mfi-portal .mfi-state-symbol {
+  display: grid;
+  place-items: center;
+  width: 43px;
+  height: 43px;
+  margin-bottom: 12px;
+  border: 1px solid var(--mfi-line);
+  border-radius: 14px;
+  background: #f2f6f0;
+  color: var(--mfi-primary);
+  font: 700 13px "IBM Plex Mono", monospace;
+}
+
+.mfi-portal .mfi-state strong {
+  color: var(--mfi-ink);
+  font: 700 14px Manrope, sans-serif;
+}
+
+.mfi-portal .mfi-visually-hidden {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
+
+.mfi-portal .mfi-form-error,
+.mfi-command-panel .mfi-form-error {
+  margin: 0 0 15px;
+  padding: 10px 12px;
+  border: 1px solid #efcbc5;
+  border-radius: 9px;
+  background: var(--mfi-red-wash);
+  color: var(--mfi-red);
+  font-size: 12px;
+}
+
+.mfi-portal .mfi-state p {
+  max-width: 420px;
+  margin: 7px 0 15px;
+  font-size: 12px;
+}
+
+.mfi-portal .mfi-error-state .mfi-state-symbol {
+  background: var(--mfi-red-wash);
+  color: var(--mfi-red);
+}
+
+.mfi-portal .mfi-placeholder {
+  min-height: 260px;
+  display: grid;
+  place-content: center;
+  justify-items: center;
+  border: 1px dashed #cbd9d1;
+  border-radius: 15px;
+  background: rgba(255, 254, 250, .7);
+  text-align: center;
+}
+
+.mfi-portal .mfi-placeholder strong {
+  color: var(--mfi-ink);
+  font: 800 17px Manrope, sans-serif;
+}
+
+.mfi-portal .mfi-placeholder p {
+  margin: 8px 0 0;
+  color: var(--mfi-muted);
+  font-size: 12px;
+}
+
+.mfi-portal .mfi-form-grid,
+.mfi-command-panel .mfi-form-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 14px;
+}
+
+.mfi-portal .mfi-form-grid .mfi-span-2,
+.mfi-command-panel .mfi-form-grid .mfi-span-2 {
+  grid-column: span 2;
+}
+
+.mfi-portal .mfi-form-section {
+  grid-column: 1 / -1;
+  margin: 8px 0 -4px;
+  padding-top: 13px;
+  border-top: 1px solid #e6ece7;
+  color: var(--mfi-primary);
+  font: 700 10px "IBM Plex Mono", monospace;
+  letter-spacing: .1em;
+  text-transform: uppercase;
+}
+
+.mfi-portal .mfi-file-note {
+  margin: 1px 0 0;
+  color: var(--mfi-muted);
+  font-size: 10px;
+}
+
+.mfi-portal .mfi-modal-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 9999;
+  display: grid;
+  place-items: center;
+  padding: 18px;
+  background: rgba(20, 45, 45, .48);
+  backdrop-filter: blur(4px);
+}
+
+.mfi-portal .mfi-modal {
+  width: min(660px, 100%);
+  max-height: min(90dvh, 920px);
+  overflow-y: auto;
+  border: 1px solid rgba(255, 255, 255, .42);
+  border-radius: 18px;
+  background: var(--mfi-card);
+  box-shadow: 0 25px 80px rgba(13, 38, 38, .25);
+}
+
+.mfi-portal .mfi-modal--wide {
+  width: min(840px, 100%);
+}
+
+.mfi-portal .mfi-modal-head {
+  display: flex;
+  align-items: start;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 21px 23px 16px;
+  border-bottom: 1px solid #e7ece8;
+}
+
+.mfi-portal .mfi-modal-head h2 {
+  margin: 0;
+  font: 800 19px Manrope, sans-serif;
+  letter-spacing: -.03em;
+}
+
+.mfi-portal .mfi-modal-head p {
+  margin: 5px 0 0;
+  color: var(--mfi-muted);
+  font-size: 11px;
+}
+
+.mfi-portal .mfi-modal-body {
+  padding: 20px 23px 22px;
+}
+
+.mfi-portal .mfi-modal-foot {
+  display: flex;
+  justify-content: flex-end;
+  gap: 9px;
+  padding: 15px 23px;
+  border-top: 1px solid #e7ece8;
+  background: #fafbf7;
+}
+
+.mfi-portal .mfi-close {
+  display: grid;
+  place-items: center;
+  width: 30px;
+  height: 30px;
+  flex: 0 0 auto;
+  border: 1px solid var(--mfi-line);
+  border-radius: 8px;
+  background: #fffefa;
+  color: var(--mfi-muted);
+  font-size: 17px;
+}
+
+.mfi-portal .mfi-subtabs {
+  display: flex;
+  gap: 5px;
+  margin-bottom: 17px;
+  padding: 4px;
+  border-radius: 10px;
+  background: #f1f5f0;
+}
+
+.mfi-portal .mfi-subtabs button {
+  padding: 8px 13px;
+  border: 0;
+  border-radius: 7px;
+  background: transparent;
+  color: var(--mfi-muted);
+  font-size: 11px;
+  font-weight: 700;
+}
+
+.mfi-portal .mfi-subtabs button[aria-selected="true"] {
+  background: #fffefa;
+  color: var(--mfi-primary);
+  box-shadow: 0 2px 7px rgba(40, 73, 61, .08);
+}
+
+.mfi-portal .mfi-info-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0 22px;
+}
+
+.mfi-portal .mfi-info-item {
+  padding: 12px 0;
+  border-bottom: 1px solid #edf1ed;
+}
+
+.mfi-portal .mfi-info-item span {
+  display: block;
+  color: var(--mfi-muted);
+  font-size: 10px;
+}
+
+.mfi-portal .mfi-info-item strong {
+  display: block;
+  margin-top: 4px;
+  color: var(--mfi-ink);
+  font-size: 12px;
+  font-weight: 600;
+  overflow-wrap: anywhere;
+}
+
+.mfi-command-panel {
+  padding: 22px;
+  border-radius: 18px;
+  background:
+    radial-gradient(ellipse at 100% 0%, rgba(223, 167, 80, .12), transparent 25rem),
+    var(--mfi-paper);
+}
+
+.mfi-command-panel .mfi-page-intro {
+  display: flex;
+  justify-content: space-between;
+  align-items: end;
+  gap: 16px;
+  margin: 4px 0 20px;
+}
+
+.mfi-command-panel .mfi-metrics {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 12px;
+  margin-bottom: 16px;
+}
+
+.mfi-command-panel .mfi-metric {
+  padding: 15px 17px;
+  border: 1px solid var(--mfi-line);
+  border-radius: 13px;
+  background: var(--mfi-card);
+}
+
+.mfi-command-panel .mfi-metric span {
+  display: block;
+  color: var(--mfi-muted);
+  font-size: 10px;
+}
+
+.mfi-command-panel .mfi-metric strong {
+  display: block;
+  margin-top: 6px;
+  color: var(--mfi-ink);
+  font: 800 25px Manrope, sans-serif;
+}
+
+.mfi-command-panel .mfi-brand-preview {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.mfi-command-panel .mfi-brand-preview .mfi-brand-mark {
+  width: 37px;
+  height: 37px;
+  border-radius: 11px 11px 11px 4px;
+}
+
+.mfi-command-panel .mfi-inline-form {
+  margin-bottom: 16px;
+}
+
+@media (max-width: 850px) {
+  .mfi-portal .mfi-metrics,
+  .mfi-command-panel .mfi-metrics {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .mfi-portal .mfi-dashboard-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .mfi-portal .mfi-section-head {
+    align-items: start;
+  }
+}
+
+@media (max-width: 600px) {
+  .mfi-portal {
+    padding: 16px 13px 34px;
+  }
+
+  .mfi-portal .mfi-topbar {
+    margin-bottom: 21px;
+  }
+
+  .mfi-portal .mfi-brand-copy strong {
+    max-width: 47vw;
+    font-size: 14px;
+  }
+
+  .mfi-portal .mfi-user-chip {
+    padding: 5px;
+    border: 0;
+    background: transparent;
+  }
+
+  .mfi-portal .mfi-user-chip > div:last-child {
+    display: none;
+  }
+
+  .mfi-portal .mfi-page-intro,
+  .mfi-command-panel .mfi-page-intro {
+    align-items: start;
+    flex-direction: column;
+  }
+
+  .mfi-portal .mfi-nav {
+    margin-right: -13px;
+    border-radius: 12px 0 0 12px;
+  }
+
+  .mfi-portal .mfi-nav button {
+    padding: 9px 12px;
+  }
+
+  .mfi-portal .mfi-section-head {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .mfi-portal .mfi-section-head .mfi-action-row {
+    justify-content: flex-start;
+  }
+
+  .mfi-portal .mfi-toolbar {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .mfi-portal .mfi-select-compact {
+    width: 100%;
+  }
+
+  .mfi-portal .mfi-metric {
+    min-height: 102px;
+    padding: 15px;
+  }
+
+  .mfi-portal .mfi-metric-value {
+    font-size: 26px;
+  }
+
+  .mfi-portal .mfi-form-grid,
+  .mfi-command-panel .mfi-form-grid,
+  .mfi-portal .mfi-info-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .mfi-portal .mfi-form-grid .mfi-span-2,
+  .mfi-command-panel .mfi-form-grid .mfi-span-2 {
+    grid-column: auto;
+  }
+
+  .mfi-portal .mfi-modal-head,
+  .mfi-portal .mfi-modal-body {
+    padding-right: 17px;
+    padding-left: 17px;
+  }
+
+  .mfi-portal .mfi-modal-foot {
+    padding-right: 17px;
+    padding-left: 17px;
+  }
+
+  .mfi-portal .mfi-activity-item {
+    grid-template-columns: 30px minmax(0, 1fr);
+  }
+
+  .mfi-portal .mfi-activity-item time {
+    grid-column: 2;
+  }
+
+  .mfi-command-panel {
+    padding: 13px;
+  }
+}

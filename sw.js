@@ -8,7 +8,9 @@ const APP_SHELL_URLS = [
     "/report-cards-ui.js",
     "/bulk-import-ui.js",
     "/account-profile-ui.js",
-    "/retooling-ui.js"
+    "/retooling-ui.js",
+    "/mfi-ui.js",
+    "/mfi-ui.css"
 ];
 
 function offlineResponse() {

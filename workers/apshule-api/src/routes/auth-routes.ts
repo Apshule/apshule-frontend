@@ -152,6 +152,13 @@ authRoutes.post("/signup", async (c) => {
     throw new ApiError(400, "UNKNOWN_SECTOR", "Unknown sector.");
   }
   const sector = sectorValue;
+  if (sector === "mfi") {
+    throw new ApiError(
+      403,
+      "MFI_INVITE_ONLY",
+      "MFI accounts are created by a Super Admin.",
+    );
+  }
   const isEducation = sector === "education";
   const roleValue = body.role === undefined
     ? "individual"
@@ -271,6 +278,50 @@ authRoutes.post("/login", async (c) => {
 
   if (!row || !(await verifyPassword(password, row.password_hash))) {
     throw new ApiError(401, "INVALID_CREDENTIALS", "Email or password is incorrect.");
+  }
+  if (
+    row.sector === "mfi" &&
+    (
+      row.waitlist ||
+      !["mfi_admin", "loan_officer", "loan_manager", "loan_director", "borrower"].includes(row.role)
+    )
+  ) {
+    throw new ApiError(
+      403,
+      "MFI_ACCESS_NOT_PROVISIONED",
+      "This MFI account has not been provisioned by an organization administrator.",
+    );
+  }
+  if (row.sector === "mfi" && row.role === "mfi_admin") {
+    const organizations = await sql`
+      SELECT id
+      FROM mfi_organizations
+      WHERE created_by = ${row.id}
+      LIMIT 1
+    `;
+    if (!organizations[0]) {
+      throw new ApiError(
+        403,
+        "MFI_ACCESS_NOT_PROVISIONED",
+        "This MFI administrator is not linked to an organization.",
+      );
+    }
+  }
+  if (row.sector === "mfi" && ["loan_officer", "loan_manager", "loan_director"].includes(row.role)) {
+    const officers = await sql`
+      SELECT id
+      FROM mfi_officers
+      WHERE user_id = ${row.id}
+        AND active IS TRUE
+      LIMIT 1
+    `;
+    if (!officers[0]) {
+      throw new ApiError(
+        403,
+        "MFI_ACCESS_NOT_PROVISIONED",
+        "This staff account is inactive or is not linked to an organization.",
+      );
+    }
   }
 
   const updated = await sql`

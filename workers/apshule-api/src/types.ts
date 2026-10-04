@@ -13,7 +13,16 @@ export interface Env {
   SETTINGS_ENCRYPTION_KEY?: string;
 }
 
-export type UserRole = "individual" | "teacher" | "school" | "superadmin";
+export type UserRole =
+  | "individual"
+  | "teacher"
+  | "school"
+  | "superadmin"
+  | "mfi_admin"
+  | "loan_officer"
+  | "loan_manager"
+  | "loan_director"
+  | "borrower";
 
 export interface AuthenticatedUser {
   id: string;

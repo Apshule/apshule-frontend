@@ -13,6 +13,7 @@
     <link rel="icon" type="image/png" href="https://i.ibb.co/YFrCtRW8/IMG-20260328-WA0041-9.jpg">
     <link rel="apple-touch-icon" href="https://i.ibb.co/YFrCtRW8/IMG-20260328-WA0041-9.jpg">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
+    <link rel="stylesheet" href="./mfi-ui.css">
     <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
@@ -290,6 +291,16 @@
         .is-command-center .main-content { max-width: 1440px; margin: 0 auto; padding: 30px clamp(16px, 4vw, 56px) 64px; }
         .is-command-center .bottom-nav { display: none; }
         .is-command-center .main-content > .page { display: none !important; }
+        .app-container.is-mfi-portal { max-width: none; min-height: 100dvh; padding-bottom: 0; background: #f5f7f2; color: #173b43; }
+        .is-mfi-portal .header { padding: 10px clamp(14px, 3vw, 42px); background: #f5f7f2; box-shadow: none; }
+        .is-mfi-portal .header-left { display: none; }
+        .is-mfi-portal .header-right .ai-icon-btn { display: none; }
+        .is-mfi-portal .more-menu-btn { background: #17645f; }
+        .is-mfi-portal .more-menu-btn i { color: #fffefa; }
+        .is-mfi-portal .main-content { max-width: none; margin: 0 auto; padding: 0; }
+        .is-mfi-portal .main-content > .page:not(#mfiPortalPage) { display: none !important; }
+        .is-mfi-portal .main-content > #mfiPortalPage.active-page { display: block !important; }
+        .is-mfi-portal .bottom-nav { display: none; }
         .command-center { max-width: 1328px; margin: 0 auto; animation: ccEnter .32s ease both; }
         @keyframes ccEnter { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: translateY(0); } }
         .cc-heading { display:flex; align-items:flex-end; justify-content:space-between; gap:20px; margin: 0 0 22px; }
@@ -921,7 +932,7 @@
             <select id="signupSector" class="login-input signup-sector" aria-label="Choose your sector" required>
                 <option value="">Choose your sector...</option>
                 <option value="education">🏫 Education</option>
-                <option value="mfi">💰 Microfinance (coming soon)</option>
+                <option value="mfi" disabled>💰 Microfinance (staff accounts by invitation)</option>
                 <option value="clinic">🏥 Clinic &amp; Pharmacy (coming soon)</option>
                 <option value="farm">🌾 Farming (coming soon)</option>
             </select>
@@ -1047,6 +1058,9 @@
     <div class="ai-drawer" id="aiDrawer"><div class="ai-drawer-header"><h3><i class="fas fa-robot"></i> AI Tutor</h3><button id="closeDrawerBtn" style="background:none; border:none; color:white; font-size:24px;">&times;</button></div><div class="ai-chat-messages" id="chatMessages"><div class="message ai"><div class="message-avatar"><i class="fas fa-robot"></i></div><div class="message-bubble">Hello! I'm your APSHULE AI Tutor. Ask me anything! 📚</div></div></div><div class="ai-chat-input"><input type="text" id="chatInput" placeholder="Ask me..."><button id="sendBtn">Send</button></div></div>
 
     <div class="main-content">
+        <section id="mfiPortalPage" class="page" aria-label="Microfinance workspace">
+            <div id="mfiDashboard"></div>
+        </section>
         <section id="commandCenter" class="command-center hidden" aria-label="APSHULE Command Center">
             <div class="cc-heading">
                 <div><div class="cc-eyebrow">APSHULE · PLATFORM OPERATIONS</div><h1>Command Center</h1><p>A cross-sector view of learning and the communities around it.</p></div>
@@ -1864,6 +1878,7 @@
     import { initBulkImportUI } from "./bulk-import-ui.js";
     import { initAccountProfileUI } from "./account-profile-ui.js";
     import { initRetoolingUI } from "./retooling-ui.js";
+    import { initMfiUI } from "./mfi-ui.js";
     import { createOfflineDataLayer } from "./offline-data.js";
 
     const API_BASE = "https://apshule-api.apshule-migration.workers.dev";
@@ -1923,6 +1938,8 @@
     let reportCardsUI = null;
     let bulkImportUI = null;
     let profileUI = null;
+    let mfiUI = null;
+    const MFI_USER_ROLES = new Set(["mfi_admin", "loan_officer", "loan_manager", "loan_director", "borrower"]);
     let siteBrandLogo = document.getElementById('headerLogoImg')?.src || '';
     let commandCenterUsers = [];
     let commandCenterUserQuery = '';
@@ -3776,6 +3793,23 @@
 
     async function showAppFor(user) {
         currentUser = user;
+        const isMfiAccount = currentUser?.sector === "mfi" || MFI_USER_ROLES.has(String(currentUser?.role || "").toLowerCase());
+        if (isMfiAccount) {
+            await offlineData.saveSession(currentUser);
+            document.getElementById('adminMenuItem').style.display = "none";
+            document.getElementById('attendanceMenuItem').style.display = "none";
+            document.getElementById('commandCenter').classList.add('hidden');
+            document.getElementById('appScreen').classList.remove('is-command-center');
+            document.getElementById('appScreen').classList.add('is-mfi-portal');
+            document.getElementById('mfiPortalPage')?.classList.add('active-page');
+            document.getElementById('loginScreen').classList.add('hidden');
+            document.getElementById('appScreen').classList.remove('hidden');
+            document.getElementById('moreDropdown')?.classList.remove('show');
+            updateGreeting();
+            await mfiUI?.setUser(currentUser);
+            return;
+        }
+        document.getElementById('appScreen').classList.remove('is-mfi-portal');
         await offlineData.saveSession(currentUser);
         const shownUserId = String(currentUser.id);
         await migrateLegacyVideoViews(shownUserId);
@@ -5284,7 +5318,8 @@
             button.setAttribute('aria-selected', String(active));
         });
         Object.entries(viewIds).forEach(([key, id]) => document.getElementById(id)?.classList.toggle('active', key === tab));
-        if (['mfi', 'clinic', 'farm'].includes(tab)) loadSectorWaitlist(tab);
+        if (tab === 'mfi') void mfiUI?.loadCommandCenter();
+        else if (['clinic', 'farm'].includes(tab)) loadSectorWaitlist(tab);
         if (tab === 'ncdc') loadNcdcDashboard();
         if (tab === 'education' && currentUser?.role === 'superadmin') {
             void loadCcEarningsRate();
@@ -5310,6 +5345,9 @@
         await reportCardsUI?.setUser(null);
         await bulkImportUI?.setUser(null);
         await profileUI?.setUser(null);
+        await mfiUI?.setUser(null);
+        document.getElementById('appScreen').classList.remove('is-mfi-portal');
+        document.getElementById('mfiPortalPage')?.classList.remove('active-page');
         initializeTeacherDashboard(null);
         sessionStorage.removeItem(IMPERSONATION_TOKEN_KEY);
         sessionStorage.removeItem(ORIGINAL_SUPERADMIN_TOKEN_KEY);
@@ -5371,6 +5409,12 @@
                 }, 100);
             },
             getSiteBrandLogo: () => siteBrandLogo,
+        });
+        mfiUI = initMfiUI({
+            api,
+            getCurrentUser: () => currentUser,
+            notify: showNotification,
+            escapeHtml,
         });
         void loadSubscriptionPlans();
         wireTeacherDashboardEvents();

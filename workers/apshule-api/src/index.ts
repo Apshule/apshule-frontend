@@ -22,6 +22,7 @@ import reportCardsRoutes from "./routes/report-cards.js";
 import bulkImportRoutes from "./routes/bulk-import.js";
 import retoolingRoutes from "./routes/retooling.js";
 import earningsRoutes from "./routes/earnings.js";
+import mfiRoutes from "./routes/mfi.js";
 import type { AppEnv } from "./types.js";
 
 const app = new Hono<AppEnv>();
@@ -129,6 +130,7 @@ app.route("/api", reportCardsRoutes);
 app.route("/api", bulkImportRoutes);
 app.route("/api", retoolingRoutes);
 app.route("/api", earningsRoutes);
+app.route("/api", mfiRoutes);
 app.route("/api/yopayments", paymentsRoutes);
 app.route("/api/superadmin/platform-settings", platformSettingsRoutes);
 app.route("/api/subscription-plans", subscriptionPlansRoutes);
