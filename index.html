@@ -245,6 +245,22 @@
         .cc-view-title h2 { font-size:18px; letter-spacing:-.02em; }
         .cc-refresh { padding:8px 12px; border:1px solid #d8d4e7; border-radius:9px; background:#fff; color:#493b8a; font-size:12px; font-weight:700; cursor:pointer; }
         .cc-refresh:hover { background:#f6f4fb; }
+        .cc-user-toolbar { display:flex; align-items:center; gap:10px; margin:0 0 13px; }
+        .cc-user-search { flex:1; min-width:0; min-height:40px; padding:10px 13px; border:1px solid #dedce5; border-radius:10px; background:#fff; color:#302d49; font:inherit; }
+        .cc-user-table-wrap { overflow-x:auto; border:1px solid #e2e0db; border-radius:14px; background:#fff; box-shadow:0 2px 7px rgba(42,39,63,.035); }
+        .cc-users-table { width:100%; min-width:760px; border-collapse:collapse; text-align:left; }
+        .cc-users-table th, .cc-users-table td { padding:13px 15px; border-bottom:1px solid #eeede9; vertical-align:middle; }
+        .cc-users-table th { color:#777482; background:#faf9f7; font-size:11px; font-weight:750; letter-spacing:.07em; text-transform:uppercase; }
+        .cc-users-table td { color:#494657; font-size:13px; }
+        .cc-users-table tbody tr:last-child td { border-bottom:0; }
+        .cc-user-name { color:#302d49; font-weight:700; }
+        .cc-user-actions { display:flex; flex-wrap:wrap; gap:7px; }
+        .cc-user-action { min-height:32px; padding:7px 10px; border:1px solid #d8d4e7; border-radius:8px; background:#fff; color:#493b8a; font-size:11px; font-weight:700; cursor:pointer; }
+        .cc-user-action:hover { background:#f6f4fb; }
+        .cc-user-action--danger { border-color:#efc6c6; color:#a33d3d; }
+        .cc-user-action--danger:hover { background:#fff4f4; }
+        .impersonate-user { padding:6px 10px; border:1px solid #d8d4e7; border-radius:8px; background:#fff; color:#493b8a; font-size:12px; font-weight:700; cursor:pointer; }
+        .impersonate-user:hover { background:#f6f4fb; }
         .cc-metric-grid { display:grid; grid-template-columns:repeat(4,minmax(0,1fr)); gap:13px; margin-bottom:18px; }
         .cc-metric { min-height:112px; padding:18px 19px; border:1px solid #e2e0db; border-radius:15px; background:#fff; box-shadow:0 2px 7px rgba(42,39,63,.035); }
         .cc-metric-label { color:#777482; font-size:12px; font-weight:650; }
@@ -260,11 +276,15 @@
         .cc-sector-name { color:#504e5c; font-size:13px; font-weight:650; }
         .cc-sector-count { color:#34314b; font-size:14px; font-weight:760; font-variant-numeric:tabular-nums; }
         .cc-audit-list { padding:0 17px; }
-        .cc-audit-row { display:grid; grid-template-columns:minmax(100px,.7fr) minmax(90px,.7fr) minmax(0,1.4fr) auto; align-items:center; gap:12px; padding:13px 0; border-bottom:1px solid #f0efec; font-size:12px; }
+        .cc-audit-row { display:grid; grid-template-columns:minmax(130px,.8fr) minmax(130px,1fr) minmax(120px,.8fr) minmax(100px,.7fr); align-items:center; gap:12px; padding:13px 0; border-bottom:1px solid #f0efec; font-size:12px; }
         .cc-audit-row:last-child { border-bottom:0; }
         .cc-audit-action { color:#464354; font-weight:700; }
-        .cc-audit-meta { color:#7a7884; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+        .cc-audit-actor, .cc-audit-target { color:#7a7884; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
         .cc-audit-time { color:#8b8993; text-align:right; white-space:nowrap; }
+        #impersonationBanner { display:none; position:fixed; inset:0 0 auto; z-index:4000; align-items:center; justify-content:center; gap:12px; min-height:44px; padding:8px 16px; color:#432c16; background:linear-gradient(100deg,#ffd17f,#ff9a50); box-shadow:0 3px 14px rgba(90,52,16,.2); font-size:13px; font-weight:700; }
+        #impersonationBanner button { padding:6px 11px; border:1px solid rgba(82,49,17,.35); border-radius:999px; background:rgba(255,255,255,.68); color:#432c16; font:inherit; cursor:pointer; }
+        #impersonationBanner button:hover { background:#fff; }
+        body.impersonation-active #appScreen { padding-top:44px; }
         .cc-sector-message { max-width:760px; padding:clamp(24px,5vw,48px); border:1px solid #e1dfd9; border-radius:18px; background:#fff; box-shadow:0 5px 20px rgba(42,39,63,.045); }
         .cc-sector-message h2 { color:#302d49; font-size:23px; letter-spacing:-.03em; }
         .cc-sector-message p { color:#73717e; font-size:15px; margin-top:12px; }
@@ -282,11 +302,13 @@
             .cc-metric-grid { grid-template-columns:repeat(2,minmax(0,1fr)); }
             .cc-global-grid { grid-template-columns:1fr; }
             .cc-heading { align-items:flex-start; flex-direction:column; }
-            .cc-audit-row { grid-template-columns:minmax(75px,.8fr) minmax(0,1.2fr); gap:6px 12px; }
-            .cc-audit-meta { grid-column:1 / -1; white-space:normal; }
+            .cc-audit-row { grid-template-columns:minmax(100px,.8fr) minmax(0,1.2fr); gap:6px 12px; }
+            .cc-audit-action, .cc-audit-target { grid-column:1 / -1; }
+            .cc-audit-actor { white-space:normal; overflow-wrap:anywhere; }
             .cc-audit-time { text-align:left; }
         }
         @media (max-width: 480px) {
+            #impersonationBanner { justify-content:space-between; gap:8px; padding:8px 12px; font-size:12px; }
             .is-command-center .header { padding:12px 14px; }
             .is-command-center .tagline { display:none; }
             .is-command-center .main-content { padding:22px 13px 40px; }
@@ -299,6 +321,11 @@
     </style>
 </head>
 <body>
+
+<div id="impersonationBanner" role="status" aria-live="polite">
+    <span>🔍 Viewing as <strong id="impersonationUserName"></strong> (<span id="impersonationUserEmail"></span>)</span>
+    <button type="button" id="exitImpersonationBtn">Exit</button>
+</div>
 
 <div class="demo-notice" id="responsiveDemoNotice">
     🖥️ Desktop | 🖥️ Tablet | 📱 Phone
@@ -433,6 +460,7 @@
                 <button type="button" class="cc-tab" role="tab" aria-selected="false" data-cc-tab="mfi">💰 MFI</button>
                 <button type="button" class="cc-tab" role="tab" aria-selected="false" data-cc-tab="clinic">🏥 Clinic</button>
                 <button type="button" class="cc-tab" role="tab" aria-selected="false" data-cc-tab="farm">🌾 Farm</button>
+                <button type="button" class="cc-tab" role="tab" aria-selected="false" data-cc-tab="users">👥 Users</button>
                 <button type="button" class="cc-tab" role="tab" aria-selected="false" data-cc-tab="global">📊 Global</button>
             </div>
             <section id="ccEducationView" class="cc-view active" role="tabpanel">
@@ -442,6 +470,16 @@
             <section id="ccMfiView" class="cc-view" role="tabpanel"></section>
             <section id="ccClinicView" class="cc-view" role="tabpanel"></section>
             <section id="ccFarmView" class="cc-view" role="tabpanel"></section>
+            <section id="ccUsersView" class="cc-view" role="tabpanel">
+                <div class="cc-view-title">
+                    <div><h2>Users</h2><p class="cc-eyebrow" style="margin:6px 0 0">Manage platform accounts</p></div>
+                    <button type="button" class="cc-refresh" id="ccRefreshUsers">Refresh</button>
+                </div>
+                <div class="cc-user-toolbar">
+                    <input class="cc-user-search" type="search" id="ccUserSearch" placeholder="Search name, email, role, or sector" autocomplete="off" aria-label="Search users by name, email, role, or sector">
+                </div>
+                <div id="ccUsersContent"><div class="cc-state">Loading users…</div></div>
+            </section>
             <section id="ccGlobalView" class="cc-view" role="tabpanel">
                 <div class="cc-view-title"><h2>Global overview</h2><button type="button" class="cc-refresh" id="ccRefreshGlobal">Refresh overview</button></div>
                 <div id="ccGlobalContent"><div class="cc-state">Loading platform overview…</div></div>
@@ -568,7 +606,9 @@
     // 🔴 REPLACE THIS with your deployed Worker URL:
     const API_BASE = "https://apshule-api.apshule-migration.workers.dev";
 
-    let AUTH_TOKEN = localStorage.getItem('apshule_token') || null;
+    const IMPERSONATION_TOKEN_KEY = 'apshule_impersonation_token';
+    const ORIGINAL_SUPERADMIN_TOKEN_KEY = 'original_superadmin_token';
+    let AUTH_TOKEN = sessionStorage.getItem(IMPERSONATION_TOKEN_KEY) || localStorage.getItem('apshule_token') || null;
 
     // ---------- HTTP HELPER ----------
     async function api(path, { method = 'GET', body, auth = true } = {}) {
@@ -591,6 +631,8 @@
 
     // ---------- GLOBAL STATE ----------
     let currentUser = null;
+    let commandCenterUsers = [];
+    let commandCenterUserQuery = '';
     let schools = [];
     let globalEventsList = [];
     let pdfMaterials = [];
@@ -1119,16 +1161,95 @@
     }
 
     // ---------- USER MANAGEMENT (superadmin) ----------
+    function decodeJwtPayload(token = AUTH_TOKEN) {
+        if (!token) return null;
+        try {
+            const segment = token.split('.')[1];
+            if (!segment) return null;
+            const base64 = segment.replaceAll('-', '+').replaceAll('_', '/');
+            const padded = base64 + '='.repeat((4 - (base64.length % 4)) % 4);
+            const bytes = Uint8Array.from(atob(padded), character => character.charCodeAt(0));
+            return JSON.parse(new TextDecoder().decode(bytes));
+        } catch (error) { return null; }
+    }
+
+    function isImpersonating() {
+        return typeof decodeJwtPayload()?.impersonated_by === 'string';
+    }
+
+    function renderImpersonationBanner(user = currentUser) {
+        const banner = document.getElementById('impersonationBanner');
+        if (!banner) return;
+        if (!isImpersonating() || !user) {
+            banner.style.display = 'none';
+            document.body.classList.remove('impersonation-active');
+            return;
+        }
+        document.getElementById('impersonationUserName').textContent = user.name || 'User';
+        document.getElementById('impersonationUserEmail').textContent = user.email || '';
+        banner.style.display = 'flex';
+        document.body.classList.add('impersonation-active');
+    }
+
+    async function exitImpersonation() {
+        if (!isImpersonating()) return;
+        let auditFailed = false;
+        try {
+            await api('/api/impersonate/end', { method: 'POST' });
+        } catch (error) {
+            auditFailed = true;
+            try { await api('/api/auth/logout', { method: 'POST' }); } catch (logoutError) {}
+        }
+
+        const originalToken = sessionStorage.getItem(ORIGINAL_SUPERADMIN_TOKEN_KEY) || localStorage.getItem('apshule_token');
+        sessionStorage.removeItem(IMPERSONATION_TOKEN_KEY);
+        sessionStorage.removeItem(ORIGINAL_SUPERADMIN_TOKEN_KEY);
+        AUTH_TOKEN = originalToken || null;
+        if (!originalToken) localStorage.removeItem('apshule_token');
+        if (auditFailed) alert('You were returned to the Super Admin account, but the exit audit event could not be recorded.');
+        window.location.reload();
+    }
+
+    async function startImpersonation(user) {
+        if (!currentUser || currentUser.role !== 'superadmin' || isImpersonating() || !user || user.role === 'superadmin') return;
+        if (!confirm(`Login as ${user.name || user.email}?`)) return;
+        const originalToken = AUTH_TOKEN;
+        if (!originalToken) {
+            showNotification('Your Super Admin session is missing. Sign in again before impersonating.', 'error');
+            return;
+        }
+        try {
+            const result = await api(`/api/impersonate/${encodeURIComponent(user.id)}`, { method: 'POST' });
+            if (!result?.token || !result.user) throw new Error('The impersonation response was incomplete.');
+            try {
+                sessionStorage.setItem(ORIGINAL_SUPERADMIN_TOKEN_KEY, originalToken);
+                sessionStorage.setItem(IMPERSONATION_TOKEN_KEY, result.token);
+            } catch (storageError) {
+                sessionStorage.removeItem(IMPERSONATION_TOKEN_KEY);
+                sessionStorage.removeItem(ORIGINAL_SUPERADMIN_TOKEN_KEY);
+                throw new Error('This browser could not store the temporary session safely.');
+            }
+            AUTH_TOKEN = result.token;
+            window.location.reload();
+        } catch (error) {
+            showNotification(error.message || 'Could not start impersonation.', 'error');
+        }
+    }
+
     async function loadAllUsers() {
         if (!currentUser || currentUser.role !== 'superadmin') return;
         try {
-            const users = await api('/api/users');
+            const response = await api('/api/users');
+            const users = responseList(response, 'users');
+            if (!users) throw new Error('The users response was not in the expected format.');
             document.getElementById('totalUsersCount').innerText = users.length;
             let html = '';
-            users.forEach(u => {
-                html += `<div style="border-bottom:1px solid #ccc; padding:8px;"><strong>${escapeHtml(u.name)}</strong> (${escapeHtml(u.email)}) Role: ${escapeHtml(u.role||'individual')} <button class="edit-user" data-uid="${u.id}">Edit Role</button> <button class="delete-user" data-uid="${u.id}" style="background:#dc3545;">Delete</button></div>`;
+            users.forEach(user => {
+                const role = user.role || 'individual';
+                const impersonateButton = role === 'superadmin' ? '' : `<button class="impersonate-user" data-uid="${escapeHtml(user.id)}">👁️ Login as</button>`;
+                html += `<div style="border-bottom:1px solid #ccc; padding:8px;"><strong>${escapeHtml(user.name)}</strong> (${escapeHtml(user.email)}) Role: ${escapeHtml(role)} · Sector: ${escapeHtml(user.sector || '—')} <button class="edit-user" data-uid="${escapeHtml(user.id)}">Edit Role</button> <button class="delete-user" data-uid="${escapeHtml(user.id)}" style="background:#dc3545;">Delete</button> ${impersonateButton}</div>`;
             });
-            document.getElementById('allUsersList').innerHTML = html;
+            document.getElementById('allUsersList').innerHTML = html || '<div class="cc-state">No users found.</div>';
             document.querySelectorAll('.edit-user').forEach(btn => btn.addEventListener('click', async () => {
                 const uid = btn.dataset.uid;
                 const newRole = prompt("Enter role: superadmin, school, teacher, individual");
@@ -1139,18 +1260,93 @@
             document.querySelectorAll('.delete-user').forEach(btn => btn.addEventListener('click', async () => {
                 if (confirm("Delete user?")) { try { await api('/api/users/' + btn.dataset.uid, { method: 'DELETE' }); showNotification("User deleted"); loadAllUsers(); } catch(e) { showNotification(e.message, "error"); } }
             }));
+            document.querySelectorAll('.impersonate-user').forEach(button => {
+                const user = users.find(item => item.id === button.dataset.uid);
+                if (user) button.addEventListener('click', () => startImpersonation(user));
+            });
         } catch(e) { showNotification(e.message, "error"); }
     }
 
+    async function loadCommandCenterUsers() {
+        const container = document.getElementById('ccUsersContent');
+        if (!container || currentUser?.role !== 'superadmin') return;
+        container.innerHTML = '<div class="cc-state">Loading users…</div>';
+        try {
+            const response = await api('/api/users');
+            const users = responseList(response, 'users');
+            if (!users) throw new Error('The users response was not in the expected format.');
+            commandCenterUsers = users;
+            renderCommandCenterUsers();
+        } catch (error) {
+            container.innerHTML = `<div class="cc-state error">${escapeHtml(error.message || 'Could not load users.')} <button type="button" data-cc-users-retry>Try again</button></div>`;
+        }
+    }
+
+    function renderCommandCenterUsers() {
+        const container = document.getElementById('ccUsersContent');
+        if (!container) return;
+        const query = commandCenterUserQuery.trim().toLowerCase();
+        const filteredUsers = commandCenterUsers.filter(user =>
+            [user.name, user.email, user.role, user.sector].some(value => String(value || '').toLowerCase().includes(query))
+        );
+        if (!filteredUsers.length) {
+            container.innerHTML = `<div class="cc-state">${query ? 'No users match your search.' : 'No users found.'}</div>`;
+            return;
+        }
+        const rows = filteredUsers.map(user => {
+            const userId = escapeHtml(user.id);
+            const role = user.role || 'individual';
+            const actions = role === 'superadmin'
+                ? `<button type="button" class="cc-user-action cc-user-action--danger" data-cc-user-action="delete" data-user-id="${userId}">Delete</button>`
+                : `<button type="button" class="cc-user-action" data-cc-user-action="impersonate" data-user-id="${userId}">👁️ Login as</button><button type="button" class="cc-user-action cc-user-action--danger" data-cc-user-action="delete" data-user-id="${userId}">Delete</button>`;
+            return `<tr><td class="cc-user-name">${escapeHtml(user.name || '—')}</td><td>${escapeHtml(user.email || '—')}</td><td>${escapeHtml(role)}</td><td>${escapeHtml(user.sector || '—')}</td><td><div class="cc-user-actions">${actions}</div></td></tr>`;
+        }).join('');
+        container.innerHTML = `<div class="cc-user-table-wrap"><table class="cc-users-table"><thead><tr><th scope="col">Name</th><th scope="col">Email</th><th scope="col">Role</th><th scope="col">Sector</th><th scope="col">Actions</th></tr></thead><tbody>${rows}</tbody></table></div>`;
+    }
+
+    async function deleteCommandCenterUser(user) {
+        if (!user || !confirm(`Delete user ${user.name || user.email}?`)) return;
+        try {
+            await api('/api/users/' + encodeURIComponent(user.id), { method: 'DELETE' });
+            showNotification('User deleted');
+            await loadCommandCenterUsers();
+            loadAllUsers();
+        } catch (error) {
+            showNotification(error.message, 'error');
+        }
+    }
+
     // ---------- AUTH / SESSION ----------
+    async function requestCurrentUser() {
+        const response = await api('/api/auth/me');
+        return response?.user || response;
+    }
+
     async function loadCurrentUser() {
         if (!AUTH_TOKEN) return null;
-        try { return await api('/api/auth/me'); }
-        catch(e) { AUTH_TOKEN = null; localStorage.removeItem('apshule_token'); return null; }
+        try { return await requestCurrentUser(); }
+        catch(e) {
+            const sessionImpersonation = sessionStorage.getItem(IMPERSONATION_TOKEN_KEY) === AUTH_TOKEN;
+            if (sessionImpersonation) {
+                const originalToken = sessionStorage.getItem(ORIGINAL_SUPERADMIN_TOKEN_KEY) || localStorage.getItem('apshule_token');
+                sessionStorage.removeItem(IMPERSONATION_TOKEN_KEY);
+                sessionStorage.removeItem(ORIGINAL_SUPERADMIN_TOKEN_KEY);
+                if (originalToken && originalToken !== AUTH_TOKEN) {
+                    AUTH_TOKEN = originalToken;
+                    try { return await requestCurrentUser(); } catch (restoreError) {}
+                }
+            }
+            AUTH_TOKEN = null;
+            sessionStorage.removeItem(IMPERSONATION_TOKEN_KEY);
+            sessionStorage.removeItem(ORIGINAL_SUPERADMIN_TOKEN_KEY);
+            localStorage.removeItem('apshule_token');
+            return null;
+        }
     }
 
     async function showAppFor(user) {
         currentUser = user;
+        renderImpersonationBanner(currentUser);
         document.getElementById('loginScreen').classList.add('hidden');
         document.getElementById('appScreen').classList.remove('hidden');
         updateGreeting();
@@ -1292,12 +1488,6 @@
         }
     }
 
-    function auditValue(value) {
-        if (value == null || value === '') return '—';
-        if (typeof value === 'string') return value;
-        try { return JSON.stringify(value); } catch (e) { return String(value); }
-    }
-
     async function loadGlobalOverview() {
         const container = document.getElementById('ccGlobalContent');
         if (!container) return;
@@ -1307,14 +1497,14 @@
             api('/api/schools'),
             api('/api/events'),
             api('/api/video-views/stats'),
-            api('/api/audit-log?limit=10')
+            api('/api/audit-log?limit=100')
         ]);
         const [sectorsResult, schoolsResult, eventsResult, viewsResult, auditResult] = results;
         const sectors = sectorsResult.status === 'fulfilled' && Array.isArray(sectorsResult.value) ? sectorsResult.value : null;
         const schools = schoolsResult.status === 'fulfilled' ? responseList(schoolsResult.value, 'schools') : null;
         const events = eventsResult.status === 'fulfilled' ? responseList(eventsResult.value, 'events') : null;
         const videoStats = viewsResult.status === 'fulfilled' && viewsResult.value && typeof viewsResult.value === 'object' ? viewsResult.value : null;
-        const auditRows = auditResult.status === 'fulfilled' && Array.isArray(auditResult.value) ? auditResult.value.slice(0, 10) : null;
+        const auditRows = auditResult.status === 'fulfilled' && Array.isArray(auditResult.value) ? auditResult.value.slice(0, 100) : null;
         const totalViews = videoStats && Number.isFinite(Number(videoStats.total)) ? Number(videoStats.total) : null;
 
         const metrics = [
@@ -1334,11 +1524,11 @@
         else auditContent = `<div class="cc-audit-list">${auditRows.map(row => {
             const date = row.created_at ? new Date(row.created_at) : null;
             const when = date && !Number.isNaN(date.getTime()) ? date.toLocaleString() : 'Time unavailable';
-            const target = row.target_table ? `${row.target_table}${row.target_id != null ? ` · ${row.target_id}` : ''}` : auditValue(row.metadata);
-            const detail = [row.actor_id != null ? `Actor ${row.actor_id}` : '', target].filter(Boolean).join(' · ') || '—';
-            return `<div class="cc-audit-row"><span class="cc-audit-action">${escapeHtml(row.action || 'Activity')}</span><span>${escapeHtml(row.sector || '—')}</span><span class="cc-audit-meta" title="${escapeHtml(detail)}">${escapeHtml(detail)}</span><span class="cc-audit-time">${escapeHtml(when)}</span></div>`;
+            const actor = row.actor_email || row.actor_name || 'Unknown actor';
+            const target = row.target_table || row.sector || '—';
+            return `<div class="cc-audit-row"><time class="cc-audit-time">${escapeHtml(when)}</time><span class="cc-audit-actor" title="${escapeHtml(row.actor_name || actor)}">${escapeHtml(actor)}</span><span class="cc-audit-action">→ ${escapeHtml(row.action || 'Activity')}</span><span class="cc-audit-target">${escapeHtml(target)}</span></div>`;
         }).join('')}</div>`;
-        container.innerHTML = `<div class="cc-metric-grid">${metrics}</div><div class="cc-global-grid"><section class="cc-surface"><div class="cc-surface-head"><h3>Total users by sector</h3></div><div class="cc-sector-list">${sectorList}</div></section><section class="cc-surface"><div class="cc-surface-head"><h3>Latest audit activity</h3><span class="cc-eyebrow" style="margin:0">10 most recent</span></div>${auditContent}</section></div>`;
+        container.innerHTML = `<div class="cc-metric-grid">${metrics}</div><div class="cc-global-grid"><section class="cc-surface"><div class="cc-surface-head"><h3>Total users by sector</h3></div><div class="cc-sector-list">${sectorList}</div></section><section class="cc-surface"><div class="cc-surface-head"><h3>📋 Recent Activity</h3><span class="cc-eyebrow" style="margin:0">100 most recent</span></div><div id="auditLogList">${auditContent}</div></section></div>`;
     }
 
     function activateCommandTab(tab) {
@@ -1347,6 +1537,7 @@
             mfi: 'ccMfiView',
             clinic: 'ccClinicView',
             farm: 'ccFarmView',
+            users: 'ccUsersView',
             global: 'ccGlobalView'
         };
         document.querySelectorAll('.cc-tab').forEach(button => {
@@ -1356,6 +1547,7 @@
         });
         Object.entries(viewIds).forEach(([key, id]) => document.getElementById(id)?.classList.toggle('active', key === tab));
         if (['mfi', 'clinic', 'farm'].includes(tab)) loadSectorWaitlist(tab);
+        if (tab === 'users') loadCommandCenterUsers();
         if (tab === 'global') loadGlobalOverview();
     }
 
@@ -1370,6 +1562,26 @@
         document.querySelectorAll('.nav-item').forEach(i => i.addEventListener('click', () => navigateTo(i.getAttribute('data-page'))));
         document.querySelectorAll('.cc-tab').forEach(button => button.addEventListener('click', () => activateCommandTab(button.dataset.ccTab)));
         document.getElementById('ccRefreshGlobal')?.addEventListener('click', loadGlobalOverview);
+        document.getElementById('ccRefreshUsers')?.addEventListener('click', loadCommandCenterUsers);
+        document.getElementById('ccUserSearch')?.addEventListener('input', event => {
+            commandCenterUserQuery = event.target.value || '';
+            renderCommandCenterUsers();
+        });
+        document.getElementById('ccUsersContent')?.addEventListener('click', async event => {
+            const target = event.target instanceof Element ? event.target : null;
+            const retryButton = target?.closest('[data-cc-users-retry]');
+            if (retryButton) {
+                loadCommandCenterUsers();
+                return;
+            }
+            const button = target?.closest('[data-cc-user-action]');
+            if (!button) return;
+            const user = commandCenterUsers.find(item => item.id === button.dataset.userId);
+            if (!user) return;
+            if (button.dataset.ccUserAction === 'impersonate') await startImpersonation(user);
+            if (button.dataset.ccUserAction === 'delete') await deleteCommandCenterUser(user);
+        });
+        document.getElementById('exitImpersonationBtn')?.addEventListener('click', exitImpersonation);
         document.getElementById('folderHeader')?.addEventListener('click', () => { const c = document.getElementById('folderContent'); const ic = document.querySelector('#folderHeader i:last-child'); c.classList.toggle('show'); ic.className = c.classList.contains('show') ? 'fas fa-chevron-up' : 'fas fa-chevron-down'; });
 
         document.querySelectorAll('.subscribe-btn-small').forEach(btn => {
@@ -1650,8 +1862,14 @@
             try { await api('/api/auth/reset', { method: 'POST', body: { email }, auth: false }); showNotification("Reset email sent!"); } catch(err) { showNotification(err.message, "error"); }
         });
         document.getElementById('logoutBtn').addEventListener('click', async () => {
-            try { await api('/api/auth/logout', { method: 'POST' }); } catch(e) {}
+            const impersonationSession = sessionStorage.getItem(IMPERSONATION_TOKEN_KEY) === AUTH_TOKEN || isImpersonating();
+            try {
+                if (impersonationSession) await api('/api/impersonate/end', { method: 'POST' });
+                else await api('/api/auth/logout', { method: 'POST' });
+            } catch(e) {}
             AUTH_TOKEN = null; localStorage.removeItem('apshule_token'); currentUser = null;
+            sessionStorage.removeItem(IMPERSONATION_TOKEN_KEY);
+            sessionStorage.removeItem(ORIGINAL_SUPERADMIN_TOKEN_KEY);
             if (window._pollInterval) clearInterval(window._pollInterval);
             document.getElementById('loginScreen').classList.remove('hidden');
             document.getElementById('appScreen').classList.add('hidden');

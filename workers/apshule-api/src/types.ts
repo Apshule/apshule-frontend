@@ -18,6 +18,7 @@ export interface AuthenticatedUser {
   sector: string;
   tokenId: string;
   tokenExpiresAt: number;
+  impersonatedBy?: string;
 }
 
 export interface UserRecord {

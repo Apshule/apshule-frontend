@@ -264,7 +264,13 @@ authRoutes.get("/me", authMiddleware, async (c) => {
     LIMIT 1
   `;
   if (!rows[0]) throw new ApiError(404, "USER_NOT_FOUND", "User account was not found.");
-  return c.json({ user: publicUser(rows[0] as Record<string, unknown>) });
+  const publicRecord = publicUser(rows[0] as Record<string, unknown>);
+  const authenticated = c.get("user");
+  return c.json({
+    user: authenticated.impersonatedBy
+      ? { ...publicRecord, role: authenticated.role, sector: authenticated.sector }
+      : publicRecord,
+  });
 });
 
 export default authRoutes;

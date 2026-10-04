@@ -90,6 +90,10 @@ export async function createAccessToken(
     schoolId: string | null;
     sector: string;
   },
+  options: {
+    expiresInSeconds?: number;
+    impersonatedBy?: string;
+  } = {},
 ): Promise<{ token: string; tokenId: string; expiresAt: number }> {
   const secret = encoder.encode(requireEnv(env.JWT_SECRET, "JWT_SECRET"));
   if (secret.byteLength < 32) {
@@ -100,13 +104,19 @@ export async function createAccessToken(
     );
   }
   const tokenId = crypto.randomUUID();
-  const expiresAt = Math.floor(Date.now() / 1000) + 30 * 24 * 60 * 60;
-  const token = await new SignJWT({
+  const expiresInSeconds = options.expiresInSeconds ?? 30 * 24 * 60 * 60;
+  if (!Number.isSafeInteger(expiresInSeconds) || expiresInSeconds < 1) {
+    throw new ApiError(500, "INVALID_TOKEN_LIFETIME", "Token lifetime must be a positive integer.");
+  }
+  const expiresAt = Math.floor(Date.now() / 1000) + expiresInSeconds;
+  const claims: Record<string, unknown> = {
     email: user.email,
     role: user.role,
     schoolId: user.schoolId,
     sector: user.sector,
-  })
+  };
+  if (options.impersonatedBy) claims.impersonated_by = options.impersonatedBy;
+  const token = await new SignJWT(claims)
     .setProtectedHeader({ alg: "HS256", typ: "JWT" })
     .setSubject(user.id)
     .setJti(tokenId)
@@ -144,6 +154,23 @@ export const authMiddleware = createMiddleware<AppEnv>(async (c, next) => {
     throw new ApiError(401, "INVALID_TOKEN", "The bearer token is incomplete.");
   }
 
+  const impersonatedByClaim = payload.impersonated_by;
+  const isImpersonationToken = impersonatedByClaim !== undefined;
+  const impersonatedRoles = new Set(["individual", "teacher", "school"]);
+  if (
+    isImpersonationToken &&
+    (
+      typeof impersonatedByClaim !== "string" ||
+      !/^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/iu.test(impersonatedByClaim) ||
+      typeof payload.role !== "string" ||
+      !impersonatedRoles.has(payload.role) ||
+      typeof payload.sector !== "string" ||
+      !payload.sector.trim()
+    )
+  ) {
+    throw new ApiError(401, "INVALID_TOKEN", "The impersonation token is incomplete.");
+  }
+
   const sql = getDb(c.env);
   const rows = await sql`
     SELECT u.id, u.name, u.email, u.role, u.school_id, u.sector
@@ -173,11 +200,16 @@ export const authMiddleware = createMiddleware<AppEnv>(async (c, next) => {
     id: row.id,
     name: row.name,
     email: row.email,
-    role: row.role,
+    role: isImpersonationToken
+      ? payload.role as AuthenticatedUser["role"]
+      : row.role,
     schoolId: row.school_id,
-    sector: row.sector ?? "education",
+    sector: isImpersonationToken
+      ? payload.sector as string
+      : row.sector ?? "education",
     tokenId: payload.jti,
     tokenExpiresAt: payload.exp,
+    ...(isImpersonationToken ? { impersonatedBy: impersonatedByClaim as string } : {}),
   });
   await next();
 });
@@ -187,6 +219,25 @@ export function requireRole(...roles: AuthenticatedUser["role"][]) {
     const user = c.get("user");
     if (!roles.includes(user.role)) {
       throw new ApiError(403, "FORBIDDEN", "You do not have permission to do this.");
+    }
+    await next();
+  });
+}
+
+export function requireRealSuperAdmin() {
+  return createMiddleware<AppEnv>(async (c, next) => {
+    const user = c.get("user");
+    if (user.role !== "superadmin" || user.impersonatedBy) {
+      throw new ApiError(403, "FORBIDDEN", "A Super Admin session is required.");
+    }
+    await next();
+  });
+}
+
+export function requireImpersonationSession() {
+  return createMiddleware<AppEnv>(async (c, next) => {
+    if (!c.get("user").impersonatedBy) {
+      throw new ApiError(403, "FORBIDDEN", "An active impersonation session is required.");
     }
     await next();
   });

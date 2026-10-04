@@ -9,7 +9,7 @@ const users = new Hono<AppEnv>();
 users.get("/", authMiddleware, requireRole("superadmin"), async (c) => {
   const sql = getDb(c.env);
   const rows = await sql`
-    SELECT id, name, email, phone, role, school_id, education_level,
+    SELECT id, name, email, phone, role, sector, school_id, education_level,
       class_level, subjects_taught, assigned_classes, lin, school_verified, address,
       profile_pic, subscription, subscription_active, subscription_date, login_count,
       last_login, detected_location, created_at

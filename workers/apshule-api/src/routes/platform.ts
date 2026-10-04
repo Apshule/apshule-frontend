@@ -1,6 +1,6 @@
 import { Hono } from "hono";
 import { ApiError, getDb } from "../db.js";
-import { authMiddleware, requireRole } from "../auth.js";
+import { authMiddleware, requireRealSuperAdmin, requireRole } from "../auth.js";
 import { optionalString, parseLimit, readJson, requiredString } from "../http.js";
 import type { AppEnv } from "../types.js";
 
@@ -67,19 +67,29 @@ platformRoutes.post("/audit", authMiddleware, requireRole("superadmin"), async (
   return c.json({ audit: rows[0] }, 201);
 });
 
-platformRoutes.get("/audit-log", authMiddleware, requireRole("superadmin"), async (c) => {
+platformRoutes.get("/audit-log", authMiddleware, requireRealSuperAdmin(), async (c) => {
   const sectorValue = c.req.query("sector");
   if (sectorValue !== undefined && (!sectorValue.trim() || sectorValue.length > 80)) {
     throw new ApiError(400, "VALIDATION_ERROR", "sector must be a non-empty value of at most 80 characters.");
   }
   const sector = sectorValue ?? null;
-  const limit = parseLimit(c.req.query("limit"), 50);
+  const limit = parseLimit(c.req.query("limit"), 100);
   const sql = getDb(c.env);
   const rows = await sql`
-    SELECT id, actor_id, sector, action, target_table, target_id, metadata, ip, created_at
-    FROM audit_log
-    WHERE ${sector === null} OR sector = ${sector}
-    ORDER BY created_at DESC
+    SELECT
+      a.id,
+      a.action,
+      a.sector,
+      a.target_table,
+      a.target_id,
+      a.metadata,
+      actor.email AS actor_email,
+      actor.name AS actor_name,
+      a.created_at
+    FROM audit_log a
+    LEFT JOIN users actor ON actor.id = a.actor_id
+    WHERE ${sector === null} OR a.sector = ${sector}
+    ORDER BY a.created_at DESC
     LIMIT ${limit}
   `;
   return c.json(rows);

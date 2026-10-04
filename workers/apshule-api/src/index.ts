@@ -9,6 +9,7 @@ import paymentsRoutes from "./routes/payments.js";
 import schoolsRoutes from "./routes/schools.js";
 import settingsRoutes from "./routes/settings.js";
 import platformRoutes from "./routes/platform.js";
+import impersonationRoutes from "./routes/impersonation.js";
 import usersRoutes from "./routes/users.js";
 import type { AppEnv } from "./types.js";
 
@@ -107,6 +108,7 @@ app.route("/api/events", eventsRoutes);
 app.route("/api", contentRoutes);
 app.route("/api/settings", settingsRoutes);
 app.route("/api", platformRoutes);
+app.route("/api", impersonationRoutes);
 app.route("/api/yopayments", paymentsRoutes);
 
 app.notFound((c) =>
