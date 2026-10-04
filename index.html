@@ -10,6 +10,8 @@
     <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/page-flip@2.0.7/dist/js/page-flip.browser.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/papaparse@5.4.1/papaparse.min.js"></script>
+    <script src="https://cdn.sheetjs.com/xlsx-0.20.3/package/dist/xlsx.full.min.js"></script>
     <style>
         * { margin: 0; padding: 0; box-sizing: border-box; }
         body { font-family: system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif; background: linear-gradient(180deg, #4B2E9E 0%, #7B5FCF 100%); min-height: 100vh; }
@@ -1142,6 +1144,45 @@
                         <div id="liveLessonContainer" style="display:none; margin-top:20px;"></div>
                     </div>
                 </div>
+                <div class="admin-section" id="bulkImportSection" style="display:none;">
+                    <h4>📥 Bulk Import Students and Teachers</h4>
+                    <p style="margin:8px 0 14px;">Upload CSV or Excel files. Review the preview before importing. Each file can contain up to 100 rows. New accounts receive a default password shown only in the result below.</p>
+                    <div id="bulkImportSchoolPicker" style="display:none; margin:10px 0;">
+                        <label for="bulkImportSchoolSelect"><strong>School for this import</strong></label>
+                        <select id="bulkImportSchoolSelect" style="display:block; width:100%; max-width:520px; padding:10px; margin-top:6px;">
+                            <option value="">Select a school</option>
+                        </select>
+                    </div>
+                    <div id="bulkImportSchoolMessage" class="rc-muted" style="margin:8px 0;"></div>
+                    <div style="display:grid; grid-template-columns:repeat(auto-fit,minmax(min(100%,320px),1fr)); gap:14px;">
+                        <article class="admin-section" style="margin:0; min-width:0;">
+                            <h5>Import students</h5>
+                            <p style="margin:8px 0;">Required: name, unique email, class_level. Class levels: Baby, Middle, Top, P1–P7, S1–S6. Phone is optional but recommended for the default password; gender (F/M, Female/Male, Other, Prefer not to say) and LIN are optional. Duplicate emails are skipped.</p>
+                            <button type="button" id="bulkImportStudentsTemplate" class="admin-toggle">⬇️ Download Template</button>
+                            <label for="bulkImportStudentsFile" style="display:block; margin-top:12px;">Choose CSV or Excel file</label>
+                            <input type="file" id="bulkImportStudentsFile" accept=".csv,.xlsx,.xls" style="display:block; margin-top:6px;">
+                            <div id="bulkImportStudentsStatus" role="status" aria-live="polite" style="margin:8px 0;"></div>
+                            <div id="bulkImportStudentsPreview"></div>
+                            <button type="button" id="bulkImportStudentsSubmit" class="admin-toggle" disabled>✅ Import All</button>
+                            <div id="bulkImportStudentsResult" style="margin-top:12px;"></div>
+                        </article>
+                        <article class="admin-section" style="margin:0; min-width:0;">
+                            <h5>Import teachers</h5>
+                            <p style="margin:8px 0;">Required: name and unique email. Phone is optional but recommended for the default password; gender (F/M, Female/Male, Other, Prefer not to say), subjects_taught and assigned_classes are optional. Lists use commas. Class levels: Baby, Middle, Top, P1–P7, S1–S6. Duplicate emails are skipped.</p>
+                            <button type="button" id="bulkImportTeachersTemplate" class="admin-toggle">⬇️ Download Template</button>
+                            <label for="bulkImportTeachersFile" style="display:block; margin-top:12px;">Choose CSV or Excel file</label>
+                            <input type="file" id="bulkImportTeachersFile" accept=".csv,.xlsx,.xls" style="display:block; margin-top:6px;">
+                            <div id="bulkImportTeachersStatus" role="status" aria-live="polite" style="margin:8px 0;"></div>
+                            <div id="bulkImportTeachersPreview"></div>
+                            <button type="button" id="bulkImportTeachersSubmit" class="admin-toggle" disabled>✅ Import All</button>
+                            <div id="bulkImportTeachersResult" style="margin-top:12px;"></div>
+                        </article>
+                    </div>
+                    <div class="admin-section" style="margin-top:14px;">
+                        <h5>Recent import history</h5>
+                        <div id="bulkImportHistory" role="status" aria-live="polite">Select a school to view imports.</div>
+                    </div>
+                </div>
                 <div class="admin-section" id="schoolReportCardsSection" style="display:none;">
                     <h4>📊 Report Cards</h4>
                     <p class="rc-muted">Create individual cards, generate a class set, download published cards, and reset a learner's one-time PDF download.</p>
@@ -1332,6 +1373,7 @@
 
     // 🔴 REPLACE THIS with your deployed Worker URL:
     import { initReportCardUI } from "./report-cards-ui.js";
+    import { initBulkImportUI } from "./bulk-import-ui.js";
 
     const API_BASE = "https://apshule-api.apshule-migration.workers.dev";
 
@@ -1361,6 +1403,7 @@
     // ---------- GLOBAL STATE ----------
     let currentUser = null;
     let reportCardsUI = null;
+    let bulkImportUI = null;
     let commandCenterUsers = [];
     let commandCenterUserQuery = '';
     let ncdcUnebItems = [];
@@ -2428,6 +2471,7 @@
         document.getElementById('appScreen').classList.remove('hidden');
         updateGreeting();
         if (reportCardsUI) await reportCardsUI.setUser(currentUser);
+        if (bulkImportUI) await bulkImportUI.setUser(currentUser);
 
         const address = currentUser.address || 'Not set';
         const studentGender = currentUser.role === 'individual' && currentUser.sector === 'education'
@@ -2461,6 +2505,7 @@
         const isSchool = currentUser.role === 'school';
         document.getElementById('adminMenuItem').style.display = (isSuper || isSchool) ? "flex" : "none";
         document.getElementById('superAdminSection').style.display = isSuper ? "block" : "none";
+        document.getElementById('bulkImportSection').style.display = (isSuper || isSchool) && !currentUser.impersonatedBy ? "block" : "none";
         document.getElementById('schoolReportCardsSection').style.display = isSchool ? "block" : "none";
         document.getElementById('schoolEventsSection').style.display = isSchool ? "block" : "none";
         document.getElementById('globalEventsSection').style.display = isSuper ? "block" : "none";
@@ -3466,6 +3511,17 @@
             notify: showNotification,
             escapeHtml,
         });
+        bulkImportUI = initBulkImportUI({
+            api,
+            apiBase: API_BASE,
+            getToken: () => AUTH_TOKEN,
+            getCurrentUser: () => currentUser,
+            notify: showNotification,
+            escapeHtml,
+            onImportComplete: async () => {
+                if (currentUser?.role === 'superadmin') await loadAllUsers();
+            },
+        });
         wireTeacherDashboardEvents();
         document.getElementById('sendBtn')?.addEventListener('click', sendChat);
         document.getElementById('chatInput')?.addEventListener('keypress', e => { if (e.key === 'Enter') sendChat(); });
@@ -3965,6 +4021,7 @@
             } catch(e) {}
             AUTH_TOKEN = null; localStorage.removeItem('apshule_token'); currentUser = null;
             await reportCardsUI?.setUser(null);
+            await bulkImportUI?.setUser(null);
             initializeTeacherDashboard(null);
             sessionStorage.removeItem(IMPERSONATION_TOKEN_KEY);
             sessionStorage.removeItem(ORIGINAL_SUPERADMIN_TOKEN_KEY);
