@@ -3,6 +3,7 @@ import { ApiError, getDb } from "../db.js";
 import { authMiddleware, requireRole } from "../auth.js";
 import { readJson, requiredString } from "../http.js";
 import {
+  optionalBodyHttpsUrl,
   optionalBodyText,
   queryText,
   requestIp,
@@ -231,7 +232,10 @@ foundationRoutes.get(
       `,
       sql`
       SELECT id, subject, class_level, topic, syllabus_ref, learner_book_page,
-             teacher_guide_page, summary_text, activity_suggestion, created_at
+             teacher_guide_page, summary_text, activity_suggestion, created_at,
+             ((NULLIF(BTRIM(syllabus_url), '') IS NOT NULL)::int +
+              (NULLIF(BTRIM(learner_book_url), '') IS NOT NULL)::int +
+              (NULLIF(BTRIM(teacher_guide_url), '') IS NOT NULL)::int) AS url_count
       FROM curriculum_links
       WHERE (${subject === null} OR subject = ${subject})
         AND (${classLevel === null} OR class_level = ${classLevel})
@@ -263,7 +267,11 @@ foundationRoutes.get(
     ) {
       response.links = await sql`
         SELECT id, subject, class_level, topic, syllabus_ref, learner_book_page,
-               teacher_guide_page, summary_text, activity_suggestion, created_at
+               teacher_guide_page, syllabus_url, learner_book_url, teacher_guide_url,
+               summary_text, activity_suggestion, created_at,
+               ((NULLIF(BTRIM(syllabus_url), '') IS NOT NULL)::int +
+                (NULLIF(BTRIM(learner_book_url), '') IS NOT NULL)::int +
+                (NULLIF(BTRIM(teacher_guide_url), '') IS NOT NULL)::int) AS url_count
         FROM curriculum_links
         ORDER BY class_level ASC NULLS LAST, subject ASC NULLS LAST,
                  topic ASC NULLS LAST, created_at DESC
@@ -315,7 +323,8 @@ foundationRoutes.get(
     const sql = getDb(c.env);
     const rows = await sql`
       SELECT id, subject, class_level, topic, syllabus_ref, learner_book_page,
-             teacher_guide_page, summary_text, activity_suggestion, created_at
+             teacher_guide_page, syllabus_url, learner_book_url, teacher_guide_url,
+             summary_text, activity_suggestion, created_at
       FROM curriculum_links
       WHERE id = ${id}
       LIMIT 1
@@ -479,6 +488,9 @@ foundationRoutes.post(
     const syllabusRef = optionalBodyText(body, "syllabus_ref", 300) ?? null;
     const learnerBookPage = optionalBodyText(body, "learner_book_page", 120) ?? null;
     const teacherGuidePage = optionalBodyText(body, "teacher_guide_page", 120) ?? null;
+    const syllabusUrl = optionalBodyHttpsUrl(body, "syllabus_url") ?? null;
+    const learnerBookUrl = optionalBodyHttpsUrl(body, "learner_book_url") ?? null;
+    const teacherGuideUrl = optionalBodyHttpsUrl(body, "teacher_guide_url") ?? null;
     const summaryText = optionalBodyText(body, "summary_text", 6000) ?? null;
     const activitySuggestion = optionalBodyText(body, "activity_suggestion", 6000) ?? null;
     const user = c.get("user");
@@ -488,14 +500,17 @@ foundationRoutes.post(
       WITH inserted AS (
         INSERT INTO curriculum_links (
           subject, class_level, topic, syllabus_ref, learner_book_page,
-          teacher_guide_page, summary_text, activity_suggestion
+          teacher_guide_page, syllabus_url, learner_book_url, teacher_guide_url,
+          summary_text, activity_suggestion
         )
         VALUES (
           ${subject}, ${classLevel}, ${topic}, ${syllabusRef}, ${learnerBookPage},
-          ${teacherGuidePage}, ${summaryText}, ${activitySuggestion}
+          ${teacherGuidePage}, ${syllabusUrl}, ${learnerBookUrl}, ${teacherGuideUrl},
+          ${summaryText}, ${activitySuggestion}
         )
         RETURNING id, subject, class_level, topic, syllabus_ref, learner_book_page,
-                  teacher_guide_page, summary_text, activity_suggestion, created_at
+                  teacher_guide_page, syllabus_url, learner_book_url, teacher_guide_url,
+                  summary_text, activity_suggestion, created_at
       ), audit AS (
         INSERT INTO audit_log (actor_id, sector, action, target_table, target_id, metadata, ip)
         SELECT ${user.id}, 'education', 'curriculum_link.create', 'curriculum_links',
@@ -525,6 +540,9 @@ foundationRoutes.patch(
       "syllabus_ref",
       "learner_book_page",
       "teacher_guide_page",
+      "syllabus_url",
+      "learner_book_url",
+      "teacher_guide_url",
       "summary_text",
       "activity_suggestion",
     ] as const;
@@ -546,6 +564,13 @@ foundationRoutes.patch(
       teacher_guide_page: has.teacher_guide_page
         ? optionalBodyText(body, "teacher_guide_page", 120)
         : null,
+      syllabus_url: has.syllabus_url ? optionalBodyHttpsUrl(body, "syllabus_url") : null,
+      learner_book_url: has.learner_book_url
+        ? optionalBodyHttpsUrl(body, "learner_book_url")
+        : null,
+      teacher_guide_url: has.teacher_guide_url
+        ? optionalBodyHttpsUrl(body, "teacher_guide_url")
+        : null,
       summary_text: has.summary_text ? optionalBodyText(body, "summary_text", 6000) : null,
       activity_suggestion: has.activity_suggestion
         ? optionalBodyText(body, "activity_suggestion", 6000)
@@ -563,11 +588,15 @@ foundationRoutes.patch(
             syllabus_ref = CASE WHEN ${has.syllabus_ref} THEN ${values.syllabus_ref} ELSE syllabus_ref END,
             learner_book_page = CASE WHEN ${has.learner_book_page} THEN ${values.learner_book_page} ELSE learner_book_page END,
             teacher_guide_page = CASE WHEN ${has.teacher_guide_page} THEN ${values.teacher_guide_page} ELSE teacher_guide_page END,
+            syllabus_url = CASE WHEN ${has.syllabus_url} THEN ${values.syllabus_url} ELSE syllabus_url END,
+            learner_book_url = CASE WHEN ${has.learner_book_url} THEN ${values.learner_book_url} ELSE learner_book_url END,
+            teacher_guide_url = CASE WHEN ${has.teacher_guide_url} THEN ${values.teacher_guide_url} ELSE teacher_guide_url END,
             summary_text = CASE WHEN ${has.summary_text} THEN ${values.summary_text} ELSE summary_text END,
             activity_suggestion = CASE WHEN ${has.activity_suggestion} THEN ${values.activity_suggestion} ELSE activity_suggestion END
         WHERE id = ${id}
         RETURNING id, subject, class_level, topic, syllabus_ref, learner_book_page,
-                  teacher_guide_page, summary_text, activity_suggestion, created_at
+                  teacher_guide_page, syllabus_url, learner_book_url, teacher_guide_url,
+                  summary_text, activity_suggestion, created_at
       ), audit AS (
         INSERT INTO audit_log (actor_id, sector, action, target_table, target_id, metadata, ip)
         SELECT ${user.id}, 'education', 'curriculum_link.update', 'curriculum_links',

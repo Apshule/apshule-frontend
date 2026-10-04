@@ -25,13 +25,15 @@ export async function resolve(specifier, context, nextResolve) {
   if (
     (
       specifier === "./db.js" &&
-      /\/src\/(idempotency|yopayments|yo-platform-settings|platform-settings-crypto)\.ts$/u.test(
+      /\/src\/(idempotency|yopayments|yo-platform-settings|platform-settings-crypto|ncdc-helpers|http)\.ts$/u.test(
         context.parentURL ?? "",
       )
     ) ||
     (
       specifier === "../db.js" &&
-      /\/src\/routes\/(payments|platform-settings)\.ts$/u.test(context.parentURL ?? "")
+      /\/src\/routes\/(payments|platform-settings|ncdc-foundation)\.ts$/u.test(
+        context.parentURL ?? "",
+      )
     )
   ) {
     return virtualModule(dbStub);
@@ -64,6 +66,28 @@ export async function resolve(specifier, context, nextResolve) {
           if (user.role !== "superadmin" || user.impersonatedBy) {
             return c.json({ error: "FORBIDDEN" }, 403);
           }
+          await next();
+        };
+      }
+    `);
+  }
+  if (
+    specifier === "../auth.js" &&
+    context.parentURL?.endsWith("/src/routes/ncdc-foundation.ts")
+  ) {
+    return virtualModule(`
+      export const authMiddleware = async (c, next) => {
+        c.set("user", {
+          id: "00000000-0000-4000-8000-000000000123",
+          role: c.req.header("x-test-role") || "superadmin",
+          sector: "education",
+          impersonatedBy: null
+        });
+        await next();
+      };
+      export function requireRole(...roles) {
+        return async (c, next) => {
+          if (!roles.includes(c.get("user")?.role)) return c.json({ error: "FORBIDDEN" }, 403);
           await next();
         };
       }

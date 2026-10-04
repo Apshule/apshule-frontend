@@ -39,6 +39,33 @@ export function optionalBodyText(
   return value === "" ? null : value;
 }
 
+export function optionalBodyHttpsUrl(
+  body: Record<string, unknown>,
+  field: string,
+): string | null | undefined {
+  const value = optionalBodyText(body, field, 499);
+  if (value === undefined || value === null) return value;
+
+  let parsed: URL;
+  try {
+    parsed = new URL(value);
+  } catch {
+    throw new ApiError(
+      400,
+      "VALIDATION_ERROR",
+      `${field} must be a valid HTTPS URL shorter than 500 characters.`,
+    );
+  }
+  if (!value.startsWith("https://") || parsed.protocol !== "https:" || !parsed.hostname) {
+    throw new ApiError(
+      400,
+      "VALIDATION_ERROR",
+      `${field} must be a valid HTTPS URL shorter than 500 characters.`,
+    );
+  }
+  return value;
+}
+
 export function queryText(
   value: string | undefined,
   field: string,

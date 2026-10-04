@@ -1231,8 +1231,11 @@
                                 <div class="cc-ncdc-field"><label for="ncdcCurriculumClassLevel">Class level</label><input id="ncdcCurriculumClassLevel" type="text" maxlength="80"></div>
                                 <div class="cc-ncdc-field"><label for="ncdcCurriculumTopic">Topic</label><input id="ncdcCurriculumTopic" type="text" maxlength="240"></div>
                                 <div class="cc-ncdc-field"><label for="ncdcCurriculumSyllabusRef">Syllabus reference</label><input id="ncdcCurriculumSyllabusRef" type="text" maxlength="300"></div>
+                                <div class="cc-ncdc-field"><label for="ncdcCurriculumSyllabusUrl">Syllabus URL (optional)</label><input id="ncdcCurriculumSyllabusUrl" type="text" maxlength="499" placeholder="https://ncdc.go.ug/..."></div>
                                 <div class="cc-ncdc-field"><label for="ncdcCurriculumLearnerPage">Learner book page</label><input id="ncdcCurriculumLearnerPage" type="text" maxlength="120"></div>
+                                <div class="cc-ncdc-field"><label for="ncdcCurriculumLearnerUrl">Learner Book URL (optional)</label><input id="ncdcCurriculumLearnerUrl" type="text" maxlength="499" placeholder="https://..."></div>
                                 <div class="cc-ncdc-field"><label for="ncdcCurriculumTeacherPage">Teacher guide page</label><input id="ncdcCurriculumTeacherPage" type="text" maxlength="120"></div>
+                                <div class="cc-ncdc-field"><label for="ncdcCurriculumTeacherUrl">Teacher Guide URL (optional)</label><input id="ncdcCurriculumTeacherUrl" type="text" maxlength="499" placeholder="https://..."></div>
                                 <div class="cc-ncdc-field cc-ncdc-field--wide"><label for="ncdcCurriculumSummary">Summary text</label><textarea id="ncdcCurriculumSummary" maxlength="6000"></textarea></div>
                                 <div class="cc-ncdc-field cc-ncdc-field--wide"><label for="ncdcCurriculumActivity">Activity suggestion</label><textarea id="ncdcCurriculumActivity" maxlength="6000"></textarea></div>
                             </div>
@@ -1244,8 +1247,8 @@
                         </form>
                         <div class="cc-ncdc-table-wrap">
                             <table class="cc-ncdc-table">
-                                <thead><tr><th>Subject</th><th>Class</th><th>Topic</th><th>Actions</th></tr></thead>
-                                <tbody id="ncdcCurriculumRows"><tr><td colspan="4" class="cc-state">Loading curriculum links…</td></tr></tbody>
+                                <thead><tr><th>Subject</th><th>Class</th><th>Topic</th><th>🔗 Links</th><th>Actions</th></tr></thead>
+                                <tbody id="ncdcCurriculumRows"><tr><td colspan="5" class="cc-state">Loading curriculum links…</td></tr></tbody>
                             </table>
                         </div>
                     </section>
@@ -4618,14 +4621,30 @@
             { id: "learner-book", label: "Learner Book" },
             { id: "teacher-guide", label: "Teacher Guide" }
         ];
+        const openButton = (field, label) => link[field]
+            ? `<button type="button" class="teacher-primary" data-curriculum-open="${field}">${label}</button>`
+            : "";
+        const unavailable = label => `<div class="teacher-curriculum-detail-copy"><strong>${label}</strong><br>Not available</div>`;
         let content = "";
         if (teacherDashboardState.curriculumTab === "syllabus") {
-            content = `<div class="teacher-curriculum-detail-copy"><strong>Syllabus reference</strong><br>${escapeHtml(link.syllabus_ref || "Not provided")}</div>`;
+            const reference = link.syllabus_ref
+                ? `<div class="teacher-curriculum-detail-copy"><strong>Syllabus reference</strong><br>${escapeHtml(link.syllabus_ref)}</div>`
+                : "";
+            content = `${reference || (!link.syllabus_url ? unavailable("Syllabus") : "")}
+                ${openButton("syllabus_url", "📖 Open Syllabus")}`;
         } else if (teacherDashboardState.curriculumTab === "learner-book") {
-            content = `<div class="teacher-curriculum-detail-copy"><strong>📄 Learner Book</strong><br>Page ${escapeHtml(link.learner_book_page || "Not provided")}</div>
+            const page = link.learner_book_page
+                ? `<div class="teacher-curriculum-detail-copy"><strong>📄 Learner Book</strong><br>Page ${escapeHtml(link.learner_book_page)}</div>`
+                : "";
+            content = `${page || (!link.learner_book_url ? unavailable("Learner Book") : "")}
+                ${openButton("learner_book_url", "📗 Open Learner Book")}
                 <div class="teacher-curriculum-detail-copy"><strong>Summary</strong><br>${escapeHtml(link.summary_text || "Not provided")}</div>`;
         } else {
-            content = `<div class="teacher-curriculum-detail-copy"><strong>📄 Teacher Guide</strong><br>Page ${escapeHtml(link.teacher_guide_page || "Not provided")}</div>
+            const page = link.teacher_guide_page
+                ? `<div class="teacher-curriculum-detail-copy"><strong>📄 Teacher Guide</strong><br>Page ${escapeHtml(link.teacher_guide_page)}</div>`
+                : "";
+            content = `${page || (!link.teacher_guide_url ? unavailable("Teacher Guide") : "")}
+                ${openButton("teacher_guide_url", "📕 Open Teacher Guide")}
                 <div class="teacher-curriculum-detail-copy"><strong>Activity suggestion</strong><br>${escapeHtml(link.activity_suggestion || "Not provided")}</div>`;
         }
         const isFavorite = teacherDashboardState.curriculumFavorites.some(item => item.id === link.id);
@@ -4886,6 +4905,19 @@
             if (button) void openTeacherCurriculumLink(button.dataset.teacherCurriculum);
         });
         document.getElementById("teacherCurriculumDetail")?.addEventListener("click", event => {
+            const openButton = event.target.closest("[data-curriculum-open]");
+            if (openButton) {
+                const urlField = {
+                    syllabus: "syllabus_url",
+                    "learner-book": "learner_book_url",
+                    "teacher-guide": "teacher_guide_url"
+                }[openButton.dataset.curriculumOpen];
+                const url = teacherDashboardState.selectedCurriculumLink?.[urlField];
+                if (typeof url === "string" && url.startsWith("https://")) {
+                    window.open(url, "_blank", "noopener,noreferrer");
+                }
+                return;
+            }
             if (event.target.closest("[data-curriculum-results-back]")) {
                 document.getElementById("teacherCurriculumDetail").hidden = true;
                 document.getElementById("teacherCurriculumHome").hidden = false;
@@ -5165,7 +5197,7 @@
         const container = document.getElementById('ncdcCurriculumRows');
         if (!container) return;
         if (ncdcCurriculumLoadError) {
-            container.innerHTML = '<tr><td colspan="4" class="cc-state error">Curriculum links could not be loaded. <button type="button" data-ncdc-retry="curriculum">Retry</button></td></tr>';
+            container.innerHTML = '<tr><td colspan="5" class="cc-state error">Curriculum links could not be loaded. <button type="button" data-ncdc-retry="curriculum">Retry</button></td></tr>';
             return;
         }
         const query = (document.getElementById('ncdcCurriculumSearch')?.value || '').trim().toLowerCase();
@@ -5173,7 +5205,7 @@
             `${link.subject || ''} ${link.class_level || ''} ${link.topic || ''} ${link.syllabus_ref || ''} ${link.summary_text || ''}`.toLowerCase().includes(query)
         );
         if (!links.length) {
-            container.innerHTML = `<tr><td colspan="4" class="cc-state">${query ? 'No curriculum links match your search.' : 'No curriculum links yet.'}</td></tr>`;
+            container.innerHTML = `<tr><td colspan="5" class="cc-state">${query ? 'No curriculum links match your search.' : 'No curriculum links yet.'}</td></tr>`;
             return;
         }
         container.innerHTML = links.map(link => `
@@ -5181,6 +5213,7 @@
                 <td>${escapeHtml(link.subject || '—')}</td>
                 <td>${escapeHtml(link.class_level || '—')}</td>
                 <td>${escapeHtml(link.topic || '—')}</td>
+                <td>${escapeHtml(`${Number(link.url_count) || 0}/3`)}</td>
                 <td><div class="cc-ncdc-table-actions">
                     <button type="button" class="cc-ncdc-table-action" data-ncdc-action="edit" data-ncdc-id="${escapeHtml(link.id)}">Edit</button>
                     <button type="button" class="cc-ncdc-table-action cc-ncdc-table-action--danger" data-ncdc-action="delete" data-ncdc-id="${escapeHtml(link.id)}">Delete</button>
@@ -5286,8 +5319,11 @@
         ncdcSetValue('ncdcCurriculumClassLevel', link?.class_level);
         ncdcSetValue('ncdcCurriculumTopic', link?.topic);
         ncdcSetValue('ncdcCurriculumSyllabusRef', link?.syllabus_ref);
+        ncdcSetValue('ncdcCurriculumSyllabusUrl', link?.syllabus_url);
         ncdcSetValue('ncdcCurriculumLearnerPage', link?.learner_book_page);
+        ncdcSetValue('ncdcCurriculumLearnerUrl', link?.learner_book_url);
         ncdcSetValue('ncdcCurriculumTeacherPage', link?.teacher_guide_page);
+        ncdcSetValue('ncdcCurriculumTeacherUrl', link?.teacher_guide_url);
         ncdcSetValue('ncdcCurriculumSummary', link?.summary_text);
         ncdcSetValue('ncdcCurriculumActivity', link?.activity_suggestion);
         form.hidden = false;
@@ -5539,8 +5575,11 @@
                 class_level: read('ncdcCurriculumClassLevel'),
                 topic: read('ncdcCurriculumTopic'),
                 syllabus_ref: read('ncdcCurriculumSyllabusRef'),
+                syllabus_url: read('ncdcCurriculumSyllabusUrl'),
                 learner_book_page: read('ncdcCurriculumLearnerPage'),
+                learner_book_url: read('ncdcCurriculumLearnerUrl'),
                 teacher_guide_page: read('ncdcCurriculumTeacherPage'),
+                teacher_guide_url: read('ncdcCurriculumTeacherUrl'),
                 summary_text: read('ncdcCurriculumSummary'),
                 activity_suggestion: read('ncdcCurriculumActivity')
             };
