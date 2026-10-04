@@ -294,6 +294,38 @@
         .cc-state { padding:16px 18px; color:#777482; font-size:13px; }
         .cc-state.error { color:#a13d3d; }
         .cc-state button { border:0; padding:0; margin-left:7px; color:#493b8a; background:none; font-weight:750; cursor:pointer; text-decoration:underline; }
+        .cc-ncdc-stats { display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:13px; margin:0 0 17px; }
+        .cc-ncdc-grid { display:grid; grid-template-columns:minmax(0,1fr); gap:16px; align-items:start; }
+        .cc-ncdc-surface { min-width:0; overflow:hidden; }
+        .cc-ncdc-toolbar { display:flex; align-items:center; gap:10px; padding:14px 18px; }
+        .cc-ncdc-toolbar .cc-user-search { width:100%; }
+        .cc-ncdc-add { min-height:38px; flex:none; padding:9px 13px; border:1px solid #d8d4e7; border-radius:9px; background:#493b8a; color:#fff; font-size:12px; font-weight:750; cursor:pointer; }
+        .cc-ncdc-add:hover { background:#3c3077; }
+        .cc-ncdc-form { margin:0 18px 16px; padding:16px; border:1px solid #e4e0ed; border-radius:12px; background:#faf9fd; }
+        .cc-ncdc-form h4 { margin:0 0 14px; color:#39364d; font-size:14px; }
+        .cc-ncdc-fields { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:12px; }
+        .cc-ncdc-field { display:grid; align-content:start; gap:6px; min-width:0; }
+        .cc-ncdc-field--wide { grid-column:1 / -1; }
+        .cc-ncdc-field label, .cc-ncdc-grid-legend { color:#666374; font-size:11px; font-weight:750; }
+        .cc-ncdc-field input, .cc-ncdc-field textarea { width:100%; min-height:39px; padding:9px 10px; border:1px solid #dcd9e4; border-radius:8px; background:#fff; color:#302d49; font:inherit; font-size:13px; }
+        .cc-ncdc-field textarea { min-height:82px; resize:vertical; }
+        .cc-ncdc-field input:focus, .cc-ncdc-field textarea:focus, .cc-ncdc-toolbar input:focus { outline:2px solid rgba(73,59,138,.22); border-color:#8e83bd; }
+        .cc-ncdc-grid-inputs { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:10px; margin:0; padding:12px; border:1px solid #e3e0e9; border-radius:9px; }
+        .cc-ncdc-form-actions { display:flex; flex-wrap:wrap; gap:8px; margin-top:14px; }
+        .cc-ncdc-form-status { min-height:18px; margin-top:8px; color:#a13d3d; font-size:12px; }
+        .cc-ncdc-table-wrap { overflow-x:auto; border-top:1px solid #eeede9; }
+        .cc-ncdc-table { width:100%; min-width:610px; border-collapse:collapse; text-align:left; }
+        .cc-ncdc-table th, .cc-ncdc-table td { padding:12px 15px; border-bottom:1px solid #eeede9; vertical-align:middle; }
+        .cc-ncdc-table th { color:#777482; background:#faf9f7; font-size:10px; font-weight:750; letter-spacing:.07em; text-transform:uppercase; }
+        .cc-ncdc-table td { color:#494657; font-size:12px; }
+        .cc-ncdc-table tbody tr:last-child td { border-bottom:0; }
+        .cc-ncdc-table-actions { display:flex; flex-wrap:wrap; gap:6px; }
+        .cc-ncdc-table-action { min-height:30px; padding:6px 9px; border:1px solid #d8d4e7; border-radius:7px; background:#fff; color:#493b8a; font-size:11px; font-weight:700; cursor:pointer; }
+        .cc-ncdc-table-action:hover { background:#f6f4fb; }
+        .cc-ncdc-table-action--danger { border-color:#efc6c6; color:#a33d3d; }
+        .cc-ncdc-table-action--danger:hover { background:#fff4f4; }
+        .cc-ncdc-placeholder { margin-top:16px; padding:19px; border:1px dashed #d8d4e7; border-radius:14px; background:#faf9fd; color:#676475; font-size:13px; }
+        .cc-ncdc-placeholder strong { display:block; margin-bottom:5px; color:#39364d; font-size:14px; }
         .is-command-center #adminPanel { margin:0; padding:0; background:transparent; border-radius:0; }
         .is-command-center #adminPanel > h3 { display:none; }
         .is-command-center #superAdminSection { padding:20px; border:1px solid #e2e0db; border-radius:15px; background:#fff; }
@@ -302,6 +334,9 @@
         .is-command-center #superAdminSection .admin-section h4 { color:#40386d; }
         @media (max-width: 760px) {
             .cc-metric-grid { grid-template-columns:repeat(2,minmax(0,1fr)); }
+            .cc-ncdc-stats { grid-template-columns:repeat(3,minmax(0,1fr)); gap:8px; }
+            .cc-ncdc-stats .cc-metric { min-height:96px; padding:13px; }
+            .cc-ncdc-stats .cc-metric-value { font-size:24px; }
             .cc-global-grid { grid-template-columns:1fr; }
             .cc-heading { align-items:flex-start; flex-direction:column; }
             .cc-audit-row { grid-template-columns:minmax(100px,.8fr) minmax(0,1.2fr); gap:6px 12px; }
@@ -318,6 +353,14 @@
             .cc-tab { padding:9px 12px; font-size:12px; }
             .cc-metric { min-height:98px; padding:14px; }
             .cc-metric-value { font-size:25px; }
+            .cc-ncdc-stats { grid-template-columns:1fr; }
+            .cc-ncdc-stats .cc-metric { min-height:auto; }
+            .cc-ncdc-stats .cc-metric-value { margin-top:8px; }
+            .cc-ncdc-toolbar { align-items:stretch; flex-direction:column; padding:12px; }
+            .cc-ncdc-add { width:100%; }
+            .cc-ncdc-form { margin:0 12px 12px; padding:12px; }
+            .cc-ncdc-fields, .cc-ncdc-grid-inputs { grid-template-columns:1fr; }
+            .cc-ncdc-field--wide { grid-column:auto; }
             .is-command-center #superAdminSection { padding:14px; }
         }
         .materials-folder { background: transparent; }
@@ -551,6 +594,7 @@
             </div>
             <div class="cc-tabs" role="tablist" aria-label="Platform sectors">
                 <button type="button" class="cc-tab active" role="tab" aria-selected="true" data-cc-tab="education">🏫 Education</button>
+                <button type="button" class="cc-tab" id="ccNcdcTab" role="tab" aria-selected="false" aria-controls="ccNcdcView" data-cc-tab="ncdc" data-testid="tab-ncdc">🎓 NCDC</button>
                 <button type="button" class="cc-tab" role="tab" aria-selected="false" data-cc-tab="mfi">💰 MFI</button>
                 <button type="button" class="cc-tab" role="tab" aria-selected="false" data-cc-tab="clinic">🏥 Clinic</button>
                 <button type="button" class="cc-tab" role="tab" aria-selected="false" data-cc-tab="farm">🌾 Farm</button>
@@ -560,6 +604,96 @@
             <section id="ccEducationView" class="cc-view active" role="tabpanel">
                 <div class="cc-view-title"><h2>Education operations</h2><span class="cc-eyebrow" style="margin:0">Existing admin tools</span></div>
                 <div id="ccEducationMount"></div>
+            </section>
+            <section id="ccNcdcView" class="cc-view" role="tabpanel" aria-labelledby="ccNcdcTab" tabindex="0">
+                <div class="cc-view-title">
+                    <div><h2>National curriculum and assessment</h2><p class="cc-eyebrow" style="margin:6px 0 0">Super Admin management</p></div>
+                    <button type="button" class="cc-refresh" id="ccRefreshNcdc">Refresh</button>
+                </div>
+                <div class="cc-ncdc-stats" aria-label="NCDC statistics">
+                    <div class="cc-metric"><span class="cc-metric-label">UNEB Items</span><strong class="cc-metric-value" id="ncdcStatUneb" data-testid="ncdc-stat-uneb">—</strong><span class="cc-metric-note">Assessment foundation</span></div>
+                    <div class="cc-metric"><span class="cc-metric-label">Curriculum Links</span><strong class="cc-metric-value" id="ncdcStatCurriculum" data-testid="ncdc-stat-curriculum">—</strong><span class="cc-metric-note">Syllabus references</span></div>
+                    <div class="cc-metric"><span class="cc-metric-label">CA Records</span><strong class="cc-metric-value" id="ncdcStatCa" data-testid="ncdc-stat-ca">—</strong><span class="cc-metric-note">Continuous assessment</span></div>
+                </div>
+                <div id="ccNcdcStatus" class="cc-state" role="status" aria-live="polite"></div>
+                <div class="cc-ncdc-grid">
+                    <section class="cc-surface cc-ncdc-surface" aria-labelledby="ncdcUnebHeading">
+                        <div class="cc-surface-head">
+                            <h3 id="ncdcUnebHeading">UNEB Items Manager</h3>
+                            <span class="cc-eyebrow" style="margin:0">Assessment resources</span>
+                        </div>
+                        <div class="cc-ncdc-toolbar">
+                            <input class="cc-user-search" type="search" id="ncdcUnebSearch" placeholder="Search subject or topic" autocomplete="off" aria-label="Search UNEB items by subject or topic">
+                            <button type="button" class="cc-ncdc-add" id="ncdcUnebAddButton" data-testid="ncdc-add-uneb">+ Add UNEB Item</button>
+                        </div>
+                        <form id="ncdcUnebForm" class="cc-ncdc-form" hidden>
+                            <input type="hidden" id="ncdcUnebId">
+                            <h4 id="ncdcUnebFormTitle">Add UNEB Item</h4>
+                            <div class="cc-ncdc-fields">
+                                <div class="cc-ncdc-field"><label for="ncdcUnebSubject">Subject</label><input id="ncdcUnebSubject" name="subject" type="text" maxlength="120" required></div>
+                                <div class="cc-ncdc-field"><label for="ncdcUnebClassLevel">Class level</label><input id="ncdcUnebClassLevel" name="class_level" type="text" maxlength="80" placeholder="S2" required></div>
+                                <div class="cc-ncdc-field"><label for="ncdcUnebTopic">Topic</label><input id="ncdcUnebTopic" name="topic" type="text" maxlength="240" required></div>
+                                <div class="cc-ncdc-field"><label for="ncdcUnebSourceYear">Source year</label><input id="ncdcUnebSourceYear" name="source_year" type="text" maxlength="24" placeholder="2024"></div>
+                                <div class="cc-ncdc-field cc-ncdc-field--wide"><label for="ncdcUnebScenario">Scenario text</label><textarea id="ncdcUnebScenario" name="scenario_text" maxlength="12000"></textarea></div>
+                                <div class="cc-ncdc-field cc-ncdc-field--wide"><label for="ncdcUnebCompetency">Competency</label><textarea id="ncdcUnebCompetency" name="competency" maxlength="2400"></textarea></div>
+                                <fieldset class="cc-ncdc-grid-inputs cc-ncdc-field--wide">
+                                    <legend class="cc-ncdc-grid-legend">Marking grid</legend>
+                                    <div class="cc-ncdc-field"><label for="ncdcGridExceeds">Exceeds</label><input id="ncdcGridExceeds" type="text" maxlength="2000"></div>
+                                    <div class="cc-ncdc-field"><label for="ncdcGridMeets">Meets</label><input id="ncdcGridMeets" type="text" maxlength="2000"></div>
+                                    <div class="cc-ncdc-field"><label for="ncdcGridApproaching">Approaching</label><input id="ncdcGridApproaching" type="text" maxlength="2000"></div>
+                                    <div class="cc-ncdc-field"><label for="ncdcGridNeedsSupport">Needs Support</label><input id="ncdcGridNeedsSupport" type="text" maxlength="2000"></div>
+                                </fieldset>
+                            </div>
+                            <div class="cc-ncdc-form-actions">
+                                <button type="submit" class="cc-ncdc-add" id="ncdcUnebFormSubmit">Save UNEB Item</button>
+                                <button type="button" class="cc-refresh" id="ncdcUnebFormCancel">Cancel</button>
+                            </div>
+                            <div id="ncdcUnebFormStatus" class="cc-ncdc-form-status" role="alert" aria-live="polite"></div>
+                        </form>
+                        <div class="cc-ncdc-table-wrap">
+                            <table class="cc-ncdc-table">
+                                <thead><tr><th>Subject</th><th>Class</th><th>Topic</th><th>Year</th><th>Actions</th></tr></thead>
+                                <tbody id="ncdcUnebRows"><tr><td colspan="5" class="cc-state">Loading UNEB items…</td></tr></tbody>
+                            </table>
+                        </div>
+                    </section>
+                    <section class="cc-surface cc-ncdc-surface" aria-labelledby="ncdcCurriculumHeading">
+                        <div class="cc-surface-head">
+                            <h3 id="ncdcCurriculumHeading">Curriculum Links Manager</h3>
+                            <span class="cc-eyebrow" style="margin:0">Syllabus references</span>
+                        </div>
+                        <div class="cc-ncdc-toolbar">
+                            <input class="cc-user-search" type="search" id="ncdcCurriculumSearch" placeholder="Search curriculum links" autocomplete="off" aria-label="Search curriculum links">
+                            <button type="button" class="cc-ncdc-add" id="ncdcCurriculumAddButton" data-testid="ncdc-add-curriculum">+ Add Curriculum Link</button>
+                        </div>
+                        <form id="ncdcCurriculumForm" class="cc-ncdc-form" hidden>
+                            <input type="hidden" id="ncdcCurriculumId">
+                            <h4 id="ncdcCurriculumFormTitle">Add Curriculum Link</h4>
+                            <div class="cc-ncdc-fields">
+                                <div class="cc-ncdc-field"><label for="ncdcCurriculumSubject">Subject</label><input id="ncdcCurriculumSubject" type="text" maxlength="120"></div>
+                                <div class="cc-ncdc-field"><label for="ncdcCurriculumClassLevel">Class level</label><input id="ncdcCurriculumClassLevel" type="text" maxlength="80"></div>
+                                <div class="cc-ncdc-field"><label for="ncdcCurriculumTopic">Topic</label><input id="ncdcCurriculumTopic" type="text" maxlength="240"></div>
+                                <div class="cc-ncdc-field"><label for="ncdcCurriculumSyllabusRef">Syllabus reference</label><input id="ncdcCurriculumSyllabusRef" type="text" maxlength="300"></div>
+                                <div class="cc-ncdc-field"><label for="ncdcCurriculumLearnerPage">Learner book page</label><input id="ncdcCurriculumLearnerPage" type="text" maxlength="120"></div>
+                                <div class="cc-ncdc-field"><label for="ncdcCurriculumTeacherPage">Teacher guide page</label><input id="ncdcCurriculumTeacherPage" type="text" maxlength="120"></div>
+                                <div class="cc-ncdc-field cc-ncdc-field--wide"><label for="ncdcCurriculumSummary">Summary text</label><textarea id="ncdcCurriculumSummary" maxlength="6000"></textarea></div>
+                                <div class="cc-ncdc-field cc-ncdc-field--wide"><label for="ncdcCurriculumActivity">Activity suggestion</label><textarea id="ncdcCurriculumActivity" maxlength="6000"></textarea></div>
+                            </div>
+                            <div class="cc-ncdc-form-actions">
+                                <button type="submit" class="cc-ncdc-add" id="ncdcCurriculumFormSubmit">Save Curriculum Link</button>
+                                <button type="button" class="cc-refresh" id="ncdcCurriculumFormCancel">Cancel</button>
+                            </div>
+                            <div id="ncdcCurriculumFormStatus" class="cc-ncdc-form-status" role="alert" aria-live="polite"></div>
+                        </form>
+                        <div class="cc-ncdc-table-wrap">
+                            <table class="cc-ncdc-table">
+                                <thead><tr><th>Subject</th><th>Class</th><th>Topic</th><th>Actions</th></tr></thead>
+                                <tbody id="ncdcCurriculumRows"><tr><td colspan="4" class="cc-state">Loading curriculum links…</td></tr></tbody>
+                            </table>
+                        </div>
+                    </section>
+                </div>
+                <div class="cc-ncdc-placeholder"><strong>Phase 1B / 1C</strong>Teacher and Student NCDC features come in Phase 1B.</div>
             </section>
             <section id="ccMfiView" class="cc-view" role="tabpanel"></section>
             <section id="ccClinicView" class="cc-view" role="tabpanel"></section>
@@ -771,6 +905,10 @@
     let currentUser = null;
     let commandCenterUsers = [];
     let commandCenterUserQuery = '';
+    let ncdcUnebItems = [];
+    let ncdcCurriculumLinks = [];
+    let ncdcUnebLoadError = false;
+    let ncdcCurriculumLoadError = false;
     let schools = [];
     let globalEventsList = [];
     let pdfMaterials = [];
@@ -1987,9 +2125,190 @@
         container.innerHTML = `<div class="cc-metric-grid">${metrics}</div><div class="cc-global-grid"><section class="cc-surface"><div class="cc-surface-head"><h3>Total users by sector</h3></div><div class="cc-sector-list">${sectorList}</div></section><section class="cc-surface"><div class="cc-surface-head"><h3>📋 Recent Activity</h3><span class="cc-eyebrow" style="margin:0">100 most recent</span></div><div id="auditLogList">${auditContent}</div></section></div>`;
     }
 
+    function renderNcdcStats(stats) {
+        const countValue = value => {
+            const count = Number(value);
+            return value !== null && value !== undefined && Number.isFinite(count) ? formatCount(count) : '—';
+        };
+        document.getElementById('ncdcStatUneb').textContent = countValue(stats?.uneb_items_count);
+        document.getElementById('ncdcStatCurriculum').textContent = countValue(stats?.curriculum_links_count);
+        document.getElementById('ncdcStatCa').textContent = countValue(stats?.ca_records_count);
+    }
+
+    function renderNcdcUnebItems() {
+        const container = document.getElementById('ncdcUnebRows');
+        if (!container) return;
+        if (ncdcUnebLoadError) {
+            container.innerHTML = '<tr><td colspan="5" class="cc-state error">UNEB items could not be loaded. <button type="button" data-ncdc-retry="uneb">Retry</button></td></tr>';
+            return;
+        }
+        const query = (document.getElementById('ncdcUnebSearch')?.value || '').trim().toLowerCase();
+        const items = ncdcUnebItems.filter(item =>
+            `${item.subject || ''} ${item.topic || ''}`.toLowerCase().includes(query)
+        );
+        if (!items.length) {
+            container.innerHTML = `<tr><td colspan="5" class="cc-state">${query ? 'No UNEB items match your search.' : 'No UNEB items yet.'}</td></tr>`;
+            return;
+        }
+        container.innerHTML = items.map(item => `
+            <tr>
+                <td>${escapeHtml(item.subject || '—')}</td>
+                <td>${escapeHtml(item.class_level || '—')}</td>
+                <td>${escapeHtml(item.topic || '—')}</td>
+                <td>${escapeHtml(item.source_year || '—')}</td>
+                <td><div class="cc-ncdc-table-actions">
+                    <button type="button" class="cc-ncdc-table-action" data-ncdc-action="edit" data-ncdc-id="${escapeHtml(item.id)}">Edit</button>
+                    <button type="button" class="cc-ncdc-table-action cc-ncdc-table-action--danger" data-ncdc-action="delete" data-ncdc-id="${escapeHtml(item.id)}">Delete</button>
+                </div></td>
+            </tr>
+        `).join('');
+    }
+
+    function renderNcdcCurriculumLinks() {
+        const container = document.getElementById('ncdcCurriculumRows');
+        if (!container) return;
+        if (ncdcCurriculumLoadError) {
+            container.innerHTML = '<tr><td colspan="4" class="cc-state error">Curriculum links could not be loaded. <button type="button" data-ncdc-retry="curriculum">Retry</button></td></tr>';
+            return;
+        }
+        const query = (document.getElementById('ncdcCurriculumSearch')?.value || '').trim().toLowerCase();
+        const links = ncdcCurriculumLinks.filter(link =>
+            `${link.subject || ''} ${link.class_level || ''} ${link.topic || ''} ${link.syllabus_ref || ''} ${link.summary_text || ''}`.toLowerCase().includes(query)
+        );
+        if (!links.length) {
+            container.innerHTML = `<tr><td colspan="4" class="cc-state">${query ? 'No curriculum links match your search.' : 'No curriculum links yet.'}</td></tr>`;
+            return;
+        }
+        container.innerHTML = links.map(link => `
+            <tr>
+                <td>${escapeHtml(link.subject || '—')}</td>
+                <td>${escapeHtml(link.class_level || '—')}</td>
+                <td>${escapeHtml(link.topic || '—')}</td>
+                <td><div class="cc-ncdc-table-actions">
+                    <button type="button" class="cc-ncdc-table-action" data-ncdc-action="edit" data-ncdc-id="${escapeHtml(link.id)}">Edit</button>
+                    <button type="button" class="cc-ncdc-table-action cc-ncdc-table-action--danger" data-ncdc-action="delete" data-ncdc-id="${escapeHtml(link.id)}">Delete</button>
+                </div></td>
+            </tr>
+        `).join('');
+    }
+
+    async function loadNcdcDashboard() {
+        const status = document.getElementById('ccNcdcStatus');
+        if (!status) return;
+        if (currentUser?.role !== 'superadmin') {
+            status.textContent = 'A Super Admin session is required.';
+            return;
+        }
+        status.className = 'cc-state';
+        status.textContent = 'Loading NCDC data…';
+        const results = await Promise.allSettled([
+            api('/api/ncdc/stats'),
+            api('/api/uneb-items'),
+            api('/api/curriculum-links')
+        ]);
+        const [statsResult, unebResult, curriculumResult] = results;
+        const stats = statsResult.status === 'fulfilled' && statsResult.value && typeof statsResult.value === 'object'
+            ? statsResult.value
+            : null;
+        renderNcdcStats(stats);
+
+        const unebItems = unebResult.status === 'fulfilled' ? responseList(unebResult.value, 'items') : null;
+        ncdcUnebLoadError = !unebItems;
+        if (unebItems) ncdcUnebItems = unebItems;
+        renderNcdcUnebItems();
+
+        const curriculumLinks = curriculumResult.status === 'fulfilled' ? responseList(curriculumResult.value, 'links') : null;
+        ncdcCurriculumLoadError = !curriculumLinks;
+        if (curriculumLinks) ncdcCurriculumLinks = curriculumLinks;
+        renderNcdcCurriculumLinks();
+
+        const failures = [
+            !stats ? 'statistics' : null,
+            ncdcUnebLoadError ? 'UNEB items' : null,
+            ncdcCurriculumLoadError ? 'curriculum links' : null
+        ].filter(Boolean);
+        if (failures.length) {
+            status.className = 'cc-state error';
+            status.textContent = `Could not load ${failures.join(', ')}. Use Refresh or Retry to try again.`;
+        } else {
+            status.textContent = 'NCDC data is up to date.';
+        }
+    }
+
+    function ncdcSetValue(id, value) {
+        const field = document.getElementById(id);
+        if (field) field.value = value === null || value === undefined ? '' : String(value);
+    }
+
+    function ncdcReadGrid(item) {
+        let grid = item?.marking_grid;
+        if (typeof grid === 'string') {
+            try { grid = JSON.parse(grid); } catch { grid = {}; }
+        }
+        return grid && typeof grid === 'object' && !Array.isArray(grid) ? grid : {};
+    }
+
+    function openNcdcUnebForm(item = null) {
+        const form = document.getElementById('ncdcUnebForm');
+        form.reset();
+        document.getElementById('ncdcUnebId').value = item?.id || '';
+        document.getElementById('ncdcUnebFormTitle').textContent = item ? 'Edit UNEB Item' : 'Add UNEB Item';
+        document.getElementById('ncdcUnebFormSubmit').textContent = item ? 'Save Changes' : 'Save UNEB Item';
+        document.getElementById('ncdcUnebFormStatus').textContent = '';
+        ncdcSetValue('ncdcUnebSubject', item?.subject);
+        ncdcSetValue('ncdcUnebClassLevel', item?.class_level);
+        ncdcSetValue('ncdcUnebTopic', item?.topic);
+        ncdcSetValue('ncdcUnebSourceYear', item?.source_year);
+        ncdcSetValue('ncdcUnebScenario', item?.scenario_text);
+        ncdcSetValue('ncdcUnebCompetency', item?.competency);
+        const grid = ncdcReadGrid(item);
+        ncdcSetValue('ncdcGridExceeds', grid.Exceeds);
+        ncdcSetValue('ncdcGridMeets', grid.Meets);
+        ncdcSetValue('ncdcGridApproaching', grid.Approaching);
+        ncdcSetValue('ncdcGridNeedsSupport', grid['Needs Support']);
+        form.hidden = false;
+        document.getElementById('ncdcUnebSubject').focus();
+    }
+
+    function closeNcdcUnebForm() {
+        const form = document.getElementById('ncdcUnebForm');
+        form.reset();
+        form.hidden = true;
+        document.getElementById('ncdcUnebId').value = '';
+        document.getElementById('ncdcUnebFormStatus').textContent = '';
+    }
+
+    function openNcdcCurriculumForm(link = null) {
+        const form = document.getElementById('ncdcCurriculumForm');
+        form.reset();
+        document.getElementById('ncdcCurriculumId').value = link?.id || '';
+        document.getElementById('ncdcCurriculumFormTitle').textContent = link ? 'Edit Curriculum Link' : 'Add Curriculum Link';
+        document.getElementById('ncdcCurriculumFormSubmit').textContent = link ? 'Save Changes' : 'Save Curriculum Link';
+        document.getElementById('ncdcCurriculumFormStatus').textContent = '';
+        ncdcSetValue('ncdcCurriculumSubject', link?.subject);
+        ncdcSetValue('ncdcCurriculumClassLevel', link?.class_level);
+        ncdcSetValue('ncdcCurriculumTopic', link?.topic);
+        ncdcSetValue('ncdcCurriculumSyllabusRef', link?.syllabus_ref);
+        ncdcSetValue('ncdcCurriculumLearnerPage', link?.learner_book_page);
+        ncdcSetValue('ncdcCurriculumTeacherPage', link?.teacher_guide_page);
+        ncdcSetValue('ncdcCurriculumSummary', link?.summary_text);
+        ncdcSetValue('ncdcCurriculumActivity', link?.activity_suggestion);
+        form.hidden = false;
+        document.getElementById('ncdcCurriculumSubject').focus();
+    }
+
+    function closeNcdcCurriculumForm() {
+        const form = document.getElementById('ncdcCurriculumForm');
+        form.reset();
+        form.hidden = true;
+        document.getElementById('ncdcCurriculumId').value = '';
+        document.getElementById('ncdcCurriculumFormStatus').textContent = '';
+    }
+
     function activateCommandTab(tab) {
         const viewIds = {
             education: 'ccEducationView',
+            ncdc: 'ccNcdcView',
             mfi: 'ccMfiView',
             clinic: 'ccClinicView',
             farm: 'ccFarmView',
@@ -2003,6 +2322,7 @@
         });
         Object.entries(viewIds).forEach(([key, id]) => document.getElementById(id)?.classList.toggle('active', key === tab));
         if (['mfi', 'clinic', 'farm'].includes(tab)) loadSectorWaitlist(tab);
+        if (tab === 'ncdc') loadNcdcDashboard();
         if (tab === 'users') loadCommandCenterUsers();
         if (tab === 'global') loadGlobalOverview();
     }
@@ -2019,6 +2339,128 @@
         document.querySelectorAll('.cc-tab').forEach(button => button.addEventListener('click', () => activateCommandTab(button.dataset.ccTab)));
         document.getElementById('ccRefreshGlobal')?.addEventListener('click', loadGlobalOverview);
         document.getElementById('ccRefreshUsers')?.addEventListener('click', loadCommandCenterUsers);
+        document.getElementById('ccRefreshNcdc')?.addEventListener('click', loadNcdcDashboard);
+        document.getElementById('ncdcUnebSearch')?.addEventListener('input', renderNcdcUnebItems);
+        document.getElementById('ncdcCurriculumSearch')?.addEventListener('input', renderNcdcCurriculumLinks);
+        document.getElementById('ncdcUnebAddButton')?.addEventListener('click', () => openNcdcUnebForm());
+        document.getElementById('ncdcUnebFormCancel')?.addEventListener('click', closeNcdcUnebForm);
+        document.getElementById('ncdcCurriculumAddButton')?.addEventListener('click', () => openNcdcCurriculumForm());
+        document.getElementById('ncdcCurriculumFormCancel')?.addEventListener('click', closeNcdcCurriculumForm);
+        document.getElementById('ncdcUnebForm')?.addEventListener('submit', async event => {
+            event.preventDefault();
+            const id = document.getElementById('ncdcUnebId').value;
+            const submit = document.getElementById('ncdcUnebFormSubmit');
+            const status = document.getElementById('ncdcUnebFormStatus');
+            const body = {
+                subject: document.getElementById('ncdcUnebSubject').value.trim(),
+                class_level: document.getElementById('ncdcUnebClassLevel').value.trim(),
+                topic: document.getElementById('ncdcUnebTopic').value.trim(),
+                scenario_text: document.getElementById('ncdcUnebScenario').value.trim() || null,
+                competency: document.getElementById('ncdcUnebCompetency').value.trim() || null,
+                source_year: document.getElementById('ncdcUnebSourceYear').value.trim() || null,
+                marking_grid: {
+                    Exceeds: document.getElementById('ncdcGridExceeds').value.trim(),
+                    Meets: document.getElementById('ncdcGridMeets').value.trim(),
+                    Approaching: document.getElementById('ncdcGridApproaching').value.trim(),
+                    'Needs Support': document.getElementById('ncdcGridNeedsSupport').value.trim()
+                }
+            };
+            submit.disabled = true;
+            status.textContent = 'Saving…';
+            try {
+                await api(`/api/uneb-items${id ? `/${encodeURIComponent(id)}` : ''}`, {
+                    method: id ? 'PATCH' : 'POST',
+                    body
+                });
+                closeNcdcUnebForm();
+                showNotification(id ? 'UNEB item updated.' : 'UNEB item added.');
+                await loadNcdcDashboard();
+            } catch (error) {
+                status.textContent = error instanceof Error ? error.message : 'Could not save the UNEB item.';
+            } finally {
+                submit.disabled = false;
+            }
+        });
+        document.getElementById('ncdcCurriculumForm')?.addEventListener('submit', async event => {
+            event.preventDefault();
+            const id = document.getElementById('ncdcCurriculumId').value;
+            const submit = document.getElementById('ncdcCurriculumFormSubmit');
+            const status = document.getElementById('ncdcCurriculumFormStatus');
+            const read = fieldId => document.getElementById(fieldId).value.trim() || null;
+            const body = {
+                subject: read('ncdcCurriculumSubject'),
+                class_level: read('ncdcCurriculumClassLevel'),
+                topic: read('ncdcCurriculumTopic'),
+                syllabus_ref: read('ncdcCurriculumSyllabusRef'),
+                learner_book_page: read('ncdcCurriculumLearnerPage'),
+                teacher_guide_page: read('ncdcCurriculumTeacherPage'),
+                summary_text: read('ncdcCurriculumSummary'),
+                activity_suggestion: read('ncdcCurriculumActivity')
+            };
+            submit.disabled = true;
+            status.textContent = 'Saving…';
+            try {
+                await api(`/api/curriculum-links${id ? `/${encodeURIComponent(id)}` : ''}`, {
+                    method: id ? 'PATCH' : 'POST',
+                    body
+                });
+                closeNcdcCurriculumForm();
+                showNotification(id ? 'Curriculum link updated.' : 'Curriculum link added.');
+                await loadNcdcDashboard();
+            } catch (error) {
+                status.textContent = error instanceof Error ? error.message : 'Could not save the curriculum link.';
+            } finally {
+                submit.disabled = false;
+            }
+        });
+        document.getElementById('ncdcUnebRows')?.addEventListener('click', async event => {
+            const target = event.target instanceof Element ? event.target : null;
+            if (target?.closest('[data-ncdc-retry]')) {
+                loadNcdcDashboard();
+                return;
+            }
+            const button = target?.closest('[data-ncdc-action]');
+            if (!button) return;
+            const item = ncdcUnebItems.find(entry => entry.id === button.dataset.ncdcId);
+            if (!item) return;
+            if (button.dataset.ncdcAction === 'edit') {
+                openNcdcUnebForm(item);
+                return;
+            }
+            if (button.dataset.ncdcAction !== 'delete' || !confirm(`Delete the UNEB item “${item.topic}”?`)) return;
+            try {
+                await api(`/api/uneb-items/${encodeURIComponent(item.id)}`, { method: 'DELETE' });
+                closeNcdcUnebForm();
+                showNotification('UNEB item deleted.');
+                await loadNcdcDashboard();
+            } catch (error) {
+                showNotification(error instanceof Error ? error.message : 'Could not delete the UNEB item.', 'error');
+            }
+        });
+        document.getElementById('ncdcCurriculumRows')?.addEventListener('click', async event => {
+            const target = event.target instanceof Element ? event.target : null;
+            if (target?.closest('[data-ncdc-retry]')) {
+                loadNcdcDashboard();
+                return;
+            }
+            const button = target?.closest('[data-ncdc-action]');
+            if (!button) return;
+            const link = ncdcCurriculumLinks.find(entry => entry.id === button.dataset.ncdcId);
+            if (!link) return;
+            if (button.dataset.ncdcAction === 'edit') {
+                openNcdcCurriculumForm(link);
+                return;
+            }
+            if (button.dataset.ncdcAction !== 'delete' || !confirm(`Delete this curriculum link${link.topic ? ` for “${link.topic}”` : ''}?`)) return;
+            try {
+                await api(`/api/curriculum-links/${encodeURIComponent(link.id)}`, { method: 'DELETE' });
+                closeNcdcCurriculumForm();
+                showNotification('Curriculum link deleted.');
+                await loadNcdcDashboard();
+            } catch (error) {
+                showNotification(error instanceof Error ? error.message : 'Could not delete the curriculum link.', 'error');
+            }
+        });
         document.getElementById('ccUserSearch')?.addEventListener('input', event => {
             commandCenterUserQuery = event.target.value || '';
             renderCommandCenterUsers();
