@@ -1,6 +1,10 @@
 export interface Env {
   DATABASE_URL?: string;
   JWT_SECRET?: string;
+  RESEND_API_KEY?: string;
+  RESEND_FROM_EMAIL?: string;
+  RESEND_FROM_NAME?: string;
+  APP_URL?: string;
   YO_API_USERNAME?: string;
   YO_API_PASSWORD?: string;
   YO_API_URL?: string;

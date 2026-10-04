@@ -41,8 +41,13 @@
         .error-message { color: red; margin-top: 16px; font-size: 14px; }
         .success-message { color: green; margin-top: 16px; font-size: 14px; }
         .reset-section { margin-top: 20px; padding-top: 20px; border-top: 1px solid #eee; display: none; }
-        .reset-input { width: 100%; padding: 12px; margin-bottom: 10px; border: 1px solid #ddd; border-radius: 25px; }
-        .reset-btn { background: #FF8C42; color: white; border: none; padding: 10px; border-radius: 25px; width: 100%; cursor: pointer; font-weight: bold; }
+        .reset-step[hidden] { display: none; }
+        .reset-input { box-sizing: border-box; width: 100%; padding: 12px; margin: 6px 0 10px; border: 1px solid #ddd; border-radius: 14px; }
+        .reset-btn { background: #FF8C42; color: white; border: none; padding: 12px; border-radius: 25px; width: 100%; cursor: pointer; font-weight: bold; }
+        .reset-btn:disabled { cursor: not-allowed; opacity: .58; }
+        .reset-secondary-btn { background: transparent; color: #4b2e9e; border: 0; padding: 10px 4px; cursor: pointer; font-weight: 700; }
+        .reset-status { min-height: 1.4em; margin: 4px 0 10px; color: #625d70; font-size: .92rem; }
+        .reset-countdown { color: #4b2e9e; font-weight: 700; }
         .hidden { display: none; }
         .header { background: #5B4FCF; padding: 20px 16px; display: flex; justify-content: space-between; align-items: center; gap: 12px; }
         .header-left { display: flex; align-items: center; gap: 12px; flex: 1; }
@@ -746,7 +751,35 @@
         </div>
         <div id="loginError" class="error-message"></div>
         <div id="sessionMessage" class="success-message" role="status" style="display:none;"></div>
-        <div class="reset-section" id="resetSection" style="display:none;"><h4><i class="fas fa-key"></i> Forgot Password?</h4><input type="email" id="resetEmail" placeholder="Email" class="reset-input"><div id="resetMessage" class="success-message"></div><button id="sendResetEmailBtn" class="reset-btn">Send Reset Email</button></div>
+        <div class="reset-section" id="resetSection">
+            <h4><i class="fas fa-key"></i> Forgot Password?</h4>
+            <div class="reset-step" id="resetStep1">
+                <label for="resetEmail">Email address</label>
+                <input type="email" id="resetEmail" placeholder="you@example.com" class="reset-input" autocomplete="email" required>
+                <p id="resetRequestMessage" class="reset-status" role="status" aria-live="polite"></p>
+                <button type="button" id="sendResetEmailBtn" class="reset-btn">Send verification code</button>
+            </div>
+            <div class="reset-step" id="resetStep2" hidden>
+                <p>If an account is registered, a 6-digit code has been sent to <strong id="resetEmailLabel"></strong>.</p>
+                <label for="resetOtp">6-digit verification code</label>
+                <input type="text" id="resetOtp" class="reset-input" inputmode="numeric" autocomplete="one-time-code" pattern="[0-9]{6}" maxlength="6" aria-label="6-digit verification code">
+                <p id="resetCountdown" class="reset-status reset-countdown" role="status" aria-live="polite"></p>
+                <p id="resetVerifyMessage" class="reset-status" role="status" aria-live="polite"></p>
+                <button type="button" id="verifyResetOtpBtn" class="reset-btn" disabled>Verify code</button>
+                <button type="button" id="resetResendBtn" class="reset-secondary-btn" disabled>Resend in 30s</button>
+                <p id="resetResendLimitMessage" class="reset-status" role="status" hidden>You've reached the request limit for now. Try again later.</p>
+                <button type="button" id="resetChangeEmailBtn" class="reset-secondary-btn">← Change email</button>
+            </div>
+            <div class="reset-step" id="resetStep3" hidden>
+                <h5>Choose a new password</h5>
+                <label for="resetNewPassword">New password</label>
+                <input type="password" id="resetNewPassword" class="reset-input" autocomplete="new-password" minlength="6" maxlength="128" required>
+                <label for="resetConfirmPassword">Confirm new password</label>
+                <input type="password" id="resetConfirmPassword" class="reset-input" autocomplete="new-password" minlength="6" maxlength="128" required>
+                <p id="resetConfirmMessage" class="reset-status" role="status" aria-live="polite"></p>
+                <button type="button" id="confirmResetPasswordBtn" class="reset-btn">Reset password</button>
+            </div>
+        </div>
     </div>
 </div>
 
@@ -4011,13 +4044,199 @@
                 loginError.innerText = "Invalid email/password";
             }
         });
-        document.getElementById('sendResetEmailBtn').addEventListener('click', async () => {
-            const email = document.getElementById('resetEmail').value.trim();
-            if (!email) { showNotification("Enter email", "error"); return; }
-            try { await api('/api/auth/reset', { method: 'POST', body: { email }, auth: false }); showNotification("Reset email sent!"); } catch(err) { showNotification(err.message, "error"); }
+        const resetSection = document.getElementById('resetSection');
+        const resetEmailInput = document.getElementById('resetEmail');
+        const resetOtpInput = document.getElementById('resetOtp');
+        const verifyResetOtpBtn = document.getElementById('verifyResetOtpBtn');
+        const resetResendBtn = document.getElementById('resetResendBtn');
+        const resetStep1 = document.getElementById('resetStep1');
+        const resetStep2 = document.getElementById('resetStep2');
+        const resetStep3 = document.getElementById('resetStep3');
+        let resetEmailValue = '';
+        let resetTokenValue = '';
+        let resetResendCount = 0;
+        let resetOtpExpiresAt = 0;
+        let resetResendAvailableAt = 0;
+        let resetExpiryTimer = null;
+        let resetResendTimer = null;
+
+        function clearResetTimers() {
+            if (resetExpiryTimer !== null) clearInterval(resetExpiryTimer);
+            if (resetResendTimer !== null) clearInterval(resetResendTimer);
+            resetExpiryTimer = null;
+            resetResendTimer = null;
+        }
+        function showResetStep(step) {
+            resetStep1.hidden = step !== 1;
+            resetStep2.hidden = step !== 2;
+            resetStep3.hidden = step !== 3;
+        }
+        function formatResetTime(seconds) {
+            const minutes = Math.floor(seconds / 60);
+            const remainder = seconds % 60;
+            return `${minutes}:${String(remainder).padStart(2, '0')}`;
+        }
+        function startResetTimers() {
+            clearResetTimers();
+            resetOtpExpiresAt = Date.now() + 120_000;
+            resetResendAvailableAt = Date.now() + 30_000;
+            const updateExpiry = () => {
+                const seconds = Math.max(0, Math.ceil((resetOtpExpiresAt - Date.now()) / 1000));
+                document.getElementById('resetCountdown').textContent = seconds > 0
+                    ? `Code expires in ${formatResetTime(seconds)}`
+                    : 'Code expired. Request a new one.';
+                if (seconds === 0) {
+                    clearInterval(resetExpiryTimer);
+                    resetExpiryTimer = null;
+                }
+                verifyResetOtpBtn.disabled = seconds === 0 || resetOtpInput.value.length !== 6;
+            };
+            const updateResend = () => {
+                const seconds = Math.max(0, Math.ceil((resetResendAvailableAt - Date.now()) / 1000));
+                if (resetResendCount >= 2) {
+                    resetResendBtn.hidden = true;
+                    document.getElementById('resetResendLimitMessage').hidden = false;
+                } else if (seconds === 0) {
+                    resetResendBtn.disabled = false;
+                    resetResendBtn.textContent = 'Resend code';
+                    clearInterval(resetResendTimer);
+                    resetResendTimer = null;
+                } else {
+                    resetResendBtn.disabled = true;
+                    resetResendBtn.textContent = `Resend in ${seconds}s`;
+                }
+            };
+            updateExpiry();
+            updateResend();
+            resetExpiryTimer = setInterval(updateExpiry, 1000);
+            if (resetResendCount < 2) resetResendTimer = setInterval(updateResend, 1000);
+        }
+        async function requestResetCode(isResend = false) {
+            const requestMessage = document.getElementById('resetRequestMessage');
+            const resendMessage = document.getElementById('resetVerifyMessage');
+            if (!isResend) {
+                if (!resetEmailInput.reportValidity()) return;
+                resetEmailValue = resetEmailInput.value.trim();
+            }
+            if (!resetEmailValue) return;
+            if (isResend) {
+                resetResendCount += 1;
+                resetOtpInput.value = '';
+                resendMessage.textContent = '';
+            }
+            const button = isResend ? resetResendBtn : document.getElementById('sendResetEmailBtn');
+            button.disabled = true;
+            if (!isResend) requestMessage.textContent = 'If an account is registered, a code will be sent.';
+            try {
+                const response = await api('/api/auth/reset', {
+                    method: 'POST',
+                    body: { email: resetEmailValue },
+                    auth: false,
+                });
+                requestMessage.textContent = response?.message || 'If an account is registered, a code has been sent.';
+            } catch {
+                requestMessage.textContent = 'If an account is registered, a code has been sent.';
+            }
+            document.getElementById('resetEmailLabel').textContent = resetEmailValue;
+            document.getElementById('resetResendLimitMessage').hidden = resetResendCount < 2;
+            resetResendBtn.hidden = resetResendCount >= 2;
+            if (!isResend) showResetStep(2);
+            startResetTimers();
+            if (!isResend) button.disabled = false;
+        }
+        document.getElementById('sendResetEmailBtn').addEventListener('click', () => {
+            void requestResetCode(false);
+        });
+        resetResendBtn.addEventListener('click', () => {
+            if (!resetResendBtn.disabled && resetResendCount < 2) void requestResetCode(true);
+        });
+        resetOtpInput.addEventListener('input', () => {
+            resetOtpInput.value = resetOtpInput.value.replace(/\D/g, '').slice(0, 6);
+            verifyResetOtpBtn.disabled = Date.now() >= resetOtpExpiresAt || resetOtpInput.value.length !== 6;
+        });
+        verifyResetOtpBtn.addEventListener('click', async () => {
+            const message = document.getElementById('resetVerifyMessage');
+            verifyResetOtpBtn.disabled = true;
+            message.textContent = '';
+            try {
+                const response = await api('/api/auth/verify-otp', {
+                    method: 'POST',
+                    body: { email: resetEmailValue, otp: resetOtpInput.value },
+                    auth: false,
+                });
+                if (!response?.reset_token) throw new Error('Invalid or expired code. Request a new one.');
+                resetTokenValue = response.reset_token;
+                clearResetTimers();
+                showResetStep(3);
+                document.getElementById('resetNewPassword').focus();
+            } catch (error) {
+                message.textContent = error.message || 'Invalid or expired code. Request a new one.';
+                verifyResetOtpBtn.disabled = Date.now() >= resetOtpExpiresAt || resetOtpInput.value.length !== 6;
+            }
+        });
+        document.getElementById('resetChangeEmailBtn').addEventListener('click', () => {
+            clearResetTimers();
+            resetTokenValue = '';
+            resetResendCount = 0;
+            resetOtpInput.value = '';
+            resetResendBtn.hidden = false;
+            document.getElementById('resetResendLimitMessage').hidden = true;
+            document.getElementById('resetRequestMessage').textContent = '';
+            showResetStep(1);
+        });
+        document.getElementById('confirmResetPasswordBtn').addEventListener('click', async () => {
+            const password = document.getElementById('resetNewPassword').value;
+            const confirmation = document.getElementById('resetConfirmPassword').value;
+            const message = document.getElementById('resetConfirmMessage');
+            const button = document.getElementById('confirmResetPasswordBtn');
+            message.textContent = '';
+            if (password.length < 6) {
+                message.textContent = 'Password must be at least 6 characters.';
+                return;
+            }
+            if (password !== confirmation) {
+                message.textContent = 'Passwords do not match.';
+                return;
+            }
+            button.disabled = true;
+            try {
+                await api('/api/auth/reset-confirm', {
+                    method: 'POST',
+                    body: { email: resetEmailValue, reset_token: resetTokenValue, new_password: password },
+                    auth: false,
+                });
+                clearResetTimers();
+                resetSection.style.display = 'none';
+                showResetStep(1);
+                document.getElementById('loginEmail').value = resetEmailValue;
+                document.getElementById('loginPassword').value = '';
+                const loginError = document.getElementById('loginError');
+                loginError.className = 'success-message';
+                loginError.style.display = 'block';
+                loginError.textContent = 'Password reset. Please log in.';
+                resetTokenValue = '';
+            } catch (error) {
+                message.textContent = error.message || 'Unable to reset password. Start over.';
+            } finally {
+                button.disabled = false;
+            }
         });
         document.getElementById('logoutBtn').addEventListener('click', () => { void logoutCurrentUser(); });
-        document.getElementById('forgotPasswordLink').addEventListener('click', () => { document.getElementById('resetSection').style.display = 'block'; });
+        document.getElementById('forgotPasswordLink').addEventListener('click', () => {
+            clearResetTimers();
+            resetTokenValue = '';
+            resetResendCount = 0;
+            resetOtpInput.value = '';
+            resetResendBtn.hidden = false;
+            document.getElementById('resetResendLimitMessage').hidden = true;
+            document.getElementById('resetRequestMessage').textContent = '';
+            document.getElementById('resetVerifyMessage').textContent = '';
+            document.getElementById('resetConfirmMessage').textContent = '';
+            document.getElementById('resetNewPassword').value = '';
+            document.getElementById('resetConfirmPassword').value = '';
+            resetSection.style.display = 'block';
+            showResetStep(1);
+        });
     }
 
     // ---------- BOOT ----------

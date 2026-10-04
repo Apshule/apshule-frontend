@@ -3,5 +3,10 @@ main = "src/index.ts"
 compatibility_date = "2025-01-01"
 compatibility_flags = ["nodejs_compat"]
 
+[vars]
+APP_URL = "https://appshule.com"
+RESEND_FROM_EMAIL = "noreply@appshule.com"
+RESEND_FROM_NAME = "APSHULE"
+
 [observability]
 enabled = true

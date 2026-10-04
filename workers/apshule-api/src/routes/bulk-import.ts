@@ -4,6 +4,7 @@ import { createMiddleware } from "hono/factory";
 import { ApiError, getDb } from "../db.js";
 import { authMiddleware, hashPassword, requireRole } from "../auth.js";
 import { readJson, validEmail } from "../http.js";
+import { sendEmail, welcomeEmailTemplate } from "../email.js";
 import { linkedSchoolId, requestIp } from "../ncdc-helpers.js";
 import type { AppEnv } from "../types.js";
 
@@ -454,6 +455,22 @@ async function importAccounts(
       default_password: source.defaultPassword,
     };
   });
+  c.executionCtx.waitUntil(
+    Promise.allSettled(
+      credentials.map((credential) =>
+        sendEmail(c.env, {
+          to: credential.email,
+          subject: "Welcome to APSHULE",
+          html: welcomeEmailTemplate(
+            credential.name,
+            isTeacher ? "teacher" : "student",
+            credential.default_password,
+            c.env.APP_URL,
+          ),
+        }),
+      ),
+    ),
+  );
   const skippedRows = rowsWithCredentials
     .filter((row) => !createdEmails.has(row.email) || firstRowByEmail.get(row.email) !== row)
     .map((row) => ({

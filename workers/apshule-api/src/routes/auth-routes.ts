@@ -8,9 +8,18 @@ import {
   requiredString,
   validEmail,
 } from "../http.js";
+import { otpEmailTemplate, sendEmail, welcomeEmailTemplate } from "../email.js";
 import type { AppEnv, UserRecord, UserRole } from "../types.js";
 
 const authRoutes = new Hono<AppEnv>();
+const OTP_LIFETIME_SECONDS = 120;
+const OTP_RESEND_AFTER_SECONDS = 30;
+const OTP_MAX_ATTEMPTS = 5;
+const OTP_MAX_REQUESTS_PER_HOUR = 3;
+const OTP_REQUEST_MESSAGE = "If registered, an OTP has been sent";
+const INVALID_OTP_MESSAGE = "Invalid or expired code. Request a new one.";
+const RESET_CONFIRM_ERROR = "Reset session expired. Start over.";
+const encoder = new TextEncoder();
 
 const teacherSubjects = new Set([
   "Mathematics",
@@ -86,6 +95,48 @@ function stringList(
     );
   }
   return [...new Set(value.map((item: string) => item.trim()))];
+}
+
+function bytesToHex(bytes: Uint8Array): string {
+  return Array.from(bytes, (byte) => byte.toString(16).padStart(2, "0")).join("");
+}
+
+async function secretHashHex(value: string, secret?: string): Promise<string> {
+  if (!secret) {
+    throw new ApiError(500, "SERVER_CONFIG_ERROR", "Password reset is unavailable.");
+  }
+  const key = await crypto.subtle.importKey(
+    "raw",
+    encoder.encode(secret),
+    { name: "HMAC", hash: "SHA-256" },
+    false,
+    ["sign"],
+  );
+  const digest = await crypto.subtle.sign("HMAC", key, encoder.encode(value));
+  return bytesToHex(new Uint8Array(digest));
+}
+
+function constantTimeEqual(left: string, right: string): boolean {
+  if (left.length !== right.length) return false;
+  let difference = 0;
+  for (let index = 0; index < left.length; index += 1) {
+    difference |= left.charCodeAt(index) ^ right.charCodeAt(index);
+  }
+  return difference === 0;
+}
+
+function generateOtp(): string {
+  const range = 900_000;
+  const limit = Math.floor(0x1_0000_0000 / range) * range;
+  const value = new Uint32Array(1);
+  do {
+    crypto.getRandomValues(value);
+  } while (value[0]! >= limit);
+  return String(100_000 + (value[0]! % range));
+}
+
+function generateResetToken(): string {
+  return bytesToHex(crypto.getRandomValues(new Uint8Array(16)));
 }
 
 authRoutes.post("/signup", async (c) => {
@@ -164,6 +215,19 @@ authRoutes.post("/signup", async (c) => {
     throw error;
   }
 
+  c.executionCtx.waitUntil(
+    sendEmail(c.env, {
+      to: user.email,
+      subject: "Welcome to APSHULE",
+      html: welcomeEmailTemplate(
+        user.name,
+        user.role,
+        null,
+        c.env.APP_URL,
+      ),
+    }),
+  );
+
   if (!isEducation) {
     return c.json({
       waitlist: true,
@@ -234,12 +298,227 @@ authRoutes.post("/login", async (c) => {
   });
 });
 
-authRoutes.post("/reset", async () => {
-  throw new ApiError(
-    503,
-    "PASSWORD_RESET_NOT_CONFIGURED",
-    "Password reset is unavailable until a secure email delivery provider is configured.",
+authRoutes.post("/reset", async (c) => {
+  const body = await readJson(c);
+  const email = requiredString(body, "email", { max: 254 }).toLowerCase();
+  if (!validEmail(email)) {
+    throw new ApiError(400, "VALIDATION_ERROR", "email must be a valid email address.");
+  }
+
+  const genericResponse = {
+    ok: true,
+    message: OTP_REQUEST_MESSAGE,
+    expiresInSeconds: OTP_LIFETIME_SECONDS,
+    resendAfterSeconds: OTP_RESEND_AFTER_SECONDS,
+  };
+  const sql = getDb(c.env);
+  const users = await sql`
+    SELECT id, name, email
+    FROM users
+    WHERE lower(email) = ${email}
+    LIMIT 1
+  `;
+  const user = users[0] as { id: string; name: string; email: string } | undefined;
+  if (!user) return c.json(genericResponse);
+
+  const requestCounts = await sql`
+    SELECT
+      COUNT(*)::int AS request_count,
+      COUNT(*) FILTER (
+        WHERE created_at >= NOW() - INTERVAL '30 seconds'
+      )::int AS recent_request_count
+    FROM password_reset_otps
+    WHERE user_id = ${user.id}
+      AND created_at >= NOW() - INTERVAL '1 hour'
+  `;
+  if (
+    Number(requestCounts[0]?.request_count ?? 0) >= OTP_MAX_REQUESTS_PER_HOUR ||
+    Number(requestCounts[0]?.recent_request_count ?? 0) > 0
+  ) {
+    return c.json(genericResponse);
+  }
+
+  await sql`
+    DELETE FROM password_reset_otps
+    WHERE user_id = ${user.id}
+      AND created_at < NOW() - INTERVAL '1 hour'
+  `;
+  const otp = generateOtp();
+  const otpHash = await secretHashHex(`${otp}:${user.id}`, c.env.JWT_SECRET);
+  await sql`
+    UPDATE password_reset_otps
+    SET used = TRUE,
+        used_at = NOW(),
+        reset_token_hash = NULL
+    WHERE user_id = ${user.id}
+      AND used = FALSE
+  `;
+  await sql`
+    INSERT INTO password_reset_otps (user_id, otp_hash, expires_at)
+    VALUES (
+      ${user.id},
+      ${otpHash},
+      NOW() + (${OTP_LIFETIME_SECONDS} * INTERVAL '1 second')
+    )
+  `;
+  c.executionCtx.waitUntil(
+    sendEmail(c.env, {
+      to: user.email,
+      subject: "Your APSHULE password reset code",
+      html: otpEmailTemplate(user.name, otp),
+    }),
   );
+  return c.json(genericResponse);
+});
+
+authRoutes.post("/verify-otp", async (c) => {
+  const body = await readJson(c);
+  const email = requiredString(body, "email", { max: 254 }).toLowerCase();
+  const otp = requiredString(body, "otp", { min: 6, max: 6 });
+  if (!validEmail(email)) {
+    throw new ApiError(400, "VALIDATION_ERROR", "email must be a valid email address.");
+  }
+  if (!/^\d{6}$/u.test(otp)) {
+    throw new ApiError(400, "VALIDATION_ERROR", "otp must be a 6-digit code.");
+  }
+
+  const sql = getDb(c.env);
+  const users = await sql`
+    SELECT id
+    FROM users
+    WHERE lower(email) = ${email}
+    LIMIT 1
+  `;
+  const user = users[0] as { id: string } | undefined;
+  if (!user) throw new ApiError(400, "INVALID_CODE", INVALID_OTP_MESSAGE);
+
+  const rows = await sql`
+    SELECT id, otp_hash, expires_at, attempts
+    FROM password_reset_otps
+    WHERE user_id = ${user.id}
+      AND used = FALSE
+    ORDER BY created_at DESC
+    LIMIT 1
+  `;
+  const challenge = rows[0] as
+    | { id: string; otp_hash: string; expires_at: string | Date; attempts: number | string }
+    | undefined;
+  if (!challenge) {
+    throw new ApiError(400, "INVALID_CODE", INVALID_OTP_MESSAGE);
+  }
+  if (Number(challenge.attempts) >= OTP_MAX_ATTEMPTS) {
+    throw new ApiError(400, "INVALID_CODE", INVALID_OTP_MESSAGE);
+  }
+  if (Date.now() >= new Date(String(challenge.expires_at)).getTime()) {
+    throw new ApiError(400, "INVALID_CODE", INVALID_OTP_MESSAGE);
+  }
+
+  const providedHash = await secretHashHex(`${otp}:${user.id}`, c.env.JWT_SECRET);
+  if (!constantTimeEqual(providedHash, challenge.otp_hash)) {
+    await sql`
+      UPDATE password_reset_otps
+      SET attempts = LEAST(attempts + 1, ${OTP_MAX_ATTEMPTS})
+      WHERE id = ${challenge.id}
+        AND used = FALSE
+        AND attempts < ${OTP_MAX_ATTEMPTS}
+        AND expires_at > NOW()
+    `;
+    throw new ApiError(400, "INVALID_CODE", INVALID_OTP_MESSAGE);
+  }
+
+  const resetToken = generateResetToken();
+  const resetTokenHash = await secretHashHex(resetToken, c.env.JWT_SECRET);
+  const claimedRows = await sql`
+    UPDATE password_reset_otps
+    SET used = TRUE,
+        used_at = NOW(),
+        reset_token_hash = ${resetTokenHash}
+    WHERE id = ${challenge.id}
+      AND user_id = ${user.id}
+      AND used = FALSE
+      AND attempts < ${OTP_MAX_ATTEMPTS}
+      AND expires_at > NOW()
+    RETURNING id
+  `;
+  if (!claimedRows.length) {
+    throw new ApiError(400, "INVALID_CODE", INVALID_OTP_MESSAGE);
+  }
+
+  return c.json({ ok: true, reset_token: resetToken });
+});
+
+authRoutes.post("/reset-confirm", async (c) => {
+  const body = await readJson(c);
+  const email = requiredString(body, "email", { max: 254 }).toLowerCase();
+  const resetToken = requiredString(body, "reset_token", { min: 32, max: 32 });
+  const newPassword = requiredString(body, "new_password", { min: 6, max: 128 });
+  if (!validEmail(email)) {
+    throw new ApiError(400, "VALIDATION_ERROR", "email must be a valid email address.");
+  }
+  if (!/^[0-9a-f]{32}$/iu.test(resetToken)) {
+    throw new ApiError(400, "VALIDATION_ERROR", "reset_token is invalid.");
+  }
+
+  const sql = getDb(c.env);
+  const users = await sql`
+    SELECT id
+    FROM users
+    WHERE lower(email) = ${email}
+    LIMIT 1
+  `;
+  const user = users[0] as { id: string } | undefined;
+  if (!user) throw new ApiError(400, "RESET_SESSION_EXPIRED", RESET_CONFIRM_ERROR);
+
+  const resetTokenHash = await secretHashHex(resetToken, c.env.JWT_SECRET);
+  const validTokens = await sql`
+    SELECT id
+    FROM password_reset_otps
+    WHERE user_id = ${user.id}
+      AND used = TRUE
+      AND used_at > NOW() - INTERVAL '5 minutes'
+      AND reset_token_hash = ${resetTokenHash}
+    ORDER BY used_at DESC
+    LIMIT 1
+  `;
+  if (!validTokens.length) {
+    throw new ApiError(400, "RESET_SESSION_EXPIRED", RESET_CONFIRM_ERROR);
+  }
+
+  const passwordHash = await hashPassword(newPassword);
+  const updatedUsers = await sql`
+    WITH active_reset AS MATERIALIZED (
+      SELECT id
+      FROM password_reset_otps
+      WHERE user_id = ${user.id}
+        AND used = TRUE
+        AND used_at > NOW() - INTERVAL '5 minutes'
+        AND reset_token_hash = ${resetTokenHash}
+      ORDER BY used_at DESC
+      LIMIT 1
+      FOR UPDATE
+    ),
+    updated_user AS (
+      UPDATE users
+      SET password_hash = ${passwordHash},
+          session_version = COALESCE(session_version, 0) + 1,
+          updated_at = NOW()
+      WHERE id = ${user.id}
+        AND EXISTS (SELECT 1 FROM active_reset)
+      RETURNING id
+    ),
+    deleted_otps AS (
+      DELETE FROM password_reset_otps
+      WHERE user_id = ${user.id}
+        AND EXISTS (SELECT 1 FROM updated_user)
+      RETURNING id
+    )
+    SELECT id FROM updated_user
+  `;
+  if (!updatedUsers.length) {
+    throw new ApiError(400, "RESET_SESSION_EXPIRED", RESET_CONFIRM_ERROR);
+  }
+
+  return c.json({ ok: true, message: "Password reset successful" });
 });
 
 authRoutes.post("/logout", authMiddleware, async (c) => {
