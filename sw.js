@@ -1,4 +1,4 @@
-const CACHE_NAME = "apshule-cache-v2";
+const CACHE_NAME = "apshule-cache-v3";
 const APP_SHELL_URLS = [
     "/",
     "/index.html",
@@ -109,7 +109,7 @@ self.addEventListener("activate", (event) => {
     event.waitUntil((async () => {
         const cacheNames = await caches.keys();
         await Promise.all(cacheNames
-            .filter((name) => name.startsWith("apshule-cache-") && name !== CACHE_NAME)
+            .filter((name) => /^apshule-cache-/.test(name) && name !== CACHE_NAME)
             .map((name) => caches.delete(name)));
         await self.clients.claim();
     })());
