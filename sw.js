@@ -1,0 +1,158 @@
+const CACHE_NAME = "apshule-cache-v1";
+const APP_SHELL_URLS = ["/", "/index.html", "/manifest.webmanifest"];
+
+function offlineResponse() {
+    return new Response("Offline", {
+        status: 503,
+        statusText: "Service Unavailable",
+        headers: {
+            "Content-Type": "text/plain; charset=utf-8",
+            "Cache-Control": "no-store"
+        }
+    });
+}
+
+function isNoStore(response) {
+    return /\bno-store\b/i.test(response.headers.get("Cache-Control") || "");
+}
+
+function isCacheableResponse(response) {
+    if (!response || response.status === 206 || isNoStore(response)) return false;
+    if ((response.headers.get("Vary") || "").trim() === "*") return false;
+    return response.type === "opaque" || response.ok;
+}
+
+function apiResponseForCache(request, response) {
+    if (!isCacheableResponse(response)) return null;
+
+    const responseCopy = response.clone();
+    if (!request.headers.has("Authorization") || response.type === "opaque") {
+        return responseCopy;
+    }
+
+    const headers = new Headers(responseCopy.headers);
+    const varyValues = (headers.get("Vary") || "")
+        .split(",")
+        .map((value) => value.trim())
+        .filter(Boolean);
+    if (!varyValues.some((value) => value.toLowerCase() === "authorization")) {
+        varyValues.push("Authorization");
+        headers.set("Vary", varyValues.join(", "));
+    }
+
+    return new Response(responseCopy.body, {
+        status: responseCopy.status,
+        statusText: responseCopy.statusText,
+        headers
+    });
+}
+
+function isAppShellRequest(url, request) {
+    const appShellDestinations = new Set(["document", "style", "script", "font", "image", "manifest"]);
+    return appShellDestinations.has(request.destination) ||
+        /\.(?:html?|css|m?js|webmanifest|woff2?|ttf|otf|svg|png|jpe?g|gif|ico)$/i.test(url.pathname);
+}
+
+function isExternalVideo(url, request) {
+    if (url.origin === self.location.origin) return false;
+
+    const host = url.hostname.toLowerCase();
+    const videoHosts = [
+        "youtube.com",
+        "youtube-nocookie.com",
+        "youtu.be",
+        "googlevideo.com",
+        "vimeo.com",
+        "vimeocdn.com"
+    ];
+    const isVideoHost = videoHosts.some((domain) => host === domain || host.endsWith(`.${domain}`));
+    const isVideoFile = /\.(?:mp4|m4v|webm|mov|m3u8|mpd)$/i.test(url.pathname);
+    return isVideoHost || isVideoFile || request.destination === "video";
+}
+
+async function cacheFirst(request) {
+    const cache = await caches.open(CACHE_NAME);
+    const options = request.mode === "navigate" ? { ignoreSearch: true } : undefined;
+    const cached = await cache.match(request, options);
+    if (cached) return cached;
+
+    try {
+        const response = await fetch(request);
+        if (isCacheableResponse(response)) {
+            try {
+                await cache.put(request, response.clone());
+            } catch (error) {
+                console.warn("[SW] cache write failed", error);
+            }
+        }
+        return response;
+    } catch {
+        return offlineResponse();
+    }
+}
+
+async function networkFirst(request, isApiRequest) {
+    const cache = await caches.open(CACHE_NAME);
+
+    try {
+        const response = await fetch(request);
+        const cacheResponse = isApiRequest
+            ? apiResponseForCache(request, response)
+            : isCacheableResponse(response) ? response.clone() : null;
+
+        if (cacheResponse) {
+            try {
+                await cache.put(request, cacheResponse);
+            } catch (error) {
+                console.warn("[SW] cache write failed", error);
+            }
+        } else if (isApiRequest && isNoStore(response)) {
+            await cache.delete(request);
+        }
+        return response;
+    } catch {
+        const cached = await cache.match(request);
+        return cached || offlineResponse();
+    }
+}
+
+self.addEventListener("install", (event) => {
+    event.waitUntil((async () => {
+        const cache = await caches.open(CACHE_NAME);
+        await cache.addAll(APP_SHELL_URLS);
+        await self.skipWaiting();
+    })());
+});
+
+self.addEventListener("activate", (event) => {
+    event.waitUntil((async () => {
+        const cacheNames = await caches.keys();
+        await Promise.all(cacheNames
+            .filter((name) => name.startsWith("apshule-cache-") && name !== CACHE_NAME)
+            .map((name) => caches.delete(name)));
+        await self.clients.claim();
+    })());
+});
+
+self.addEventListener("fetch", (event) => {
+    const request = event.request;
+    if (request.method !== "GET" || request.headers.has("range")) return;
+
+    const url = new URL(request.url);
+    const isApiRequest = url.pathname.includes("/api/");
+
+    if (isApiRequest) {
+        event.respondWith(networkFirst(request, true));
+        return;
+    }
+
+    if (url.origin === self.location.origin) {
+        if (isAppShellRequest(url, request)) {
+            event.respondWith(cacheFirst(request));
+        }
+        return;
+    }
+
+    if (isExternalVideo(url, request)) return;
+    event.respondWith(networkFirst(request, false));
+});

@@ -1,0 +1,28 @@
+{
+  "name": "APSHULE - Learn With Ease",
+  "short_name": "APSHULE",
+  "description": "Multi-sector platform for Uganda — Education, MFI, Clinic, Farming",
+  "start_url": "/?source=pwa",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#4B2E9E",
+  "theme_color": "#4B2E9E",
+  "scope": "/",
+  "icons": [
+    {
+      "src": "https://i.ibb.co/YFrCtRW8/IMG-20260328-WA0041-9.jpg",
+      "sizes": "192x192",
+      "type": "image/jpeg",
+      "purpose": "any"
+    },
+    {
+      "src": "https://i.ibb.co/YFrCtRW8/IMG-20260328-WA0041-9.jpg",
+      "sizes": "512x512",
+      "type": "image/jpeg",
+      "purpose": "any maskable"
+    }
+  ],
+  "categories": ["education", "productivity"],
+  "lang": "en",
+  "dir": "ltr"
+}
