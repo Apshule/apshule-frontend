@@ -153,7 +153,7 @@ authRoutes.post("/signup", async (c) => {
       )
       RETURNING id, name, email, phone, role, sector, waitlist, school_id, education_level,
         class_level, subjects_taught, assigned_classes, lin, school_verified, address,
-        profile_pic, subscription, subscription_active, subscription_date,
+        profile_pic, session_version, subscription, subscription_active, subscription_date,
         login_count, last_login, detected_location, created_at
     `;
     user = rows[0] as UserRecord;
@@ -177,6 +177,7 @@ authRoutes.post("/signup", async (c) => {
     role: user.role,
     schoolId: user.school_id,
     sector: user.sector,
+    sessionVersion: user.session_version ?? 0,
   });
   return c.json({ token: issued.token, user: publicUser(user as unknown as Record<string, unknown>) });
 });
@@ -194,7 +195,7 @@ authRoutes.post("/login", async (c) => {
     SELECT id, name, email, phone, password_hash, role, sector, waitlist,
       school_id, education_level,
       class_level, subjects_taught, assigned_classes, lin, school_verified, address,
-      profile_pic, subscription, subscription_active, subscription_date, login_count,
+      profile_pic, session_version, subscription, subscription_active, subscription_date, login_count,
       last_login, detected_location, created_at
     FROM users
     WHERE lower(email) = ${email}
@@ -214,7 +215,7 @@ authRoutes.post("/login", async (c) => {
     WHERE id = ${row.id}
     RETURNING id, name, email, phone, role, sector, waitlist, school_id, education_level,
       class_level, subjects_taught, assigned_classes, lin, school_verified, address,
-      profile_pic, subscription, subscription_active, subscription_date, login_count,
+      profile_pic, session_version, subscription, subscription_active, subscription_date, login_count,
       last_login, detected_location, created_at
   `;
   const user = updated[0] as UserRecord;
@@ -224,6 +225,7 @@ authRoutes.post("/login", async (c) => {
     role: user.role,
     schoolId: user.school_id,
     sector: user.sector,
+    sessionVersion: user.session_version ?? 0,
   });
 
   return c.json({

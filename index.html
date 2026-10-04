@@ -47,12 +47,12 @@
         .header { background: #5B4FCF; padding: 20px 16px; display: flex; justify-content: space-between; align-items: center; gap: 12px; }
         .header-left { display: flex; align-items: center; gap: 12px; flex: 1; }
         .header-logo-img { width: 48px; height: 48px; object-fit: contain; border-radius: 12px; background: white; padding: 2px; }
-        .app-title { color: white; font-weight: bold; font-size: 16px; }
-        .tagline { color: rgba(255,255,255,0.8); font-size: 12px; }
-        .greeting { color: white; font-weight: bold; font-size: 14px; margin-top: 4px; }
+        .app-title { color: var(--school-header-foreground, white); font-weight: bold; font-size: 16px; }
+        .tagline { color: var(--school-header-foreground, rgba(255,255,255,0.8)); font-size: 12px; }
+        .greeting { color: var(--school-header-foreground, white); font-weight: bold; font-size: 14px; margin-top: 4px; }
         .header-right { display: flex; align-items: center; gap: 12px; position: relative; }
         .ai-icon-btn, .more-menu-btn { background: rgba(255,255,255,0.2); border: none; width: 40px; height: 40px; border-radius: 50%; cursor: pointer; }
-        .ai-icon-btn i, .more-menu-btn i { font-size: 20px; color: white; }
+        .ai-icon-btn i, .more-menu-btn i { font-size: 20px; color: var(--school-header-foreground, white); }
         .more-dropdown { position: absolute; top: 60px; right: 0; background: white; border-radius: 16px; min-width: 200px; z-index: 1000; display: none; overflow: hidden; }
         .more-dropdown.show { display: block; }
         .dropdown-item { padding: 14px 18px; display: flex; align-items: center; gap: 12px; color: #333; cursor: pointer; }
@@ -745,6 +745,7 @@
             <button id="signupBtn" class="login-btn">Create Account</button>
         </div>
         <div id="loginError" class="error-message"></div>
+        <div id="sessionMessage" class="success-message" role="status" style="display:none;"></div>
         <div class="reset-section" id="resetSection" style="display:none;"><h4><i class="fas fa-key"></i> Forgot Password?</h4><input type="email" id="resetEmail" placeholder="Email" class="reset-input"><div id="resetMessage" class="success-message"></div><button id="sendResetEmailBtn" class="reset-btn">Send Reset Email</button></div>
     </div>
 </div>
@@ -756,7 +757,7 @@
             <img id="headerLogoImg" class="header-logo-img logo--responsive logo--desktop logo--tablet logo--mobile"
                  src="https://i.ibb.co/YFrCtRW8/IMG-20260328-WA0041-9.jpg"
                  alt="Logo SHU Learn">
-             <div><div class="app-title">APSHULE</div><div class="tagline">Let's Learn With Ease From Anywhere at Anytime</div><div class="greeting" id="userGreeting"><span id="greetingPrefix">Hello, </span><span id="userName">Student</span>!<span id="userRoleLabel"></span></div></div>
+             <div><div class="app-title">APSHULE</div><div class="tagline">Let's Learn With Ease From Anywhere at Anytime</div><div id="schoolMotto" class="school-motto" hidden></div><div class="greeting" id="userGreeting"><span id="greetingPrefix">Hello, </span><span id="userName">Student</span>!<span id="userRoleLabel"></span></div></div>
         </div>
         <div class="header-right"><button class="ai-icon-btn" id="openAIDrawerBtn"><i class="fas fa-robot"></i></button><div style="position: relative;"><button class="more-menu-btn" id="moreMenuBtn"><i class="fas fa-ellipsis-v"></i></button><div class="more-dropdown" id="moreDropdown"><div class="dropdown-item" id="attendanceMenuItem" style="display: none;"><i class="fas fa-camera"></i><span>📸 Facial Attendance</span></div><div class="dropdown-item" id="adminMenuItem" style="display: none;"><i class="fas fa-user-cog"></i><span>Admin Panel</span></div><div class="dropdown-item" id="logoutBtn"><i class="fas fa-sign-out-alt"></i><span>Logout</span></div></div></div></div>
     </div>
@@ -1183,6 +1184,11 @@
                         <div id="bulkImportHistory" role="status" aria-live="polite">Select a school to view imports.</div>
                     </div>
                 </div>
+                <div class="admin-section" id="schoolBrandingSection" style="display:none;">
+                    <h4>School Branding</h4>
+                    <p>Manage the school details and branding shown across APSHULE.</p>
+                    <div id="schoolBrandingMount"></div>
+                </div>
                 <div class="admin-section" id="schoolReportCardsSection" style="display:none;">
                     <h4>📊 Report Cards</h4>
                     <p class="rc-muted">Create individual cards, generate a class set, download published cards, and reset a learner's one-time PDF download.</p>
@@ -1230,12 +1236,6 @@
         <div id="accountPage" class="page">
             <div class="section-title">👤 My Account</div>
             <div id="accountInfo" class="account-card"></div>
-            <div id="profilePicUploadSection" class="profile-pic-upload">
-                <h4>Profile Picture</h4>
-                <img id="profilePicPreview" class="profile-pic-preview" src="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='%23999'%3E%3Cpath d='M12 12c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm0 2c-2.67 0-8 1.34-8 4v2h16v-2c0-2.66-5.33-4-8-4z'/%3E%3C/svg%3E" alt="Profile preview">
-                <input type="file" id="profilePicInput" accept="image/*" style="margin-top: 10px;">
-                <button id="uploadProfilePicBtn" class="admin-toggle" style="margin-top: 10px;">Upload Picture</button>
-            </div>
         </div>
         <div id="aboutPage" class="page">
             <div class="section-title">📖 About APSHULE</div>
@@ -1374,6 +1374,7 @@
     // 🔴 REPLACE THIS with your deployed Worker URL:
     import { initReportCardUI } from "./report-cards-ui.js";
     import { initBulkImportUI } from "./bulk-import-ui.js";
+    import { initAccountProfileUI } from "./account-profile-ui.js";
 
     const API_BASE = "https://apshule-api.apshule-migration.workers.dev";
 
@@ -1404,6 +1405,8 @@
     let currentUser = null;
     let reportCardsUI = null;
     let bulkImportUI = null;
+    let profileUI = null;
+    let siteBrandLogo = document.getElementById('headerLogoImg')?.src || '';
     let commandCenterUsers = [];
     let commandCenterUserQuery = '';
     let ncdcUnebItems = [];
@@ -1608,28 +1611,6 @@
         } catch(e) { container.innerHTML = '<li>Error</li>'; }
     }
 
-    // ---------- PROFILE ----------
-    async function uploadProfilePicture(file) {
-        if (!currentUser) return;
-        const reader = new FileReader();
-        reader.onload = async (e) => {
-            const base64 = e.target.result;
-            try {
-                await api('/api/users/me', { method: 'PATCH', body: { profilePic: base64 } });
-                currentUser.profilePic = base64;
-                document.getElementById('profilePicPreview').src = base64;
-                showNotification("Profile picture updated!");
-            } catch(err) { showNotification(err.message, "error"); }
-        };
-        reader.readAsDataURL(file);
-    }
-    function loadProfilePicPreview() {
-        const preview = document.getElementById('profilePicPreview');
-        if (!preview) return;
-        if (currentUser && currentUser.profilePic) preview.src = currentUser.profilePic;
-        else preview.src = "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='%23999'%3E%3Cpath d='M12 12c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm0 2c-2.67 0-8 1.34-8 4v2h16v-2c0-2.66-5.33-4-8-4z'/%3E%3C/svg%3E";
-    }
-
     // ---------- BRAND LOGO ----------
     async function uploadBrandLogoBase64(file) {
         if (!currentUser || currentUser.role !== 'superadmin') { showNotification("Only super admin can change the logo", "error"); return; }
@@ -1638,6 +1619,7 @@
             const base64 = e.target.result;
             try {
                 await api('/api/settings/brand', { method: 'PUT', body: { logoBase64: base64 } });
+                siteBrandLogo = base64;
                 document.querySelectorAll('.login-logo-img, .header-logo-img').forEach(img => img.src = base64);
                 const fav = document.querySelector("link[rel='icon']"); if (fav) fav.href = base64;
                 const ap = document.querySelector("link[rel='apple-touch-icon']"); if (ap) ap.href = base64;
@@ -1647,9 +1629,11 @@
         reader.readAsDataURL(file);
     }
     async function loadBrandLogo() {
+        siteBrandLogo = document.getElementById('headerLogoImg')?.src || siteBrandLogo;
         try {
             const data = await api('/api/settings/brand', { auth: false });
             if (data && data.logoBase64) {
+                siteBrandLogo = data.logoBase64;
                 document.querySelectorAll('.login-logo-img, .header-logo-img').forEach(img => img.src = data.logoBase64);
                 const fav = document.querySelector("link[rel='icon']"); if (fav) fav.href = data.logoBase64;
                 const ap = document.querySelector("link[rel='apple-touch-icon']"); if (ap) ap.href = data.logoBase64;
@@ -2213,6 +2197,7 @@
         document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
         const an = document.querySelector(`.nav-item[data-page="${pageId}"]`);
         if (an) an.classList.add('active');
+        if (pageId === 'account' && currentUser) void profileUI?.refreshProfile();
     }
 
     // ---------- ABOUT PAGE ----------
@@ -2458,63 +2443,19 @@
 
     async function showAppFor(user) {
         currentUser = user;
-        if (currentUser?.role === 'individual' && currentUser?.sector === 'education') {
-            try {
-                const profile = await api('/api/users/me');
-                if (profile?.user) currentUser = { ...currentUser, ...profile.user };
-            } catch (error) {}
-        }
-        user = currentUser;
-        initializeTeacherDashboard(user);
-        renderImpersonationBanner(currentUser);
-        document.getElementById('loginScreen').classList.add('hidden');
-        document.getElementById('appScreen').classList.remove('hidden');
-        updateGreeting();
-        if (reportCardsUI) await reportCardsUI.setUser(currentUser);
-        if (bulkImportUI) await bulkImportUI.setUser(currentUser);
-
-        const address = currentUser.address || 'Not set';
-        const studentGender = currentUser.role === 'individual' && currentUser.sector === 'education'
-            ? `<div class="account-field"><label for="studentGenderSelect">Gender (optional)</label><select id="studentGenderSelect" style="width:100%; padding:10px; border:1px solid #ddd; border-radius:10px;"><option value="">Not set</option><option value="female" ${currentUser.gender === 'female' ? 'selected' : ''}>Female</option><option value="male" ${currentUser.gender === 'male' ? 'selected' : ''}>Male</option><option value="other" ${currentUser.gender === 'other' ? 'selected' : ''}>Other</option><option value="prefer_not_to_say" ${currentUser.gender === 'prefer_not_to_say' ? 'selected' : ''}>Prefer not to say</option></select><button id="saveStudentGenderBtn" class="admin-toggle" style="margin-top:8px;">Save gender</button></div>`
-            : '';
-        document.getElementById('accountInfo').innerHTML = `
-            <div class="account-field"><label>Name</label><div>${escapeHtml(currentUser.name)}</div></div>
-            <div class="account-field"><label>Email</label><div>${escapeHtml(currentUser.email)}</div></div>
-            <div class="account-field"><label>Phone</label><div>${escapeHtml(currentUser.phone||'N/A')}</div></div>
-            <div class="account-field"><label>Role</label><div>${currentUser.role==='superadmin'?'Super Admin':(currentUser.role==='school'?'School Admin':(currentUser.role==='teacher'?'Teacher':'Individual'))}</div></div>
-            <div class="account-field"><label>Address</label><div id="userAddressDisplay">${escapeHtml(address)}</div><button id="editAddressBtn" class="admin-toggle">✏️ Edit Address</button></div>
-            ${studentGender}
-            <div class="account-field"><label>Logins</label><div>${currentUser.loginCount||0}</div></div>
-        `;
-        document.getElementById('editAddressBtn')?.addEventListener('click', async () => {
-            const newAddr = prompt("Enter your physical address:", address);
-            if (newAddr) { try { await api('/api/users/me', { method: 'PATCH', body: { address: newAddr } }); currentUser.address = newAddr; showNotification("Address saved!"); showAppFor(currentUser); } catch(e) { showNotification(e.message, "error"); } }
-        });
-        document.getElementById('saveStudentGenderBtn')?.addEventListener('click', async () => {
-            const gender = document.getElementById('studentGenderSelect')?.value || null;
-            try {
-                await api('/api/users/me', { method: 'PATCH', body: { gender } });
-                currentUser.gender = gender;
-                showNotification("Gender preference saved.");
-            } catch (error) {
-                showNotification(error.message || "Could not save gender.", "error");
-            }
-        });
-
         const isSuper = currentUser.role === 'superadmin';
         const isSchool = currentUser.role === 'school';
         document.getElementById('adminMenuItem').style.display = (isSuper || isSchool) ? "flex" : "none";
         document.getElementById('superAdminSection').style.display = isSuper ? "block" : "none";
         document.getElementById('bulkImportSection').style.display = (isSuper || isSchool) && !currentUser.impersonatedBy ? "block" : "none";
         document.getElementById('schoolReportCardsSection').style.display = isSchool ? "block" : "none";
+        document.getElementById('schoolBrandingSection').style.display = isSchool ? "block" : "none";
         document.getElementById('schoolEventsSection').style.display = isSchool ? "block" : "none";
         document.getElementById('globalEventsSection').style.display = isSuper ? "block" : "none";
         document.getElementById('addSubjectSection').style.display = isSuper ? "block" : "none";
         document.getElementById('pdfManagementSection').style.display = isSuper ? "block" : "none";
         document.getElementById('attendanceMenuItem').style.display = isSchool ? "flex" : "none";
 
-        const profilePicSection = document.getElementById('profilePicUploadSection');
-        if (profilePicSection) profilePicSection.style.display = (isSchool || isSuper) ? "none" : "block";
         const adminPanel = document.getElementById('adminPanel');
         const commandCenter = document.getElementById('commandCenter');
         if (isSuper) {
@@ -2533,12 +2474,20 @@
         }
 
         if (isSchool) {
-            const s = schools.find(sch => sch.id === currentUser.schoolId);
-            const logo = s?.logo || "https://i.ibb.co/YFrCtRW8/IMG-20260328-WA0041-9.jpg";
-            document.getElementById('headerLogoImg').src = logo;
-            if (s) document.getElementById('attendanceSchoolName').innerText = ` - ${s.name}`;
+            const schoolId = currentUser.schoolId || currentUser.school_id;
+            const s = schools.find(sch => String(sch.id) === String(schoolId));
+            const schoolName = s?.name || currentUser.school_name || currentUser.schoolName;
+            if (schoolName) document.getElementById('attendanceSchoolName').innerText = ` - ${schoolName}`;
         }
-        loadProfilePicPreview();
+        await profileUI?.setUser(currentUser);
+        user = currentUser;
+        initializeTeacherDashboard(user);
+        renderImpersonationBanner(currentUser);
+        document.getElementById('loginScreen').classList.add('hidden');
+        document.getElementById('appScreen').classList.remove('hidden');
+        updateGreeting();
+        if (reportCardsUI) await reportCardsUI.setUser(currentUser);
+        if (bulkImportUI) await bulkImportUI.setUser(currentUser);
 
         if (isSuper) {
             renderFeedbackAdmin();
@@ -3210,9 +3159,10 @@
             renderClasses();
 
             if (currentUser.role === 'school') {
-                const s = schools.find(sch => sch.id === currentUser.schoolId);
-                if (s && s.logo) document.getElementById('headerLogoImg').src = s.logo;
-                if (s) document.getElementById('attendanceSchoolName').innerText = ` - ${s.name}`;
+                const schoolId = currentUser.schoolId || currentUser.school_id;
+                const s = schools.find(sch => String(sch.id) === String(schoolId));
+                const schoolName = s?.name || currentUser.school_name || currentUser.schoolName;
+                if (schoolName) document.getElementById('attendanceSchoolName').innerText = ` - ${schoolName}`;
             }
         } catch(e) { console.warn('Refresh error', e); }
     }
@@ -3501,6 +3451,33 @@
         if (tab === 'global') loadGlobalOverview();
     }
 
+    async function logoutCurrentUser(successMessage = null) {
+        const impersonationSession = sessionStorage.getItem(IMPERSONATION_TOKEN_KEY) === AUTH_TOKEN || isImpersonating();
+        if (!successMessage) {
+            try {
+                if (impersonationSession) await api('/api/impersonate/end', { method: 'POST' });
+                else await api('/api/auth/logout', { method: 'POST' });
+            } catch (error) {}
+        }
+        AUTH_TOKEN = null;
+        localStorage.removeItem('apshule_token');
+        currentUser = null;
+        await reportCardsUI?.setUser(null);
+        await bulkImportUI?.setUser(null);
+        await profileUI?.setUser(null);
+        initializeTeacherDashboard(null);
+        sessionStorage.removeItem(IMPERSONATION_TOKEN_KEY);
+        sessionStorage.removeItem(ORIGINAL_SUPERADMIN_TOKEN_KEY);
+        if (window._pollInterval) clearInterval(window._pollInterval);
+        document.getElementById('loginScreen').classList.remove('hidden');
+        document.getElementById('appScreen').classList.add('hidden');
+        const status = document.getElementById('sessionMessage');
+        if (status) {
+            status.textContent = successMessage || '';
+            status.style.display = successMessage ? 'block' : 'none';
+        }
+    }
+
     // ---------- EVENT WIRING (all DOM listeners) ----------
     function wireEvents() {
         reportCardsUI = initReportCardUI({
@@ -3521,6 +3498,29 @@
             onImportComplete: async () => {
                 if (currentUser?.role === 'superadmin') await loadAllUsers();
             },
+        });
+        profileUI = initAccountProfileUI({
+            api,
+            getCurrentUser: () => currentUser,
+            setCurrentUser: (user) => {
+                currentUser = user;
+                updateGreeting();
+                renderImpersonationBanner(user);
+            },
+            notify: showNotification,
+            escapeHtml,
+            onPasswordChanged: (message) => { void logoutCurrentUser(message); },
+            onOpenSchoolBranding: () => {
+                navigateTo('home');
+                const panel = document.getElementById('adminPanel');
+                if (panel && !panel.classList.contains('show')) {
+                    document.getElementById('adminMenuItem')?.click();
+                }
+                window.setTimeout(() => {
+                    document.getElementById('schoolBrandingSection')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                }, 100);
+            },
+            getSiteBrandLogo: () => siteBrandLogo,
         });
         wireTeacherDashboardEvents();
         document.getElementById('sendBtn')?.addEventListener('click', sendChat);
@@ -3784,6 +3784,7 @@
                 renderExistingMappings();
                 navigateTo('home');
                 ap.scrollIntoView({ behavior: 'smooth' });
+                if (currentUser?.role === 'school') void profileUI?.refreshBranding();
             }
         });
 
@@ -3852,11 +3853,6 @@
         });
         document.getElementById('testVideoBtn')?.addEventListener('click', testVideoMapping);
         document.getElementById('saveVideoMappingBtn')?.addEventListener('click', saveVideoMapping);
-        document.getElementById('uploadProfilePicBtn')?.addEventListener('click', () => {
-            const fileInput = document.getElementById('profilePicInput');
-            if (!fileInput.files.length) { showNotification("Select an image first", "error"); return; }
-            uploadProfilePicture(fileInput.files[0]);
-        });
         document.getElementById('uploadLogoBtn')?.addEventListener('click', () => {
             const fileInput = document.getElementById('logoUploadInput');
             if (!fileInput.files.length) { showNotification("Select an image first", "error"); return; }
@@ -3995,6 +3991,8 @@
         });
         document.getElementById('loginBtn').addEventListener('click', async e => {
             e.preventDefault();
+            document.getElementById('sessionMessage').style.display = 'none';
+            document.getElementById('loginError').style.display = 'none';
             const email = document.getElementById('loginEmail').value.trim();
             const password = document.getElementById('loginPassword').value;
             try {
@@ -4006,29 +4004,19 @@
                 showNotification("Login successful");
                 await showAppFor(data.user);
                 startPolling(); refreshAllData();
-            } catch(err) { document.getElementById('loginError').innerText = "Invalid email/password"; }
+            } catch(err) {
+                const loginError = document.getElementById('loginError');
+                loginError.className = 'error-message';
+                loginError.style.display = 'block';
+                loginError.innerText = "Invalid email/password";
+            }
         });
         document.getElementById('sendResetEmailBtn').addEventListener('click', async () => {
             const email = document.getElementById('resetEmail').value.trim();
             if (!email) { showNotification("Enter email", "error"); return; }
             try { await api('/api/auth/reset', { method: 'POST', body: { email }, auth: false }); showNotification("Reset email sent!"); } catch(err) { showNotification(err.message, "error"); }
         });
-        document.getElementById('logoutBtn').addEventListener('click', async () => {
-            const impersonationSession = sessionStorage.getItem(IMPERSONATION_TOKEN_KEY) === AUTH_TOKEN || isImpersonating();
-            try {
-                if (impersonationSession) await api('/api/impersonate/end', { method: 'POST' });
-                else await api('/api/auth/logout', { method: 'POST' });
-            } catch(e) {}
-            AUTH_TOKEN = null; localStorage.removeItem('apshule_token'); currentUser = null;
-            await reportCardsUI?.setUser(null);
-            await bulkImportUI?.setUser(null);
-            initializeTeacherDashboard(null);
-            sessionStorage.removeItem(IMPERSONATION_TOKEN_KEY);
-            sessionStorage.removeItem(ORIGINAL_SUPERADMIN_TOKEN_KEY);
-            if (window._pollInterval) clearInterval(window._pollInterval);
-            document.getElementById('loginScreen').classList.remove('hidden');
-            document.getElementById('appScreen').classList.add('hidden');
-        });
+        document.getElementById('logoutBtn').addEventListener('click', () => { void logoutCurrentUser(); });
         document.getElementById('forgotPasswordLink').addEventListener('click', () => { document.getElementById('resetSection').style.display = 'block'; });
     }
 

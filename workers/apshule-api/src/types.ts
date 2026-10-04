@@ -46,6 +46,7 @@ export interface UserRecord {
   last_login: string | null;
   detected_location: string | null;
   created_at: string;
+  session_version?: number;
 }
 
 export type AppEnv = {

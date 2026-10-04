@@ -21,6 +21,16 @@ CREATE TABLE IF NOT EXISTS schools (
   contact TEXT,
   location TEXT,
   logo TEXT,
+  brand_color TEXT DEFAULT '#4B2E9E',
+  motto TEXT,
+  address TEXT,
+  phone TEXT,
+  email TEXT,
+  website TEXT,
+  term_ended_on DATE,
+  next_term_begins_on DATE,
+  next_term_fees NUMERIC,
+  logo_base64 TEXT,
   login_email TEXT UNIQUE,
   login_password_hash TEXT,
   login_count INT DEFAULT 0,
@@ -46,7 +56,12 @@ CREATE TABLE IF NOT EXISTS users (
   school_verified BOOLEAN DEFAULT FALSE,
   address TEXT,
   profile_pic TEXT,
+  avatar_base64 TEXT,
   gender TEXT,
+  bio TEXT,
+  date_of_birth DATE,
+  updated_at TIMESTAMPTZ DEFAULT NOW(),
+  session_version INT NOT NULL DEFAULT 0,
   subscription TEXT,
   subscription_active BOOLEAN DEFAULT FALSE,
   subscription_date TIMESTAMPTZ,
@@ -65,6 +80,23 @@ ALTER TABLE users
   ADD COLUMN IF NOT EXISTS school_verified BOOLEAN DEFAULT FALSE,
   ADD COLUMN IF NOT EXISTS sector TEXT DEFAULT 'education',
   ADD COLUMN IF NOT EXISTS waitlist BOOLEAN DEFAULT FALSE;
+ALTER TABLE schools
+  ADD COLUMN IF NOT EXISTS brand_color TEXT DEFAULT '#4B2E9E',
+  ADD COLUMN IF NOT EXISTS motto TEXT,
+  ADD COLUMN IF NOT EXISTS address TEXT,
+  ADD COLUMN IF NOT EXISTS phone TEXT,
+  ADD COLUMN IF NOT EXISTS email TEXT,
+  ADD COLUMN IF NOT EXISTS website TEXT,
+  ADD COLUMN IF NOT EXISTS term_ended_on DATE,
+  ADD COLUMN IF NOT EXISTS next_term_begins_on DATE,
+  ADD COLUMN IF NOT EXISTS next_term_fees NUMERIC,
+  ADD COLUMN IF NOT EXISTS logo_base64 TEXT;
+ALTER TABLE users
+  ADD COLUMN IF NOT EXISTS avatar_base64 TEXT,
+  ADD COLUMN IF NOT EXISTS bio TEXT,
+  ADD COLUMN IF NOT EXISTS date_of_birth DATE,
+  ADD COLUMN IF NOT EXISTS updated_at TIMESTAMPTZ DEFAULT NOW(),
+  ADD COLUMN IF NOT EXISTS session_version INT NOT NULL DEFAULT 0;
 ALTER TABLE users DROP CONSTRAINT IF EXISTS users_role_check;
 ALTER TABLE users
   ADD CONSTRAINT users_role_check

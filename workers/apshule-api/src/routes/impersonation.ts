@@ -59,7 +59,8 @@ impersonationRoutes.post(
 
     const sql = getDb(c.env);
     const rows = await sql`
-      SELECT id, name, email, role, school_id, sector
+      SELECT id, name, email, role, school_id, sector,
+        COALESCE(session_version, 0) AS session_version
       FROM users
       WHERE id = ${targetId}
       LIMIT 1
@@ -72,6 +73,7 @@ impersonationRoutes.post(
           role: UserRole;
           school_id: string | null;
           sector: string | null;
+          session_version: number;
         }
       | undefined;
     if (!target || target.role === "superadmin") {
@@ -88,6 +90,7 @@ impersonationRoutes.post(
         role: target.role,
         schoolId: target.school_id,
         sector,
+        sessionVersion: target.session_version,
       },
       {
         expiresInSeconds: IMPERSONATION_LIFETIME_SECONDS,

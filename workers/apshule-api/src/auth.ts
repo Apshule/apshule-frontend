@@ -89,6 +89,7 @@ export async function createAccessToken(
     role: AuthenticatedUser["role"];
     schoolId: string | null;
     sector: string;
+    sessionVersion?: number;
   },
   options: {
     expiresInSeconds?: number;
@@ -114,6 +115,7 @@ export async function createAccessToken(
     role: user.role,
     schoolId: user.schoolId,
     sector: user.sector,
+    sv: user.sessionVersion ?? 0,
   };
   if (options.impersonatedBy) claims.impersonated_by = options.impersonatedBy;
   const token = await new SignJWT(claims)
@@ -153,6 +155,14 @@ export const authMiddleware = createMiddleware<AppEnv>(async (c, next) => {
   if (!payload.sub || !payload.jti || !payload.exp) {
     throw new ApiError(401, "INVALID_TOKEN", "The bearer token is incomplete.");
   }
+  const tokenSessionVersion = payload.sv === undefined ? 0 : payload.sv;
+  if (
+    typeof tokenSessionVersion !== "number" ||
+    !Number.isSafeInteger(tokenSessionVersion) ||
+    tokenSessionVersion < 0
+  ) {
+    throw new ApiError(401, "INVALID_TOKEN", "The bearer token has an invalid session version.");
+  }
 
   const impersonatedByClaim = payload.impersonated_by;
   const isImpersonationToken = impersonatedByClaim !== undefined;
@@ -173,7 +183,8 @@ export const authMiddleware = createMiddleware<AppEnv>(async (c, next) => {
 
   const sql = getDb(c.env);
   const rows = await sql`
-    SELECT u.id, u.name, u.email, u.role, u.school_id, u.sector
+    SELECT u.id, u.name, u.email, u.role, u.school_id, u.sector,
+      COALESCE(u.session_version, 0) AS session_version
     FROM users u
     WHERE u.id = ${payload.sub}
       AND NOT EXISTS (
@@ -189,10 +200,14 @@ export const authMiddleware = createMiddleware<AppEnv>(async (c, next) => {
         role: AuthenticatedUser["role"];
         school_id: string | null;
         sector: string | null;
+        session_version: number;
       }
     | undefined;
 
   if (!row) {
+    throw new ApiError(401, "INVALID_TOKEN", "The account or session is no longer active.");
+  }
+  if (row.session_version !== tokenSessionVersion) {
     throw new ApiError(401, "INVALID_TOKEN", "The account or session is no longer active.");
   }
 

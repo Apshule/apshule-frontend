@@ -11,6 +11,8 @@ import settingsRoutes from "./routes/settings.js";
 import platformRoutes from "./routes/platform.js";
 import impersonationRoutes from "./routes/impersonation.js";
 import usersRoutes from "./routes/users.js";
+import userProfileRoutes from "./routes/user-profile.js";
+import schoolBrandingRoutes from "./routes/school-branding.js";
 import ncdcFoundationRoutes from "./routes/ncdc-foundation.js";
 import ncdcLearningRoutes from "./routes/ncdc-learning.js";
 import ncdcTeacherRoutes from "./routes/ncdc-teacher.js";
@@ -108,7 +110,9 @@ app.get("/api/healthz", (c) =>
 );
 app.route("/api/auth", authRoutes);
 app.route("/api/users", usersRoutes);
+app.route("/api/users", userProfileRoutes);
 app.route("/api/schools", schoolsRoutes);
+app.route("/api/school", schoolBrandingRoutes);
 app.route("/api/events", eventsRoutes);
 app.route("/api", contentRoutes);
 app.route("/api/settings", settingsRoutes);
