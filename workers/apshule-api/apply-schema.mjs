@@ -1,7 +1,24 @@
 import { readFile } from "node:fs/promises";
 import { neon } from "@neondatabase/serverless";
 
-const schemaPath = new URL("./schema.sql", import.meta.url);
+const migrationFlagIndex = process.argv.indexOf("--migration");
+const migrationName =
+  migrationFlagIndex >= 0 ? process.argv[migrationFlagIndex + 1] : undefined;
+if (
+  process.argv.some((argument, index) => index > 1 && argument !== "--migration" && index !== migrationFlagIndex + 1) ||
+  (migrationFlagIndex >= 0 &&
+    (!migrationName ||
+      !/^\d{4}-\d{2}-\d{2}_[a-z0-9_-]+\.sql$/iu.test(migrationName)))
+) {
+  console.error(
+    "Usage: node apply-schema.mjs [--migration YYYY-MM-DD_name.sql]",
+  );
+  process.exit(1);
+}
+const schemaPath = migrationName
+  ? new URL(`./migrations/${migrationName}`, import.meta.url)
+  : new URL("./schema.sql", import.meta.url);
+const sourceLabel = migrationName ? `migrations/${migrationName}` : "schema.sql";
 const databaseUrl = process.env.DATABASE_URL;
 
 if (!databaseUrl) {
@@ -154,15 +171,15 @@ function formatNeonError(error) {
 try {
   const source = await readFile(schemaPath, "utf8");
   const statements = splitStatements(source);
-  if (statements.length === 0) throw new Error("schema.sql contains no SQL statements.");
+  if (statements.length === 0) throw new Error(`${sourceLabel} contains no SQL statements.`);
 
   const sql = neon(databaseUrl);
   await sql.transaction(statements.map((statement) => sql.query(wrapStatement(statement))));
 
   for (let index = 0; index < statements.length; index += 1) {
-    console.log(`Statement ${index + 1} (schema.sql line ${statements[index].line}): success`);
+    console.log(`Statement ${index + 1} (${sourceLabel} line ${statements[index].line}): success`);
   }
-  console.log(`Applied ${statements.length} schema statements successfully.`);
+  console.log(`Applied ${statements.length} statements from ${sourceLabel} successfully.`);
 } catch (error) {
   const message = error instanceof Error ? error.message : String(error);
   const lineMatch = message.match(/APSHULE_SCHEMA_LINE=(\d+)/u);
@@ -172,7 +189,7 @@ try {
   console.error(
     line === undefined
       ? "Schema application failed; Neon did not identify a source line."
-      : `Schema application failed at schema.sql line ${line}:`,
+      : `Schema application failed at ${sourceLabel} line ${line}:`,
   );
   if (line !== undefined) {
     console.error(source.split("\n")[line - 1]?.trim() ?? "(line not found)");

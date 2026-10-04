@@ -14,6 +14,7 @@ import usersRoutes from "./routes/users.js";
 import ncdcFoundationRoutes from "./routes/ncdc-foundation.js";
 import ncdcLearningRoutes from "./routes/ncdc-learning.js";
 import ncdcTeacherRoutes from "./routes/ncdc-teacher.js";
+import reportCardsRoutes from "./routes/report-cards.js";
 import type { AppEnv } from "./types.js";
 
 const app = new Hono<AppEnv>();
@@ -115,6 +116,7 @@ app.route("/api", impersonationRoutes);
 app.route("/api", ncdcFoundationRoutes);
 app.route("/api", ncdcLearningRoutes);
 app.route("/api", ncdcTeacherRoutes);
+app.route("/api", reportCardsRoutes);
 app.route("/api/yopayments", paymentsRoutes);
 
 app.notFound((c) =>

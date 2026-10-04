@@ -10,7 +10,7 @@ users.get("/", authMiddleware, requireRole("superadmin"), async (c) => {
   const sql = getDb(c.env);
   const rows = await sql`
     SELECT id, name, email, phone, role, sector, school_id, education_level,
-      class_level, subjects_taught, assigned_classes, lin, school_verified, address,
+      class_level, subjects_taught, assigned_classes, lin, gender, school_verified, address,
       profile_pic, subscription, subscription_active, subscription_date, login_count,
       last_login, detected_location, created_at
     FROM users
@@ -20,15 +20,47 @@ users.get("/", authMiddleware, requireRole("superadmin"), async (c) => {
   return c.json({ users: rows.map((row) => publicUser(row as Record<string, unknown>)) });
 });
 
+users.get("/me", authMiddleware, async (c) => {
+  const sql = getDb(c.env);
+  const rows = await sql`
+    SELECT id, name, email, phone, role, sector, school_id, education_level,
+      class_level, subjects_taught, assigned_classes, lin, gender, school_verified, address,
+      profile_pic, subscription, subscription_active, subscription_date, login_count,
+      last_login, detected_location, created_at
+    FROM users
+    WHERE id = ${c.get("user").id}
+    LIMIT 1
+  `;
+  if (!rows[0]) throw new ApiError(404, "USER_NOT_FOUND", "User account was not found.");
+  return c.json({ user: publicUser(rows[0] as Record<string, unknown>) });
+});
+
 users.patch("/me", authMiddleware, async (c) => {
   const body = await readJson(c);
   const name = optionalString(body, "name", { max: 120 });
   const phone = optionalString(body, "phone", { max: 40, allowNull: true });
   const address = optionalString(body, "address", { max: 300, allowNull: true });
   const profilePic = optionalString(body, "profilePic", { max: 2000, allowNull: true });
+  const gender = optionalString(body, "gender", { max: 30, allowNull: true });
 
-  if (![name, phone, address, profilePic].some((value) => value !== undefined)) {
+  if (![name, phone, address, profilePic, gender].some((value) => value !== undefined)) {
     throw new ApiError(400, "VALIDATION_ERROR", "Provide at least one profile field to update.");
+  }
+  const actor = c.get("user");
+  if (gender !== undefined) {
+    if (actor.role !== "individual" || actor.sector !== "education") {
+      throw new ApiError(403, "FORBIDDEN", "Only Education learner profiles can update gender.");
+    }
+    if (
+      gender !== null &&
+      !["female", "male", "other", "prefer_not_to_say"].includes(gender)
+    ) {
+      throw new ApiError(
+        400,
+        "VALIDATION_ERROR",
+        "gender must be female, male, other, or prefer_not_to_say.",
+      );
+    }
   }
   const sql = getDb(c.env);
   const rows = await sql`
@@ -37,10 +69,11 @@ users.patch("/me", authMiddleware, async (c) => {
       name = CASE WHEN ${name !== undefined} THEN ${name ?? null} ELSE name END,
       phone = CASE WHEN ${phone !== undefined} THEN ${phone ?? null} ELSE phone END,
       address = CASE WHEN ${address !== undefined} THEN ${address ?? null} ELSE address END,
-      profile_pic = CASE WHEN ${profilePic !== undefined} THEN ${profilePic ?? null} ELSE profile_pic END
-    WHERE id = ${c.get("user").id}
+      profile_pic = CASE WHEN ${profilePic !== undefined} THEN ${profilePic ?? null} ELSE profile_pic END,
+      gender = CASE WHEN ${gender !== undefined} THEN ${gender ?? null} ELSE gender END
+    WHERE id = ${actor.id}
     RETURNING id, name, email, phone, role, school_id, education_level,
-      class_level, subjects_taught, assigned_classes, lin, school_verified, address,
+      class_level, subjects_taught, assigned_classes, lin, gender, school_verified, address,
       profile_pic, subscription, subscription_active, subscription_date, login_count,
       last_login, detected_location, created_at
   `;
@@ -116,7 +149,7 @@ users.patch("/:id", authMiddleware, requireRole("superadmin"), async (c) => {
         school_id = ${schoolId}
     WHERE id = ${userId}
     RETURNING id, name, email, phone, role, school_id, education_level,
-      class_level, subjects_taught, assigned_classes, lin, school_verified, address,
+      class_level, subjects_taught, assigned_classes, lin, gender, school_verified, address,
       profile_pic, subscription, subscription_active, subscription_date, login_count,
       last_login, detected_location, created_at
   `;

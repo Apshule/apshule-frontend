@@ -35,6 +35,7 @@ export interface UserRecord {
   subjects_taught: string[] | null;
   assigned_classes: string[] | null;
   lin: string | null;
+  gender: string | null;
   school_verified: boolean | null;
   address: string | null;
   profile_pic: string | null;
