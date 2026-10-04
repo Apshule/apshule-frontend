@@ -8,6 +8,7 @@
     <link rel="apple-touch-icon" href="https://i.ibb.co/YFrCtRW8/IMG-20260328-WA0041-9.jpg">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
     <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/page-flip@2.0.7/dist/js/page-flip.browser.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/papaparse@5.4.1/papaparse.min.js"></script>
@@ -559,6 +560,85 @@
         .teacher-module-card small { color:#7d7687; font-size:10px; }
         .teacher-module-card--done { border-color:#cfe7d5; background:#f7fcf8; }
         .teacher-complete-banner { margin-top:14px; padding:13px; border:1px solid #cfe7d5; border-radius:12px; background:#f0faf2; color:#26643b; font-size:13px; font-weight:800; text-align:center; }
+        /* Phase 2.5c — earnings and manual payouts */
+        .teacher-tool-card--earnings { border-color:#d7e7df; background:linear-gradient(145deg,#fff,#f4faf6); }
+        .teacher-tool-card--earnings .teacher-tool-icon { background:#e6f2eb; color:#32714d; }
+        .earnings-sync-badge { display:inline-flex; align-items:center; gap:5px; width:max-content; padding:4px 7px; border-radius:999px; background:#fff3df; color:#79521a; font-size:9px; font-weight:800; }
+        .earnings-sync-badge[hidden] { display:none !important; }
+        .earnings-metrics { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:9px; margin:2px 0 16px; }
+        .earnings-metric { min-width:0; padding:14px; border:1px solid #ebe6f0; border-radius:13px; background:#fbfafc; }
+        .earnings-metric small { display:block; color:#777184; font-size:10px; font-weight:750; }
+        .earnings-metric .earnings-metric-detail { margin-top:6px; color:#6c6676; font-size:9px; font-weight:650; }
+        .earnings-metric strong { display:block; margin-top:8px; color:#302942; font-size:19px; line-height:1.2; font-variant-numeric:tabular-nums; overflow-wrap:anywhere; }
+        .earnings-note { margin:0 0 15px; padding:10px 12px; border-left:3px solid #4f8b67; border-radius:0 9px 9px 0; background:#f1f8f3; color:#456350; font-size:11px; line-height:1.5; }
+        .earnings-panel { margin:14px 0; padding:14px; border:1px solid #ebe6f0; border-radius:14px; background:#fff; }
+        .earnings-panel-heading { display:flex; justify-content:space-between; align-items:center; gap:10px; margin-bottom:11px; }
+        .earnings-panel-heading h3 { margin:0; color:#39364d; font-size:14px; }
+        .earnings-date-range { display:grid; grid-template-columns:1fr 1fr auto; align-items:end; gap:9px; }
+        .earnings-date-range .teacher-primary { white-space:nowrap; }
+        .earnings-chart-scroll { overflow-x:auto; padding:13px 2px 4px; }
+        .earnings-chart { position:relative; width:100%; min-width:0; height:220px; padding:4px 2px; }
+        .earnings-chart-day { height:100%; display:flex; flex-direction:column; justify-content:flex-end; align-items:center; gap:5px; }
+        .earnings-chart-bar { width:100%; min-height:2px; border-radius:5px 5px 0 0; background:#6d9f7d; transition:transform .16s ease; }
+        .earnings-chart-bar:hover { transform:scaleY(1.04); transform-origin:bottom; }
+        .earnings-chart-day small { height:12px; color:#827c8b; font-size:8px; white-space:nowrap; }
+        .earnings-chart-legend { display:flex; justify-content:space-between; gap:10px; margin-top:8px; color:#777184; font-size:10px; }
+        .earnings-table-wrap, .cc-payout-table-wrap { max-width:100%; overflow:auto; border:1px solid #ebe7f0; border-radius:10px; }
+        .earnings-table, .cc-payout-table { width:100%; border-collapse:collapse; text-align:left; }
+        .earnings-table { min-width:570px; }
+        .earnings-table th, .earnings-table td, .cc-payout-table th, .cc-payout-table td { padding:10px 11px; border-bottom:1px solid #efedf2; color:#514d5d; font-size:10px; vertical-align:top; }
+        .earnings-table th, .cc-payout-table th { background:#f8f7fa; color:#777184; font-size:9px; font-weight:800; letter-spacing:.04em; text-transform:uppercase; }
+        .earnings-table td small, .cc-payout-table td small { display:block; margin-top:4px; color:#777184; font-size:9px; line-height:1.45; }
+        .earnings-table tr:last-child td, .cc-payout-table tr:last-child td { border-bottom:0; }
+        .earnings-status { display:inline-flex; padding:4px 7px; border-radius:999px; background:#f1eef6; color:#5c536f; font-size:9px; font-weight:800; text-transform:capitalize; }
+        .earnings-status--pending { background:#fff3df; color:#79521a; }
+        .earnings-status--approved { background:#edf0fa; color:#4b4780; }
+        .earnings-status--paid { background:#e8f5ec; color:#286743; }
+        .earnings-status--rejected { background:#fff0ef; color:#a33737; }
+        .earnings-empty { padding:20px 12px; border:1px dashed #ddd7e7; border-radius:11px; color:#777184; font-size:11px; line-height:1.5; text-align:center; }
+        .earnings-dialog { width:min(94vw,440px); max-height:88dvh; margin:auto; padding:20px; border:1px solid #e5dfed; border-radius:18px; background:#fff; color:#302942; box-shadow:0 20px 70px rgba(37,29,58,.25); }
+        .earnings-dialog::backdrop { background:rgba(32,27,43,.58); }
+        .earnings-dialog h3 { margin:0 0 6px; font-size:17px; }
+        .earnings-dialog p { margin:0 0 15px; color:#777184; font-size:11px; line-height:1.5; }
+        .earnings-dialog-form { display:grid; gap:12px; }
+        .cc-earnings-panel { margin:16px 0 20px; padding:18px; border:1px solid #e2e0db; border-radius:15px; background:#fff; box-shadow:0 2px 7px rgba(42,39,63,.035); }
+        .cc-earnings-head { display:flex; justify-content:space-between; align-items:flex-start; gap:12px; margin-bottom:14px; }
+        .cc-earnings-head h3 { margin:0; color:#39364d; font-size:15px; }
+        .cc-earnings-head p { margin:5px 0 0; color:#777482; font-size:11px; line-height:1.5; }
+        .cc-earnings-toolbar, .cc-earnings-rate-fields { display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:9px; align-items:end; }
+        .cc-earnings-rate-fields { grid-template-columns:repeat(2,minmax(0,1fr)); }
+        .cc-earnings-field { display:grid; gap:5px; min-width:0; }
+        .cc-earnings-field label { color:#625d6e; font-size:10px; font-weight:750; }
+        .cc-earnings-field input, .cc-earnings-field select { width:100%; min-height:38px; padding:8px 10px; border:1px solid #ded9e7; border-radius:9px; background:#fff; color:#302942; font:inherit; font-size:11px; }
+        .cc-earnings-rate { margin:0 0 14px; padding:14px; border:1px solid #ebe7f0; border-radius:12px; background:#faf9fc; }
+        .cc-earnings-rate h4 { margin:0 0 10px; color:#49445c; font-size:12px; }
+        .cc-earnings-rate .teacher-primary { min-height:36px; margin-top:10px; }
+        .cc-earnings-totals { display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:9px; margin:13px 0; }
+        .cc-earnings-total { padding:11px; border:1px solid #ece9ef; border-radius:10px; background:#faf9fc; }
+        .cc-earnings-total small { display:block; color:#777482; font-size:9px; }
+        .cc-earnings-total strong { display:block; margin-top:6px; color:#302d49; font-size:15px; font-variant-numeric:tabular-nums; }
+        .cc-payout-table { min-width:940px; }
+        .cc-payout-actions { display:flex; flex-wrap:wrap; gap:5px; }
+        .cc-payout-action { min-height:29px; padding:5px 8px; border:1px solid #d8d4e7; border-radius:7px; background:#fff; color:#493b8a; font:inherit; font-size:9px; font-weight:750; cursor:pointer; }
+        .cc-payout-action--danger { border-color:#efc6c6; color:#a33d3d; }
+        .cc-earnings-status { min-height:16px; margin:8px 0; color:#665f73; font-size:11px; }
+        .cc-earnings-status.is-error { color:#a33737; }
+        .earnings-dialog .cc-earnings-field textarea { min-height:84px; resize:vertical; }
+        @media (max-width:620px) {
+            .earnings-date-range { grid-template-columns:1fr 1fr; }
+            .earnings-date-range .teacher-primary { grid-column:1/-1; }
+            .cc-earnings-toolbar { grid-template-columns:1fr 1fr; }
+            .cc-earnings-toolbar button { grid-column:1/-1; }
+            .cc-earnings-head { flex-direction:column; }
+            .cc-earnings-totals { gap:6px; }
+            .cc-earnings-total { padding:9px; }
+            .cc-earnings-total strong { font-size:12px; }
+        }
+        @media (max-width:420px) {
+            .earnings-metric strong { font-size:16px; }
+            .earnings-panel { padding:11px; }
+            .cc-earnings-rate-fields { grid-template-columns:1fr; }
+        }
         @media (max-width:560px) {
             .elibrary-header { gap:8px; padding:10px 12px; }
             .elibrary-brand { font-size:11px; }
@@ -929,6 +1009,37 @@
             <section id="ccEducationView" class="cc-view active" role="tabpanel">
                 <div class="cc-view-title"><h2>Education operations</h2><span class="cc-eyebrow" style="margin:0">Existing admin tools</span></div>
                 <div id="ccEducationMount"></div>
+                <section class="cc-earnings-panel" aria-labelledby="ccPayoutHeading">
+                    <div class="cc-earnings-head">
+                        <div><h3 id="ccPayoutHeading">Education earnings &amp; payouts</h3><p>Review teacher withdrawal requests, manage per-view earnings and record manual payments.</p></div>
+                        <button type="button" class="cc-refresh" id="ccPayoutRefresh">Refresh payouts</button>
+                    </div>
+                    <form id="ccEarningsRateForm" class="cc-earnings-rate">
+                        <h4>Earnings rate</h4>
+                        <div class="cc-earnings-rate-fields">
+                            <div class="cc-earnings-field"><label for="ccEarningsPerView">UGX per eligible view</label><input id="ccEarningsPerView" type="number" min="1" step="1" inputmode="numeric" required></div>
+                            <div class="cc-earnings-field"><label for="ccEarningsMinimum">Minimum withdrawal (UGX)</label><input id="ccEarningsMinimum" type="number" min="1" step="1" inputmode="numeric" required></div>
+                        </div>
+                        <button type="submit" class="teacher-primary" id="ccEarningsRateSave">Save rate</button>
+                        <div id="ccEarningsRateStatus" class="cc-earnings-status" role="status" aria-live="polite"></div>
+                    </form>
+                    <div class="cc-earnings-toolbar">
+                        <div class="cc-earnings-field"><label for="ccPayoutStatusFilter">Payout status</label><select id="ccPayoutStatusFilter"><option value="">All statuses</option><option value="pending">Pending</option><option value="approved">Approved</option><option value="paid">Paid</option><option value="rejected">Rejected</option></select></div>
+                        <div class="cc-earnings-field"><label for="ccPayoutTeacherFilter">Teacher</label><input id="ccPayoutTeacherFilter" type="search" placeholder="Search teacher name or email"></div>
+                        <button type="button" class="teacher-secondary" id="ccPayoutApplyFilter">Apply filters</button>
+                    </div>
+                    <div id="ccPayoutTotals" class="cc-earnings-totals" aria-label="Payout totals"></div>
+                    <div id="ccPayoutStatus" class="cc-earnings-status" role="status" aria-live="polite"></div>
+                    <div id="ccPayoutList"><div class="earnings-empty">Payout requests will appear here.</div></div>
+                    <dialog id="ccPayoutActionDialog" class="earnings-dialog" aria-labelledby="ccPayoutActionTitle">
+                        <h3 id="ccPayoutActionTitle">Update payout</h3>
+                        <p id="ccPayoutActionHelp"></p>
+                        <form id="ccPayoutActionForm" class="earnings-dialog-form">
+                            <div class="cc-earnings-field" id="ccPayoutActionField"></div>
+                            <div class="teacher-form-actions"><button type="submit" id="ccPayoutActionSubmit" class="teacher-primary">Confirm</button><button type="button" id="ccPayoutActionCancel" class="teacher-secondary">Cancel</button></div>
+                        </form>
+                    </dialog>
+                </section>
                 <section class="cc-retooling-panel" aria-labelledby="ccRetoolingHeading">
                     <div class="cc-retooling-head">
                         <div><h3 id="ccRetoolingHeading">🎓 Retooling Modules</h3><p>Manage the ten NCDC course modules, videos, PDFs, quiz questions and pass scores.</p></div>
@@ -1140,9 +1251,71 @@
                             <span class="teacher-tool-count">Open</span>
                             <small>for your assigned classes</small>
                         </button>
+                        <button type="button" class="teacher-tool-card teacher-tool-card--earnings" data-teacher-open="teacherEarningsScreen">
+                            <span class="teacher-tool-icon" aria-hidden="true"><i class="fas fa-coins"></i></span>
+                            <strong>Teacher Earnings</strong>
+                            <small>Views, balances and payout requests</small>
+                            <span id="teacherEarningsCardValue" class="teacher-tool-count">UGX —</span>
+                            <small>available to withdraw</small>
+                            <span id="teacherPendingViewsBadge" class="earnings-sync-badge" hidden role="status" aria-live="polite"></span>
+                        </button>
                     </div>
                     <div id="teacherDashboardStatus" class="teacher-dashboard-status" role="status" aria-live="polite"></div>
                 </div>
+
+                <section id="teacherEarningsScreen" class="teacher-screen" hidden aria-labelledby="teacherEarningsTitle">
+                    <header class="teacher-screen-header">
+                        <button type="button" class="teacher-back" data-teacher-back><i class="fas fa-arrow-left" aria-hidden="true"></i> Back</button>
+                        <div><h2 id="teacherEarningsTitle">Teacher Earnings</h2><p>Your lesson views, earnings and payout history.</p></div>
+                    </header>
+                    <div id="teacherEarningsStatus" class="teacher-screen-status" role="status" aria-live="polite"></div>
+                    <div class="earnings-metrics" aria-label="Earnings summary">
+                        <div class="earnings-metric"><small>Total eligible views</small><strong id="teacherEarningsViews">—</strong></div>
+                        <div class="earnings-metric"><small>Total earned</small><strong id="teacherEarningsTotal">UGX —</strong></div>
+                        <div class="earnings-metric"><small>Earned this month</small><strong id="teacherEarningsMonth">UGX —</strong></div>
+                        <div class="earnings-metric"><small>Available balance</small><strong id="teacherEarningsBalance">UGX —</strong><small id="teacherEarningsPending" class="earnings-metric-detail">UGX — pending payout</small></div>
+                    </div>
+                    <p id="teacherEarningsRateNote" class="earnings-note">Earnings are calculated from eligible lesson views.</p>
+                    <div class="earnings-panel">
+                        <div class="earnings-panel-heading"><h3>Daily breakdown</h3><button type="button" id="teacherEarningsRefresh" class="teacher-secondary">Refresh</button></div>
+                        <form id="teacherEarningsRangeForm" class="earnings-date-range">
+                            <div class="teacher-field"><label for="teacherEarningsFrom">From</label><input id="teacherEarningsFrom" type="date" required></div>
+                            <div class="teacher-field"><label for="teacherEarningsTo">To</label><input id="teacherEarningsTo" type="date" required></div>
+                            <button type="submit" class="teacher-primary"><i class="fas fa-chart-column" aria-hidden="true"></i> Update breakdown</button>
+                        </form>
+                        <div class="earnings-chart-scroll">
+                            <div class="earnings-chart"><canvas id="teacherEarningsChart" role="img" aria-label="Daily views and earnings for the selected date range"></canvas></div>
+                            <div class="earnings-chart-legend"><span id="teacherEarningsChartRange">Last 30 days</span><span id="teacherEarningsChartTotal">0 views · UGX 0</span></div>
+                        </div>
+                        <button type="button" id="teacherEarningsDownload" class="teacher-secondary"><i class="fas fa-file-arrow-down" aria-hidden="true"></i> Download earnings report</button>
+                    </div>
+                    <dialog id="teacherEarningsReportDialog" class="earnings-dialog" aria-labelledby="teacherEarningsReportTitle">
+                        <h3 id="teacherEarningsReportTitle">Download earnings report</h3>
+                        <p>Choose the report period. The default is this month.</p>
+                        <form id="teacherEarningsReportForm" class="earnings-dialog-form">
+                            <div class="teacher-field"><label for="teacherReportFrom">From</label><input id="teacherReportFrom" type="date" required></div>
+                            <div class="teacher-field"><label for="teacherReportTo">To</label><input id="teacherReportTo" type="date" required></div>
+                            <div class="teacher-form-actions">
+                                <button type="submit" class="teacher-primary">Generate PDF</button>
+                                <button type="button" id="teacherEarningsReportCancel" class="teacher-secondary">Cancel</button>
+                            </div>
+                        </form>
+                    </dialog>
+                    <div class="earnings-panel">
+                        <div class="earnings-panel-heading"><h3>Payout history</h3><button type="button" id="teacherOpenWithdrawal" class="teacher-primary">Request withdrawal</button></div>
+                        <div id="teacherPayoutHistory"><div class="earnings-empty">Payout history will appear here.</div></div>
+                    </div>
+                    <dialog id="teacherWithdrawalDialog" class="earnings-dialog" aria-labelledby="teacherWithdrawalTitle">
+                        <h3 id="teacherWithdrawalTitle">Request a withdrawal</h3>
+                        <p id="teacherWithdrawalHelp">Requests are reviewed by APSHULE before payment.</p>
+                        <form id="teacherWithdrawalForm" class="earnings-dialog-form">
+                            <div class="teacher-field"><label for="teacherWithdrawalAmount">Amount (UGX)</label><input id="teacherWithdrawalAmount" type="number" min="1" step="1" inputmode="numeric" required></div>
+                            <div class="teacher-field"><label for="teacherWithdrawalMethod">Payment method</label><select id="teacherWithdrawalMethod" required><option value="">Choose a payment method</option><option value="mtn_momo">MTN MoMo</option><option value="airtel_money">Airtel Money</option><option value="bank_transfer">Bank transfer</option></select></div>
+                            <div class="teacher-field"><label for="teacherWithdrawalNotes">Payment instructions or notes (optional)</label><textarea id="teacherWithdrawalNotes" maxlength="500" placeholder="Add the details needed to process this payment"></textarea></div>
+                            <div class="teacher-form-actions"><button type="submit" id="teacherWithdrawalSubmit" class="teacher-primary">Submit request</button><button type="button" id="teacherWithdrawalCancel" class="teacher-secondary">Cancel</button></div>
+                        </form>
+                    </dialog>
+                </section>
 
                 <section id="caRecordsScreen" class="teacher-screen" hidden aria-labelledby="teacherCaTitle">
                     <header class="teacher-screen-header">
@@ -1335,6 +1508,8 @@
                             <select id="videoSubjectSelect"><option value="">Select Subject</option></select>
                             <select id="videoClassSelect"><option value="">Select Class</option></select>
                             <input type="text" id="videoYoutubeId" placeholder="YouTube URL or Video ID">
+                            <label for="videoTeacherSelect" style="display:block; margin:0 0 6px; color:#625d6e; font-size:12px; font-weight:700;">Lesson owner</label>
+                            <select id="videoTeacherSelect"><option value="">No assigned teacher</option></select>
                             <div class="form-row">
                                 <button id="testVideoBtn" class="admin-toggle">▶ Test Video</button>
                                 <button id="saveVideoMappingBtn" class="admin-toggle">💾 Save Mapping</button>
@@ -1653,6 +1828,13 @@
     let globalEventsList = [];
     let pdfMaterials = [];
     let videoMappings = {};
+    let adminVideoMappings = null;
+    let videoMappingTeachers = [];
+    let teacherEarningsSummary = null;
+    let teacherEarningsChartInstance = null;
+    let ccPayouts = [];
+    let ccPayoutSummary = {};
+    let activePayoutAction = null;
     let nurserySubjects = [];
     let primarySubjects = [];
     let secondarySubjects = [];
@@ -1812,9 +1994,345 @@
         if (!currentUser) return;
         try { await api('/api/feedbacks', { method: 'POST', body: { lesson, rating, comment } }); } catch(e) { console.warn(e); }
     }
-    async function saveVideoView(subject, classId, className) {
-        if (!currentUser) return;
-        try { await api('/api/video-views', { method: 'POST', body: { subject, classId, className } }); } catch(e) { console.warn(e); }
+    function videoViewQueueKey(userId) {
+        const value = String(userId || "");
+        let hash = 2166136261;
+        for (let index = 0; index < value.length; index++) hash = Math.imul(hash ^ value.charCodeAt(index), 16777619);
+        return `apshule_video_view_queue_${(hash >>> 0).toString(36)}`;
+    }
+    function readQueuedVideoViews(userId = currentUser?.id) {
+        if (!userId) return [];
+        try {
+            const saved = JSON.parse(localStorage.getItem(videoViewQueueKey(userId)) || "[]");
+            if (!Array.isArray(saved)) return [];
+            const seen = new Set();
+            return saved.filter(item => item && item.lessonId && !seen.has(String(item.lessonId)) && seen.add(String(item.lessonId)));
+        } catch (error) {
+            showNotification("Pending lesson views could not be read from this device.", "error");
+            return [];
+        }
+    }
+    function writeQueuedVideoViews(items, userId = currentUser?.id) {
+        if (!userId) return;
+        try {
+            const key = videoViewQueueKey(userId);
+            if (items.length) localStorage.setItem(key, JSON.stringify(items));
+            else localStorage.removeItem(key);
+            updatePendingViewsBadge();
+        } catch (error) {
+            showNotification("This device could not save pending lesson views. They will not sync offline.", "error");
+        }
+    }
+    function updatePendingViewsBadge() {
+        const badge = document.getElementById("teacherPendingViewsBadge");
+        if (!badge) return;
+        const pending = currentUser?.role === "teacher" ? readQueuedVideoViews().length : 0;
+        badge.hidden = pending === 0;
+        badge.textContent = pending ? `${pending} view${pending === 1 ? "" : "s"} waiting to sync` : "";
+    }
+    function queueVideoView(body) {
+        const queued = readQueuedVideoViews();
+        if (!queued.some(item => String(item.lessonId) === String(body.lessonId))) {
+            queued.push(body);
+            writeQueuedVideoViews(queued);
+        } else updatePendingViewsBadge();
+    }
+    async function flushQueuedVideoViews() {
+        if (!currentUser?.id || !["teacher", "individual"].includes(currentUser.role) || !navigator.onLine) return;
+        const userId = String(currentUser.id);
+        const pending = readQueuedVideoViews(userId);
+        if (!pending.length) { updatePendingViewsBadge(); return; }
+        const remaining = [...pending];
+        for (const item of pending) {
+            if (!currentUser?.id || !["teacher", "individual"].includes(currentUser.role) || String(currentUser.id) !== userId || !navigator.onLine) break;
+            try {
+                await api("/api/video-views", { method: "POST", body: item });
+                const index = remaining.findIndex(view => String(view.lessonId) === String(item.lessonId));
+                if (index >= 0) remaining.splice(index, 1);
+                writeQueuedVideoViews(remaining, userId);
+            } catch (error) {
+                showNotification(`A pending lesson view could not sync: ${error.message || "server error"}`, "error");
+                break;
+            }
+        }
+        updatePendingViewsBadge();
+        if (remaining.length < pending.length && currentUser?.id && String(currentUser.id) === userId) {
+            showNotification(`${pending.length - remaining.length} pending lesson view${pending.length - remaining.length === 1 ? "" : "s"} synced.`);
+            if (currentUser.role === "teacher") {
+                if (!document.getElementById("teacherEarningsScreen").hidden) void loadTeacherEarnings();
+                else void loadTeacherEarningsCard();
+            }
+        }
+    }
+    async function saveVideoView(lessonId, subject, classId, className) {
+        if (!currentUser?.id || !["teacher", "individual"].includes(currentUser.role)) return;
+        const body = { lessonId: String(lessonId), subject, classId, className };
+        const queued = readQueuedVideoViews();
+        if (queued.some(item => String(item.lessonId) === body.lessonId)) {
+            if (navigator.onLine) void flushQueuedVideoViews();
+            return;
+        }
+        try {
+            await api("/api/video-views", { method: "POST", body });
+        } catch (error) {
+            if (!navigator.onLine && error instanceof TypeError) {
+                queueVideoView(body);
+                showNotification("Lesson view saved on this device and will sync when you are online.", "info");
+                return;
+            }
+            showNotification(`Lesson view could not be recorded: ${error.message || "request failed"}`, "error");
+        }
+    }
+
+    function formatUgX(value) {
+        const amount = Number(value);
+        return `UGX ${Number.isFinite(amount) ? amount.toLocaleString(undefined, { maximumFractionDigits: 0 }) : "—"}`;
+    }
+    function dateInputValue(date) {
+        return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}-${String(date.getDate()).padStart(2, "0")}`;
+    }
+    function setDefaultEarningsRange() {
+        const to = new Date();
+        const from = new Date(to);
+        from.setDate(from.getDate() - 29);
+        document.getElementById("teacherEarningsFrom").value = dateInputValue(from);
+        document.getElementById("teacherEarningsTo").value = dateInputValue(to);
+    }
+    function renderTeacherEarningsSummary(summary) {
+        teacherEarningsSummary = summary;
+        document.getElementById("teacherEarningsViews").textContent = Number(summary.total_views || 0).toLocaleString();
+        document.getElementById("teacherEarningsTotal").textContent = formatUgX(summary.total_earned);
+        document.getElementById("teacherEarningsMonth").textContent = formatUgX(summary.this_month_earned);
+        document.getElementById("teacherEarningsBalance").textContent = formatUgX(summary.available_balance);
+        document.getElementById("teacherEarningsPending").textContent = `${formatUgX(summary.pending_payout)} pending payout`;
+        document.getElementById("teacherEarningsCardValue").textContent = formatUgX(summary.total_earned);
+        document.getElementById("teacherEarningsRateNote").textContent =
+            `Each eligible lesson view earns ${formatUgX(summary.per_view_ugx)}. Minimum withdrawal: ${formatUgX(summary.min_withdrawal)}.`;
+        const amountInput = document.getElementById("teacherWithdrawalAmount");
+        amountInput.min = String(Math.max(1, Number(summary.min_withdrawal) || 1));
+        amountInput.max = String(Math.max(0, Number(summary.available_balance) || 0));
+        document.getElementById("teacherWithdrawalHelp").textContent =
+            `Minimum ${formatUgX(summary.min_withdrawal)} · Available ${formatUgX(summary.available_balance)}. Requests are reviewed before payment.`;
+    }
+    function renderTeacherEarningsChart(rows, from, to) {
+        const daily = new Map((Array.isArray(rows) ? rows : []).map(row => [String(row.date).slice(0, 10), row]));
+        const start = new Date(`${from}T00:00:00`);
+        const end = new Date(`${to}T00:00:00`);
+        const days = [];
+        if (!Number.isFinite(start.getTime()) || !Number.isFinite(end.getTime())) return;
+        for (const day = new Date(start); day <= end && days.length < 367; day.setDate(day.getDate() + 1)) {
+            const date = dateInputValue(day);
+            const source = daily.get(date) || { date, views: 0, amount: 0 };
+            days.push({ date, views: Number(source.views) || 0, amount: Number(source.amount) || 0 });
+        }
+        const totalViews = days.reduce((sum, day) => sum + day.views, 0);
+        const totalAmount = days.reduce((sum, day) => sum + day.amount, 0);
+        if (teacherEarningsChartInstance) {
+            teacherEarningsChartInstance.destroy();
+            teacherEarningsChartInstance = null;
+        }
+        const canvas = document.getElementById("teacherEarningsChart");
+        if (typeof Chart === "undefined") {
+            setTeacherStatus("teacherEarningsStatus", "The earnings chart library did not load. Refresh to try again.", true);
+            return;
+        }
+        teacherEarningsChartInstance = new Chart(canvas, {
+            type: "line",
+            data: {
+                labels: days.map(day => new Date(`${day.date}T12:00:00`).toLocaleDateString(undefined, { month: "short", day: "numeric" })),
+                datasets: [
+                    {
+                        label: "Lesson views",
+                        data: days.map(day => day.views),
+                        yAxisID: "views",
+                        borderColor: "#493b8a",
+                        backgroundColor: "rgba(73, 59, 138, .12)",
+                        borderWidth: 2,
+                        tension: .3,
+                        fill: true,
+                        pointRadius: 2,
+                        pointHoverRadius: 5
+                    },
+                    {
+                        label: "Earnings (UGX)",
+                        data: days.map(day => day.amount),
+                        yAxisID: "earnings",
+                        borderColor: "#e37b39",
+                        backgroundColor: "rgba(227, 123, 57, .08)",
+                        borderWidth: 2,
+                        tension: .3,
+                        fill: false,
+                        pointRadius: 2,
+                        pointHoverRadius: 5
+                    }
+                ]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                interaction: { mode: "index", intersect: false },
+                plugins: {
+                    legend: { position: "bottom", labels: { usePointStyle: true, boxWidth: 7, padding: 14 } },
+                    tooltip: {
+                        callbacks: {
+                            label: context => context.dataset.yAxisID === "earnings"
+                                ? `${context.dataset.label}: ${formatUgX(context.parsed.y)}`
+                                : `${context.dataset.label}: ${Number(context.parsed.y || 0).toLocaleString()}`
+                        }
+                    }
+                },
+                scales: {
+                    views: {
+                        type: "linear",
+                        position: "left",
+                        beginAtZero: true,
+                        ticks: { precision: 0 },
+                        title: { display: true, text: "Views" }
+                    },
+                    earnings: {
+                        type: "linear",
+                        position: "right",
+                        beginAtZero: true,
+                        grid: { drawOnChartArea: false },
+                        ticks: { callback: value => Number(value).toLocaleString() },
+                        title: { display: true, text: "UGX" }
+                    }
+                }
+            }
+        });
+        canvas.setAttribute("aria-label", `Daily views and earnings from ${from} through ${to}; ${totalViews} views total.`);
+        document.getElementById("teacherEarningsChartRange").textContent = `${from} to ${to}`;
+        document.getElementById("teacherEarningsChartTotal").textContent = `${totalViews.toLocaleString()} views · ${formatUgX(totalAmount)}`;
+    }
+    function renderTeacherPayoutHistory(payouts) {
+        const container = document.getElementById("teacherPayoutHistory");
+        if (!payouts.length) {
+            container.innerHTML = '<div class="earnings-empty">No payout requests yet. You can request a withdrawal when your available balance meets the minimum.</div>';
+            return;
+        }
+        const rows = payouts.map(payout => {
+            const status = String(payout.status || "pending").toLowerCase();
+            const notes = [payout.payment_reference ? `Reference: ${payout.payment_reference}` : "", payout.rejection_reason ? `Reason: ${payout.rejection_reason}` : "", payout.notes || ""].filter(Boolean).join(" · ");
+            const timeline = `Requested: ${teacherFormatDate(payout.requested_at, true)}${payout.approved_at ? `<small>Approved: ${teacherFormatDate(payout.approved_at, true)}</small>` : ""}${payout.paid_at ? `<small>Paid: ${teacherFormatDate(payout.paid_at, true)}</small>` : ""}`;
+            return `<tr><td>${formatUgX(payout.amount)}</td><td><span class="earnings-status earnings-status--${escapeHtml(status)}">${escapeHtml(status)}</span></td><td>${timeline}</td><td>${escapeHtml(String(payout.payment_method || "").replaceAll("_", " ") || "—")}${notes ? `<small>${escapeHtml(notes)}</small>` : ""}</td></tr>`;
+        }).join("");
+        container.innerHTML = `<div class="earnings-table-wrap"><table class="earnings-table"><thead><tr><th>Amount</th><th>Status</th><th>Timeline</th><th>Payment details</th></tr></thead><tbody>${rows}</tbody></table></div>`;
+    }
+    async function loadTeacherEarnings() {
+        if (currentUser?.role !== "teacher") return;
+        const from = document.getElementById("teacherEarningsFrom").value;
+        const to = document.getElementById("teacherEarningsTo").value;
+        const rangeDays = (new Date(`${to}T00:00:00`) - new Date(`${from}T00:00:00`)) / 86400000;
+        if (!from || !to || !Number.isFinite(rangeDays) || rangeDays < 0 || rangeDays > 365) {
+            setTeacherStatus("teacherEarningsStatus", "Choose a valid range of up to 366 days.", true);
+            return;
+        }
+        setTeacherStatus("teacherEarningsStatus", "Loading your earnings…");
+        const query = `?from=${encodeURIComponent(from)}&to=${encodeURIComponent(to)}`;
+        const [summaryResult, breakdownResult, payoutsResult] = await Promise.allSettled([
+            api("/api/teacher/earnings"),
+            api(`/api/teacher/earnings/breakdown${query}`),
+            api("/api/teacher/payouts")
+        ]);
+        const errors = [];
+        if (summaryResult.status === "fulfilled") renderTeacherEarningsSummary(summaryResult.value || {});
+        else errors.push(`Earnings: ${summaryResult.reason.message || "could not load"}`);
+        if (breakdownResult.status === "fulfilled") {
+            const breakdown = Array.isArray(breakdownResult.value) ? breakdownResult.value : responseList(breakdownResult.value, "breakdown") || [];
+            renderTeacherEarningsChart(breakdown, from, to);
+        } else errors.push(`Daily breakdown: ${breakdownResult.reason.message || "could not load"}`);
+        if (payoutsResult.status === "fulfilled") {
+            const payouts = responseList(payoutsResult.value, "payouts") || [];
+            renderTeacherPayoutHistory(payouts);
+        } else {
+            errors.push(`Payout history: ${payoutsResult.reason.message || "could not load"}`);
+            document.getElementById("teacherPayoutHistory").innerHTML = `<div class="earnings-empty">Payout history could not be loaded. ${escapeHtml(payoutsResult.reason.message || "")}</div>`;
+        }
+        setTeacherStatus("teacherEarningsStatus", errors.length ? errors.join(" · ") : "", errors.length > 0);
+    }
+    function openTeacherEarningsReport() {
+        if (currentUser?.role !== "teacher") return;
+        const parts = new Intl.DateTimeFormat("en-GB", {
+            timeZone: "Africa/Kampala",
+            year: "numeric",
+            month: "2-digit",
+            day: "2-digit"
+        }).formatToParts(new Date());
+        const part = type => parts.find(value => value.type === type)?.value || "";
+        const today = `${part("year")}-${part("month")}-${part("day")}`;
+        document.getElementById("teacherReportFrom").value = `${today.slice(0, 7)}-01`;
+        document.getElementById("teacherReportTo").value = today;
+        document.getElementById("teacherEarningsReportDialog").showModal();
+    }
+    async function downloadTeacherEarningsReport(event) {
+        event.preventDefault();
+        if (currentUser?.role !== "teacher") return;
+        const from = document.getElementById("teacherReportFrom").value;
+        const to = document.getElementById("teacherReportTo").value;
+        const rangeDays = (new Date(`${to}T00:00:00`) - new Date(`${from}T00:00:00`)) / 86400000;
+        if (!from || !to || from > to || !Number.isFinite(rangeDays) || rangeDays > 365) { showNotification("Choose a valid report date range of up to 366 days.", "error"); return; }
+        const reportWindow = window.open("about:blank", "_blank");
+        if (reportWindow) {
+            reportWindow.opener = null;
+            reportWindow.document.title = "Preparing APSHULE earnings report";
+            reportWindow.document.body.textContent = "Preparing your earnings report…";
+        }
+        try {
+            const response = await fetch(`${API_BASE}/api/teacher/earnings/report.pdf?from=${encodeURIComponent(from)}&to=${encodeURIComponent(to)}`, {
+                headers: { Authorization: `Bearer ${AUTH_TOKEN}`, Accept: "application/pdf" }
+            });
+            if (!response.ok) {
+                const errorData = await response.json().catch(() => ({}));
+                throw new Error(errorData.error || response.statusText || "Could not download report.");
+            }
+            const blob = await response.blob();
+            if (blob.type && !blob.type.toLowerCase().includes("pdf")) throw new Error("The report response was not a PDF.");
+            const url = URL.createObjectURL(blob);
+            if (reportWindow && !reportWindow.closed) {
+                reportWindow.location.replace(url);
+                window.setTimeout(() => URL.revokeObjectURL(url), 600000);
+                showNotification("Earnings report opened in a new tab.");
+            } else {
+                const link = document.createElement("a");
+                link.href = url;
+                link.download = `apshule-earnings-${from}-to-${to}.pdf`;
+                document.body.appendChild(link);
+                link.click();
+                link.remove();
+                window.setTimeout(() => URL.revokeObjectURL(url), 60000);
+                showNotification("Report opened as a download because a new tab was blocked.");
+            }
+            document.getElementById("teacherEarningsReportDialog").close();
+        } catch (error) {
+            if (reportWindow && !reportWindow.closed) reportWindow.close();
+            setTeacherStatus("teacherEarningsStatus", error.message || "Could not download report.", true);
+            showNotification(error.message || "Could not download report.", "error");
+        }
+    }
+    async function submitTeacherWithdrawal(event) {
+        event.preventDefault();
+        if (currentUser?.role !== "teacher") return;
+        const amount = Number(document.getElementById("teacherWithdrawalAmount").value);
+        const minimum = Number(teacherEarningsSummary?.min_withdrawal) || 0;
+        const available = Number(teacherEarningsSummary?.available_balance) || 0;
+        const payment_method = document.getElementById("teacherWithdrawalMethod").value;
+        const notes = document.getElementById("teacherWithdrawalNotes").value.trim();
+        if (!Number.isFinite(amount) || amount < minimum || amount > available) {
+            showNotification(`Enter an amount from ${formatUgX(minimum)} up to ${formatUgX(available)}.`, "error");
+            return;
+        }
+        const submit = document.getElementById("teacherWithdrawalSubmit");
+        submit.disabled = true;
+        try {
+            await api("/api/teacher/payouts/request", { method: "POST", body: { amount, payment_method, ...(notes ? { notes } : {}) } });
+            document.getElementById("teacherWithdrawalDialog").close();
+            document.getElementById("teacherWithdrawalForm").reset();
+            showNotification("Withdrawal request submitted for review.");
+            await loadTeacherEarnings();
+        } catch (error) {
+            setTeacherStatus("teacherEarningsStatus", error.message || "Could not submit withdrawal request.", true);
+            showNotification(error.message || "Could not submit withdrawal request.", "error");
+        } finally { submit.disabled = false; }
     }
 
     async function renderFeedbackAdmin() {
@@ -1904,7 +2422,7 @@
         const vid = videoMappings[key];
         if (!vid) { showNotification(`No video for "${subject}" in ${currentSelectedClassId.name}. Ask admin to add.`, "info"); return; }
         currentLessonSubject = `${subject} (${currentSelectedClassId.name})`;
-        saveVideoView(subject, currentSelectedClassId.id, currentSelectedClassId.name);
+        void saveVideoView(key, subject, currentSelectedClassId.id, currentSelectedClassId.name);
         document.getElementById('youtubeIframe').src = `https://www.youtube.com/embed/${vid}?autoplay=1`;
         document.getElementById('currentVideoTitle').innerText = `${subject} - ${currentSelectedClassId.name} Lesson`;
         document.getElementById('videoTitle').innerHTML = `<i class="fab fa-youtube"></i> ${escapeHtml(subject)} Lesson`;
@@ -2285,15 +2803,38 @@
     }
     function populateVideoMappingDropdowns() {
         const subjSelect = document.getElementById('videoSubjectSelect');
+        if (!subjSelect) return;
         const allSubjects = [...primarySubjects, ...secondarySubjects];
         subjSelect.innerHTML = '<option value="">Select Subject</option>' + allSubjects.map(s => `<option value="${escapeHtml(s)}">${escapeHtml(s)}</option>`).join('');
         const classSelect = document.getElementById('videoClassSelect');
+        if (!classSelect) return;
         const allClasses = [...classData.primary.map(c => ({ value: `primary_${c.id}`, label: `Primary ${c.id}` })), ...classData.secondary.map(c => ({ value: `secondary_${c.id}`, label: `Senior ${c.id}` }))];
         classSelect.innerHTML = '<option value="">Select Class</option>' + allClasses.map(c => `<option value="${c.value}">${c.label}</option>`).join('');
+        renderVideoMappingTeachers();
+    }
+    function renderVideoMappingTeachers(selectedId = document.getElementById("videoTeacherSelect")?.value || "") {
+        const select = document.getElementById("videoTeacherSelect");
+        if (!select) return;
+        select.innerHTML = '<option value="">No assigned teacher</option>' + videoMappingTeachers.map(teacher =>
+            `<option value="${escapeHtml(teacher.id)}">${escapeHtml(teacher.name || teacher.email || "Teacher")}${teacher.email && teacher.name ? ` · ${escapeHtml(teacher.email)}` : ""}</option>`
+        ).join("");
+        select.value = selectedId && videoMappingTeachers.some(teacher => String(teacher.id) === String(selectedId)) ? String(selectedId) : "";
     }
     function renderExistingMappings() {
         const container = document.getElementById('existingMappingsList');
         if (!container) return;
+        if (Array.isArray(adminVideoMappings)) {
+            if (!adminVideoMappings.length) { container.innerHTML = '<div class="earnings-empty">No video mappings yet. Use the form above to add a lesson.</div>'; return; }
+            container.innerHTML = `<strong>Current mappings</strong><div style="display:grid;gap:8px;margin-top:9px;">${adminVideoMappings.map(mapping => {
+                const key = mapping.key || `${mapping.class_key || ""}_${mapping.subject || ""}`;
+                const classKey = mapping.class_key || key.split("_").slice(0, 2).join("_");
+                const parts = String(classKey).split("_");
+                const classLabel = parts.length > 1 ? `${parts[0] === "primary" ? "Primary" : "Senior"} ${parts[1]}` : classKey;
+                const owner = mapping.teacher_name || "No assigned teacher";
+                return `<div class="school-item" style="margin:0;gap:10px;"><div style="min-width:0;flex:1;"><strong>${escapeHtml(mapping.subject || "Lesson")}</strong> · ${escapeHtml(classLabel)}<br><small>Owner: ${escapeHtml(owner)} · Video: ${escapeHtml(mapping.youtube_id || "")}</small></div><button type="button" class="cc-user-action" data-mapping-edit="${escapeHtml(key)}">Edit mapping</button></div>`;
+            }).join("")}</div><div id="videoMappingAdminStatus" class="cc-earnings-status" role="status" aria-live="polite"></div>`;
+            return;
+        }
         const entries = Object.entries(videoMappings);
         if (!entries.length) { container.innerHTML = '<em>No video mappings yet. Use the form above to add.</em>'; return; }
         let html = '<strong>Current Mappings:</strong><ul style="margin-top:8px;">';
@@ -2307,18 +2848,193 @@
         html += '</ul>';
         container.innerHTML = html;
     }
+    async function loadAdminVideoMappings() {
+        if (currentUser?.role !== "superadmin") return;
+        const container = document.getElementById("existingMappingsList");
+        if (container && !Array.isArray(adminVideoMappings)) container.innerHTML = '<div class="earnings-empty">Loading existing video mappings…</div>';
+        try {
+            const result = await api("/api/video-mappings/admin");
+            adminVideoMappings = responseList(result, "mappings") || [];
+            videoMappingTeachers = responseList(result, "teachers") || [];
+            renderVideoMappingTeachers();
+            renderExistingMappings();
+        } catch (error) {
+            if (container) container.innerHTML = `<div class="earnings-empty">Video mappings could not be loaded. ${escapeHtml(error.message || "")}<br><button type="button" class="cc-user-action" data-mapping-retry style="margin-top:9px;">Retry</button></div>`;
+            showNotification(error.message || "Could not load video mappings.", "error");
+        }
+    }
+    function editVideoMapping(key) {
+        const mapping = adminVideoMappings?.find(item => String(item.key || `${item.class_key || ""}_${item.subject || ""}`) === String(key));
+        if (!mapping) { showNotification("That video mapping is no longer available. Refresh and try again.", "error"); return; }
+        document.getElementById("videoSubjectSelect").value = mapping.subject || "";
+        document.getElementById("videoClassSelect").value = mapping.class_key || String(key).split("_").slice(0, 2).join("_");
+        document.getElementById("videoYoutubeId").value = mapping.youtube_id || "";
+        renderVideoMappingTeachers(mapping.teacher_id || "");
+        document.getElementById("videoYoutubeId").focus();
+    }
     async function saveVideoMapping() {
         const subject = document.getElementById('videoSubjectSelect').value;
         const classVal = document.getElementById('videoClassSelect').value;
         const youtubeId = extractVideoId(document.getElementById('videoYoutubeId').value);
+        const teacherId = document.getElementById("videoTeacherSelect")?.value || null;
         if (!subject || !classVal || !youtubeId) { showNotification("Please fill all fields", "error"); return; }
         const key = `${classVal}_${subject}`;
         try {
-            await api('/api/video-mappings', { method: 'POST', body: { key, subject, classKey: classVal, youtubeId } });
+            await api('/api/video-mappings', { method: 'POST', body: { key, subject, classKey: classVal, youtubeId, teacherId } });
             showNotification(`Video saved for ${subject}`);
             document.getElementById('videoYoutubeId').value = '';
+            await loadAdminVideoMappings();
             refreshAllData();
         } catch(e) { showNotification(e.message, "error"); }
+    }
+    function setCcEarningsStatus(message, isError = false) {
+        const status = document.getElementById("ccPayoutStatus");
+        if (!status) return;
+        status.textContent = message || "";
+        status.classList.toggle("is-error", Boolean(isError));
+    }
+    function renderCcPayoutTotals() {
+        const container = document.getElementById("ccPayoutTotals");
+        if (!container) return;
+        container.innerHTML = [
+            `<div class="cc-earnings-total"><small>Pending requests</small><strong>${Number(ccPayoutSummary.pending_count || 0).toLocaleString()}</strong></div>`,
+            `<div class="cc-earnings-total"><small>Total pending amount</small><strong>${formatUgX(ccPayoutSummary.pending_amount)}</strong></div>`,
+            `<div class="cc-earnings-total"><small>Paid this month</small><strong>${formatUgX(ccPayoutSummary.paid_this_month)}</strong></div>`
+        ].join("");
+    }
+    function renderCcPayoutList() {
+        const container = document.getElementById("ccPayoutList");
+        const query = document.getElementById("ccPayoutTeacherFilter").value.trim().toLowerCase();
+        const payouts = ccPayouts.filter(item => !query || `${item.teacher_name || ""} ${item.teacher_email || ""}`.toLowerCase().includes(query));
+        renderCcPayoutTotals();
+        if (!payouts.length) {
+            container.innerHTML = `<div class="earnings-empty">${ccPayouts.length ? "No requests match this teacher filter." : "No payout requests in this status yet."}</div>`;
+            return;
+        }
+        const rows = payouts.map(payout => {
+            const status = String(payout.status || "pending").toLowerCase();
+            let actions = "";
+            if (status === "pending") actions = `<button type="button" class="cc-payout-action" data-payout-action="approve" data-payout-id="${escapeHtml(payout.id)}">Approve</button><button type="button" class="cc-payout-action cc-payout-action--danger" data-payout-action="reject" data-payout-id="${escapeHtml(payout.id)}">Reject</button>`;
+            if (status === "approved") actions = `<button type="button" class="cc-payout-action" data-payout-action="paid" data-payout-id="${escapeHtml(payout.id)}">Mark paid</button>`;
+            const details = [payout.payment_reference ? `Reference: ${payout.payment_reference}` : "", payout.rejection_reason ? `Rejected: ${payout.rejection_reason}` : "", payout.notes || ""].filter(Boolean).join(" · ");
+            const timeline = `Requested: ${teacherFormatDate(payout.requested_at, true)}${payout.approved_at ? `<small>Approved: ${teacherFormatDate(payout.approved_at, true)}</small>` : ""}${payout.paid_at ? `<small>Paid: ${teacherFormatDate(payout.paid_at, true)}</small>` : ""}`;
+            return `<tr><td><strong>${escapeHtml(payout.teacher_name || "Teacher")}</strong><small>${escapeHtml(payout.teacher_email || "")}</small></td><td>${formatUgX(payout.amount)}</td><td><span class="earnings-status earnings-status--${escapeHtml(status)}">${escapeHtml(status)}</span></td><td>${timeline}</td><td>${escapeHtml(String(payout.payment_method || "").replaceAll("_", " ") || "—")}${details ? `<small>${escapeHtml(details)}</small>` : ""}</td><td>${actions || "—"}</td></tr>`;
+        }).join("");
+        container.innerHTML = `<div class="cc-payout-table-wrap"><table class="cc-payout-table"><thead><tr><th>Teacher</th><th>Amount</th><th>Status</th><th>Timeline</th><th>Payment / notes</th><th>Actions</th></tr></thead><tbody>${rows}</tbody></table></div>`;
+    }
+    async function loadCcPayouts() {
+        if (currentUser?.role !== "superadmin") return;
+        setCcEarningsStatus("Loading payout requests…");
+        document.getElementById("ccPayoutList").innerHTML = '<div class="earnings-empty">Loading payout requests…</div>';
+        const status = document.getElementById("ccPayoutStatusFilter").value;
+        try {
+            const result = await api(`/api/superadmin/payouts${status ? `?status=${encodeURIComponent(status)}` : ""}`);
+            ccPayouts = responseList(result, "payouts") || [];
+            ccPayoutSummary = result?.summary || {};
+            renderCcPayoutList();
+            setCcEarningsStatus("");
+        } catch (error) {
+            ccPayouts = [];
+            ccPayoutSummary = {};
+            document.getElementById("ccPayoutTotals").innerHTML = "";
+            document.getElementById("ccPayoutList").innerHTML = `<div class="earnings-empty">Payout requests could not be loaded. ${escapeHtml(error.message || "")}</div>`;
+            setCcEarningsStatus(error.message || "Could not load payout requests.", true);
+        }
+    }
+    async function loadCcEarningsRate() {
+        if (currentUser?.role !== "superadmin") return;
+        const status = document.getElementById("ccEarningsRateStatus");
+        status.textContent = "Loading current rate…";
+        status.classList.remove("is-error");
+        try {
+            const rate = await api("/api/superadmin/earnings/rate");
+            document.getElementById("ccEarningsPerView").value = Number(rate.per_view_ugx ?? 0);
+            document.getElementById("ccEarningsMinimum").value = Number(rate.min_withdrawal_ugx ?? 1);
+            status.textContent = "";
+        } catch (error) {
+            status.textContent = error.message || "Could not load the earnings rate.";
+            status.classList.add("is-error");
+        }
+    }
+    async function saveCcEarningsRate(event) {
+        event.preventDefault();
+        const per_view_ugx = Number(document.getElementById("ccEarningsPerView").value);
+        const min_withdrawal_ugx = Number(document.getElementById("ccEarningsMinimum").value);
+        if (!Number.isSafeInteger(per_view_ugx) || per_view_ugx < 1 || !Number.isSafeInteger(min_withdrawal_ugx) || min_withdrawal_ugx < 1) {
+            showNotification("Enter a valid per-view rate and minimum withdrawal.", "error");
+            return;
+        }
+        const button = document.getElementById("ccEarningsRateSave");
+        const status = document.getElementById("ccEarningsRateStatus");
+        button.disabled = true;
+        status.textContent = "Saving rate…";
+        status.classList.remove("is-error");
+        try {
+            const result = await api("/api/superadmin/earnings/rate", { method: "PATCH", body: { per_view_ugx, min_withdrawal_ugx } });
+            const rate = result?.rate || result;
+            document.getElementById("ccEarningsPerView").value = Number(rate.per_view_ugx ?? per_view_ugx);
+            document.getElementById("ccEarningsMinimum").value = Number(rate.min_withdrawal_ugx ?? min_withdrawal_ugx);
+            status.textContent = "Rate saved.";
+            showNotification("Earnings rate updated.");
+        } catch (error) {
+            status.textContent = error.message || "Could not save the earnings rate.";
+            status.classList.add("is-error");
+            showNotification(error.message || "Could not save the earnings rate.", "error");
+        } finally { button.disabled = false; }
+    }
+    function openPayoutAction(action, payoutId) {
+        const payout = ccPayouts.find(item => String(item.id) === String(payoutId));
+        if (!payout) { showNotification("This payout request is no longer in the list. Refresh and try again.", "error"); return; }
+        activePayoutAction = { action, payoutId: payout.id };
+        const dialog = document.getElementById("ccPayoutActionDialog");
+        const title = document.getElementById("ccPayoutActionTitle");
+        const help = document.getElementById("ccPayoutActionHelp");
+        const field = document.getElementById("ccPayoutActionField");
+        const submit = document.getElementById("ccPayoutActionSubmit");
+        if (action === "approve") {
+            title.textContent = "Approve payout";
+            help.textContent = `${payout.teacher_name || "Teacher"} · ${formatUgX(payout.amount)}. Add an optional note for the audit trail.`;
+            field.innerHTML = '<label for="payoutActionValue">Note (optional)</label><textarea id="payoutActionValue" name="notes" maxlength="500"></textarea>';
+            submit.textContent = "Approve request";
+        } else if (action === "reject") {
+            title.textContent = "Reject payout";
+            help.textContent = `${payout.teacher_name || "Teacher"} · ${formatUgX(payout.amount)}. A reason is required.`;
+            field.innerHTML = '<label for="payoutActionValue">Reason</label><textarea id="payoutActionValue" name="reason" maxlength="500" required></textarea>';
+            submit.textContent = "Reject request";
+        } else {
+            title.textContent = "Record manual payment";
+            help.textContent = `${payout.teacher_name || "Teacher"} · ${formatUgX(payout.amount)}. Enter the transaction reference after payment.`;
+            field.innerHTML = '<label for="payoutActionValue">Payment reference</label><input id="payoutActionValue" name="payment_reference" required maxlength="160"><label for="payoutActionMethod" style="margin-top:8px;">Payment method (optional)</label><select id="payoutActionMethod" name="payment_method"><option value="">Use requested method</option><option value="mtn_momo">MTN MoMo</option><option value="airtel_money">Airtel Money</option><option value="bank_transfer">Bank transfer</option></select>';
+            submit.textContent = "Mark as paid";
+        }
+        dialog.showModal();
+        window.setTimeout(() => document.getElementById("payoutActionValue")?.focus(), 0);
+    }
+    async function submitPayoutAction(event) {
+        event.preventDefault();
+        if (!activePayoutAction || currentUser?.role !== "superadmin") return;
+        const { action, payoutId } = activePayoutAction;
+        const form = document.getElementById("ccPayoutActionForm");
+        const formData = new FormData(form);
+        let body = {};
+        if (action === "approve") body = { ...(String(formData.get("notes") || "").trim() ? { notes: String(formData.get("notes")).trim() } : {}) };
+        if (action === "reject") body = { reason: String(formData.get("reason") || "").trim() };
+        if (action === "paid") body = {
+            payment_reference: String(formData.get("payment_reference") || "").trim(),
+            ...(String(formData.get("payment_method") || "") ? { payment_method: String(formData.get("payment_method")) } : {})
+        };
+        const submit = document.getElementById("ccPayoutActionSubmit");
+        submit.disabled = true;
+        try {
+            await api(`/api/superadmin/payouts/${encodeURIComponent(payoutId)}/${action}`, { method: "PATCH", body });
+            document.getElementById("ccPayoutActionDialog").close();
+            activePayoutAction = null;
+            showNotification(action === "paid" ? "Payment recorded." : action === "approve" ? "Payout approved." : "Payout rejected.");
+            await loadCcPayouts();
+        } catch (error) {
+            setCcEarningsStatus(error.message || `Could not ${action} payout.`, true);
+            showNotification(error.message || `Could not ${action} payout.`, "error");
+        } finally { submit.disabled = false; }
     }
     function testVideoMapping() {
         const youtubeId = extractVideoId(document.getElementById('videoYoutubeId').value);
@@ -2845,7 +3561,13 @@
             const element = document.getElementById(id);
             if (element) element.textContent = "—";
         });
+        document.getElementById("teacherEarningsCardValue").textContent = "UGX —";
+        teacherEarningsSummary = null;
+        updatePendingViewsBadge();
         setTeacherStatus("teacherDashboardStatus", "");
+        if (navigator.onLine && user?.id && ["teacher", "individual"].includes(user.role)) {
+            void flushQueuedVideoViews();
+        }
         if (!isTeacher) return;
 
         const classes = teacherAssignedClasses();
@@ -2853,6 +3575,22 @@
         setTeacherOptions("teacherProjectClassFilter", classes, "All assigned classes", teacherClassLabel);
         document.getElementById("teacherCaTermFilter").value = currentTeacherTerm();
         void loadTeacherDashboardStats();
+        void loadTeacherEarningsCard();
+    }
+
+    async function loadTeacherEarningsCard() {
+        if (currentUser?.role !== "teacher") return;
+        try {
+            const summary = await api("/api/teacher/earnings");
+            if (currentUser?.role !== "teacher") return;
+            document.getElementById("teacherEarningsCardValue").textContent = formatUgX(summary.total_earned);
+            if (document.getElementById("teacherEarningsScreen") && !document.getElementById("teacherEarningsScreen").hidden) {
+                renderTeacherEarningsSummary(summary);
+            }
+        } catch (error) {
+            setTeacherStatus("teacherDashboardStatus", `Earnings summary: ${error.message || "could not load."}`, true);
+            showNotification(`Teacher earnings summary could not load: ${error.message || "request failed"}`, "error");
+        }
     }
 
     async function loadTeacherDashboardStats() {
@@ -3596,6 +4334,9 @@
             window.setTimeout(() => document.getElementById("teacherCurriculumQuery")?.focus({ preventScroll: true }), 0);
         } else if (screenId === "retoolingScreen") {
             void retoolingUI.loadCourse();
+        } else if (screenId === "teacherEarningsScreen") {
+            if (!document.getElementById("teacherEarningsFrom").value) setDefaultEarningsRange();
+            void loadTeacherEarnings();
         }
     }
 
@@ -3607,6 +4348,34 @@
             button.addEventListener("click", showTeacherWorkspaceHome);
         });
         document.getElementById("teacherDashboardRefresh")?.addEventListener("click", loadTeacherDashboardStats);
+        document.getElementById("teacherEarningsRefresh")?.addEventListener("click", loadTeacherEarnings);
+        document.getElementById("teacherEarningsRangeForm")?.addEventListener("submit", event => {
+            event.preventDefault();
+            const from = document.getElementById("teacherEarningsFrom").value;
+            const to = document.getElementById("teacherEarningsTo").value;
+            if (!from || !to || from > to) {
+                setTeacherStatus("teacherEarningsStatus", "Choose a valid date range. The start date must be on or before the end date.", true);
+                return;
+            }
+            void loadTeacherEarnings();
+        });
+        document.getElementById("teacherEarningsDownload")?.addEventListener("click", openTeacherEarningsReport);
+        document.getElementById("teacherEarningsReportForm")?.addEventListener("submit", downloadTeacherEarningsReport);
+        document.getElementById("teacherEarningsReportCancel")?.addEventListener("click", () => document.getElementById("teacherEarningsReportDialog").close());
+        document.getElementById("teacherOpenWithdrawal")?.addEventListener("click", () => {
+            if (!teacherEarningsSummary) { showNotification("Earnings must load before you can request a withdrawal.", "error"); return; }
+            const minimum = Number(teacherEarningsSummary.min_withdrawal) || 0;
+            const available = Number(teacherEarningsSummary.available_balance) || 0;
+            if (available < minimum) {
+                showNotification(`Your available balance must reach ${formatUgX(minimum)} before you can request a withdrawal.`, "info");
+                return;
+            }
+            document.getElementById("teacherWithdrawalAmount").value = String(available);
+            document.getElementById("teacherWithdrawalDialog").showModal();
+            document.getElementById("teacherWithdrawalAmount").focus();
+        });
+        document.getElementById("teacherWithdrawalCancel")?.addEventListener("click", () => document.getElementById("teacherWithdrawalDialog").close());
+        document.getElementById("teacherWithdrawalForm")?.addEventListener("submit", submitTeacherWithdrawal);
 
         document.getElementById("teacherCaClassFilter")?.addEventListener("change", () => {
             void Promise.all([loadTeacherCaStudents(), loadTeacherCaRecords()]);
@@ -4054,6 +4823,11 @@
         Object.entries(viewIds).forEach(([key, id]) => document.getElementById(id)?.classList.toggle('active', key === tab));
         if (['mfi', 'clinic', 'farm'].includes(tab)) loadSectorWaitlist(tab);
         if (tab === 'ncdc') loadNcdcDashboard();
+        if (tab === 'education' && currentUser?.role === 'superadmin') {
+            void loadCcEarningsRate();
+            void loadCcPayouts();
+            void loadAdminVideoMappings();
+        }
         if (tab === 'users') loadCommandCenterUsers();
         if (tab === 'global') loadGlobalOverview();
     }
@@ -4138,6 +4912,29 @@
 
         document.querySelectorAll('.nav-item').forEach(i => i.addEventListener('click', () => navigateTo(i.getAttribute('data-page'))));
         document.querySelectorAll('.cc-tab').forEach(button => button.addEventListener('click', () => activateCommandTab(button.dataset.ccTab)));
+        document.getElementById("ccPayoutRefresh")?.addEventListener("click", () => { void loadCcPayouts(); void loadCcEarningsRate(); });
+        document.getElementById("ccPayoutStatusFilter")?.addEventListener("change", loadCcPayouts);
+        document.getElementById("ccPayoutApplyFilter")?.addEventListener("click", () => { void loadCcPayouts(); });
+        document.getElementById("ccPayoutTeacherFilter")?.addEventListener("input", renderCcPayoutList);
+        document.getElementById("ccPayoutTeacherFilter")?.addEventListener("keydown", event => {
+            if (event.key === "Enter") { event.preventDefault(); void loadCcPayouts(); }
+        });
+        document.getElementById("ccPayoutList")?.addEventListener("click", event => {
+            const button = event.target.closest("[data-payout-action]");
+            if (button) openPayoutAction(button.dataset.payoutAction, button.dataset.payoutId);
+        });
+        document.getElementById("ccEarningsRateForm")?.addEventListener("submit", saveCcEarningsRate);
+        document.getElementById("ccPayoutActionForm")?.addEventListener("submit", submitPayoutAction);
+        document.getElementById("ccPayoutActionCancel")?.addEventListener("click", () => {
+            document.getElementById("ccPayoutActionDialog").close();
+            activePayoutAction = null;
+        });
+        document.getElementById("existingMappingsList")?.addEventListener("click", event => {
+            const button = event.target.closest("[data-mapping-edit]");
+            if (button) editVideoMapping(button.dataset.mappingEdit);
+            if (event.target.closest("[data-mapping-retry]")) void loadAdminVideoMappings();
+        });
+        window.addEventListener("online", () => { void flushQueuedVideoViews(); });
         document.getElementById('ccRefreshGlobal')?.addEventListener('click', loadGlobalOverview);
         document.getElementById('ccRefreshUsers')?.addEventListener('click', loadCommandCenterUsers);
         document.getElementById('ccRefreshNcdc')?.addEventListener('click', loadNcdcDashboard);

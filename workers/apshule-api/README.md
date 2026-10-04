@@ -13,7 +13,7 @@ pnpm install
 pnpm --filter @workspace/apshule-api run dev
 ```
 
-Run `schema.sql` once in the Neon SQL Editor when initializing a new database. For routine feature releases, apply only the relevant file from `migrations/`; in particular, Phase 1A uses `migrations/2026-10-04_ncdc_foundation.sql` and must not rerun the full schema on the existing Neon database. Wrangler serves the Worker locally at `http://localhost:8787`; API routes start with `/api`.
+Run `schema.sql` once in the Neon SQL Editor when initializing a new database. For routine feature releases, apply only the relevant file from `migrations/`; in particular, Phase 1A uses `migrations/2026-10-04_ncdc_foundation.sql`, and Phase 2.5c uses `migrations/2026-10-04_teacher_earnings_payouts.sql`. Do not rerun the full schema on the existing Neon database. Wrangler serves the Worker locally at `http://localhost:8787`; API routes start with `/api`.
 
 Never commit `.dev.vars` or enter secrets in chat. The example file contains placeholders only.
 
@@ -67,13 +67,25 @@ All JSON responses use the shape shown below unless a route returns a plain-text
 | PATCH | `/api/pdfs/:id` | Superadmin | Update a PDF's class, cover color, display order, title, or URL |
 | DELETE | `/api/pdfs/:id` | Superadmin | Delete a PDF |
 | GET | `/api/video-mappings` | Public | Return `{ "key": "youtubeId" }` mappings |
-| POST | `/api/video-mappings` | Superadmin | Create/update a mapping |
+| GET | `/api/video-mappings/admin` | Superadmin | List lesson mappings with teacher owners and the Education teacher choices |
+| POST | `/api/video-mappings` | Superadmin | Create/update a mapping and optionally assign or clear its teacher owner |
 | GET | `/api/subjects` | Public | Return `{ "primary": [], "secondary": [] }` |
 | PUT | `/api/subjects/:level` | Superadmin | Replace `subjects` for `primary` or `secondary` |
 | GET | `/api/feedbacks?limit=50` | Superadmin | List feedback, capped at 200 rows |
 | POST | `/api/feedbacks` | Public | Submit feedback; rating, if supplied, must be 1–5 |
-| POST | `/api/video-views` | Public | Record a video view |
+| POST | `/api/video-views` | Signed-in learner or teacher | Record a mapped lesson view; identity and teacher ownership are server-derived, self-views are excluded, and repeats are deduplicated for 24 hours |
 | GET | `/api/video-views/stats` | Superadmin | View totals grouped by subject and class |
+| GET | `/api/teacher/earnings` | Teacher | Get lifetime, monthly, pending-payout, available-balance, and current-rate totals |
+| GET | `/api/teacher/earnings/breakdown?from=&to=` | Teacher | Get daily view and earnings rows for a date range (defaults to the last 30 days) |
+| GET | `/api/teacher/earnings/report.pdf?from=&to=` | Teacher | Download an on-demand PDF earnings report |
+| GET | `/api/teacher/payouts` | Teacher | List the signed-in teacher's payout history |
+| POST | `/api/teacher/payouts/request` | Teacher | Request a manual withdrawal using `amount`, `payment_method`, and optional `notes` |
+| GET | `/api/superadmin/payouts?status=&teacher_id=` | Superadmin | Filter payout requests and see teacher details and admin totals |
+| PATCH | `/api/superadmin/payouts/:id/approve` | Superadmin | Approve a pending payout and optionally add notes |
+| PATCH | `/api/superadmin/payouts/:id/paid` | Superadmin | Record a manual payment reference and allocate the paid amount to lesson earnings |
+| PATCH | `/api/superadmin/payouts/:id/reject` | Superadmin | Reject a pending payout with a required reason |
+| GET | `/api/superadmin/earnings/rate` | Superadmin | Get the global per-view rate and minimum withdrawal |
+| PATCH | `/api/superadmin/earnings/rate` | Superadmin | Update the global per-view rate and minimum withdrawal |
 | GET | `/api/uneb-items?subject=&class_level=` | Teacher, school, or superadmin | List UNEB assessment items with optional exact filters |
 | POST | `/api/uneb-items` | Superadmin | Create a UNEB item; `created_by` is derived from the session |
 | PATCH | `/api/uneb-items/:id` | Superadmin | Update an UNEB item |
@@ -101,6 +113,8 @@ All JSON responses use the shape shown below unless a route returns a plain-text
 | POST | `/api/yopayments/ipn` | Public callback | Acknowledge with plain-text `OK` after checking provider status server-side |
 
 Mutations to UNEB items, CA records, projects, curriculum links, and teacher retooling progress write their actor, `sector='education'`, action, target, request IP, and limited metadata to `audit_log` in the same database statement.
+
+Teacher views are attributed to the owner saved on the lesson mapping, not a browser-supplied teacher ID. A viewer must have a valid session, and payout changes/rate changes are restricted to a real Super Admin session. Available balance subtracts pending, approved, and paid payouts; paid amounts are allocated oldest-view-first, including partial view allocations. Payouts remain manual—no payment provider is called.
 
 ### Request examples
 

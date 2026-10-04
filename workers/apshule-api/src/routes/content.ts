@@ -1,6 +1,6 @@
 import { Hono } from "hono";
 import { ApiError, getDb, isUniqueViolation } from "../db.js";
-import { authMiddleware, requireRole } from "../auth.js";
+import { authMiddleware, requireRealSuperAdmin, requireRole } from "../auth.js";
 import { optionalString, readJson, requiredString } from "../http.js";
 import type { AppEnv } from "../types.js";
 
@@ -141,7 +141,32 @@ content.get("/video-mappings", async (c) => {
   return c.json(mappings);
 });
 
-content.post("/video-mappings", authMiddleware, requireRole("superadmin"), async (c) => {
+content.get(
+  "/video-mappings/admin",
+  authMiddleware,
+  requireRealSuperAdmin(),
+  async (c) => {
+    const sql = getDb(c.env);
+    const [mappings, teachers] = await Promise.all([
+      sql`
+        SELECT vm.key, vm.subject, vm.class_key, vm.youtube_id, vm.teacher_id,
+          teacher.name AS teacher_name
+        FROM video_mappings vm
+        LEFT JOIN users teacher ON teacher.id = vm.teacher_id
+        ORDER BY vm.key
+      `,
+      sql`
+        SELECT id, name, email
+        FROM users
+        WHERE role = 'teacher' AND sector = 'education'
+        ORDER BY name, email
+      `,
+    ]);
+    return c.json({ mappings, teachers });
+  },
+);
+
+content.post("/video-mappings", authMiddleware, requireRealSuperAdmin(), async (c) => {
   const body = await readJson(c);
   const key = requiredString(body, "key", { max: 160 });
   const subject = requiredString(body, "subject", { max: 120 });
@@ -150,16 +175,48 @@ content.post("/video-mappings", authMiddleware, requireRole("superadmin"), async
   if (!/^[A-Za-z0-9_-]{6,40}$/u.test(youtubeId)) {
     throw new ApiError(400, "VALIDATION_ERROR", "youtubeId is not a valid YouTube video identifier.");
   }
+  const hasTeacherId = Object.hasOwn(body, "teacherId");
+  const teacherId = hasTeacherId
+    ? optionalString(body, "teacherId", { max: 36, allowNull: true }) ?? null
+    : null;
+  if (teacherId && !/^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/iu.test(teacherId)) {
+    throw new ApiError(400, "VALIDATION_ERROR", "teacherId must be a valid UUID or null.");
+  }
   const sql = getDb(c.env);
+  if (teacherId) {
+    const teachers = await sql`
+      SELECT id FROM users
+      WHERE id = ${teacherId}::uuid AND role = 'teacher' AND sector = 'education'
+      LIMIT 1
+    `;
+    if (!teachers[0]) {
+      throw new ApiError(400, "INVALID_TEACHER", "teacherId must identify an Education teacher.");
+    }
+  }
   try {
     const rows = await sql`
-      INSERT INTO video_mappings (key, subject, class_key, youtube_id)
-      VALUES (${key}, ${subject}, ${classKey}, ${youtubeId})
-      ON CONFLICT (key) DO UPDATE
-      SET subject = EXCLUDED.subject,
-          class_key = EXCLUDED.class_key,
-          youtube_id = EXCLUDED.youtube_id
-      RETURNING id, key, subject, class_key, youtube_id, created_at
+      WITH saved AS (
+        INSERT INTO video_mappings (key, subject, class_key, youtube_id, teacher_id)
+        VALUES (${key}, ${subject}, ${classKey}, ${youtubeId}, ${teacherId}::uuid)
+        ON CONFLICT (key) DO UPDATE
+        SET subject = EXCLUDED.subject,
+            class_key = EXCLUDED.class_key,
+            youtube_id = EXCLUDED.youtube_id,
+            teacher_id = CASE WHEN ${hasTeacherId}
+              THEN EXCLUDED.teacher_id ELSE video_mappings.teacher_id END
+        RETURNING id, key, subject, class_key, youtube_id, teacher_id, created_at
+      ),
+      logged AS (
+        INSERT INTO audit_log (actor_id, sector, action, target_table, target_id, metadata)
+        SELECT ${c.get("user").id}, 'education', 'video_mapping.owner_updated',
+          'video_mappings', saved.id,
+          jsonb_build_object('lesson_key', saved.key, 'teacher_id', saved.teacher_id)
+        FROM saved
+      )
+      SELECT saved.id, saved.key, saved.subject, saved.class_key, saved.youtube_id,
+        saved.teacher_id, teacher.name AS teacher_name, saved.created_at
+      FROM saved
+      LEFT JOIN users teacher ON teacher.id = saved.teacher_id
     `;
     return c.json({ mapping: rows[0] }, 201);
   } catch (error) {
@@ -263,26 +320,10 @@ content.post("/feedbacks", async (c) => {
   return c.json({ feedback: rows[0] }, 201);
 });
 
-content.post("/video-views", async (c) => {
-  const body = await readJson(c);
-  const subject = optionalString(body, "subject", { max: 120 }) ?? null;
-  const classId = optionalString(body, "classId", { max: 120 }) ?? null;
-  const className = optionalString(body, "className", { max: 120 }) ?? null;
-  const userId = optionalString(body, "userId", { max: 80 }) ?? null;
-  const userName = optionalString(body, "userName", { max: 120 }) ?? null;
-  const sql = getDb(c.env);
-  const rows = await sql`
-    INSERT INTO video_views (subject, class_id, class_name, user_id, user_name)
-    VALUES (${subject}, ${classId}, ${className}, ${userId}, ${userName})
-    RETURNING id, subject, class_id, class_name, user_id, user_name, timestamp
-  `;
-  return c.json({ view: rows[0] }, 201);
-});
-
 content.get(
   "/video-views/stats",
   authMiddleware,
-  requireRole("superadmin"),
+  requireRealSuperAdmin(),
   async (c) => {
     const sql = getDb(c.env);
     const [totals, bySubject, byClass] = await Promise.all([
