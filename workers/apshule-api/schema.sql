@@ -94,6 +94,12 @@ CREATE TABLE IF NOT EXISTS pdfs (
   url TEXT NOT NULL,
   created_at TIMESTAMPTZ DEFAULT NOW()
 );
+ALTER TABLE pdfs
+  ADD COLUMN IF NOT EXISTS class_level VARCHAR(30) DEFAULT 'unassigned',
+  ADD COLUMN IF NOT EXISTS cover_color VARCHAR(20) DEFAULT '#FF8C42',
+  ADD COLUMN IF NOT EXISTS display_order INT DEFAULT 0;
+UPDATE pdfs SET class_level = 'unassigned' WHERE class_level IS NULL;
+CREATE INDEX IF NOT EXISTS idx_pdfs_class ON pdfs(class_level);
 
 CREATE TABLE IF NOT EXISTS video_mappings (
   id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),

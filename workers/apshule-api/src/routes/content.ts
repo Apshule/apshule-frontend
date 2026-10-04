@@ -6,20 +6,36 @@ import type { AppEnv } from "../types.js";
 
 const content = new Hono<AppEnv>();
 
-content.get("/pdfs", async (c) => {
-  const sql = getDb(c.env);
-  const rows = await sql`
-    SELECT id, title, url, created_at
-    FROM pdfs
-    ORDER BY created_at DESC
-  `;
-  return c.json({ pdfs: rows });
-});
+function normalizePdfClassLevel(value: string | null | undefined): string {
+  return value?.trim() || "unassigned";
+}
 
-content.post("/pdfs", authMiddleware, requireRole("superadmin"), async (c) => {
-  const body = await readJson(c);
-  const title = requiredString(body, "title", { max: 200 });
-  const url = requiredString(body, "url", { max: 2048 });
+function normalizePdfCoverColor(value: string | null | undefined): string {
+  const color = value?.trim() || "#FF8C42";
+  if (!/^#[0-9a-f]{6}$/iu.test(color)) {
+    throw new ApiError(400, "VALIDATION_ERROR", "cover_color must be a six-digit hex color.");
+  }
+  return color;
+}
+
+function normalizePdfDisplayOrder(value: unknown): number {
+  if (value === undefined || value === null) return 0;
+  if (
+    typeof value !== "number" ||
+    !Number.isInteger(value) ||
+    value < 0 ||
+    value > 2147483647
+  ) {
+    throw new ApiError(
+      400,
+      "VALIDATION_ERROR",
+      "display_order must be a non-negative 32-bit integer.",
+    );
+  }
+  return value;
+}
+
+function validatePdfUrl(url: string): string {
   try {
     const parsedUrl = new URL(url);
     if (parsedUrl.protocol !== "https:" && parsedUrl.protocol !== "http:") {
@@ -28,13 +44,84 @@ content.post("/pdfs", authMiddleware, requireRole("superadmin"), async (c) => {
   } catch {
     throw new ApiError(400, "VALIDATION_ERROR", "url must be an absolute HTTP or HTTPS URL.");
   }
+  return url;
+}
+
+content.get("/pdfs", async (c) => {
+  const sql = getDb(c.env);
+  const requestedClassLevel = c.req.query("class_level")?.trim();
+  if (requestedClassLevel && requestedClassLevel.length > 30) {
+    throw new ApiError(400, "VALIDATION_ERROR", "class_level must be no longer than 30 characters.");
+  }
+  const rows = requestedClassLevel
+    ? await sql`
+        SELECT id, title, url, class_level, cover_color, display_order, created_at
+        FROM pdfs
+        WHERE class_level = ${requestedClassLevel}
+        ORDER BY display_order ASC, created_at DESC
+      `
+    : await sql`
+        SELECT id, title, url, class_level, cover_color, display_order, created_at
+        FROM pdfs
+        ORDER BY display_order ASC, created_at DESC
+      `;
+  return c.json({ pdfs: rows });
+});
+
+content.post("/pdfs", authMiddleware, requireRole("superadmin"), async (c) => {
+  const body = await readJson(c);
+  const title = requiredString(body, "title", { max: 200 });
+  const url = validatePdfUrl(requiredString(body, "url", { max: 2048 }));
+  const classLevel = normalizePdfClassLevel(
+    optionalString(body, "class_level", { max: 30, allowNull: true }),
+  );
+  const coverColor = normalizePdfCoverColor(
+    optionalString(body, "cover_color", { max: 20, allowNull: true }),
+  );
+  const displayOrder = normalizePdfDisplayOrder(body.display_order);
   const sql = getDb(c.env);
   const rows = await sql`
-    INSERT INTO pdfs (title, url)
-    VALUES (${title}, ${url})
-    RETURNING id, title, url, created_at
+    INSERT INTO pdfs (title, url, class_level, cover_color, display_order)
+    VALUES (${title}, ${url}, ${classLevel}, ${coverColor}, ${displayOrder})
+    RETURNING id, title, url, class_level, cover_color, display_order, created_at
   `;
   return c.json({ pdf: rows[0] }, 201);
+});
+
+content.patch("/pdfs/:id", authMiddleware, requireRole("superadmin"), async (c) => {
+  const body = await readJson(c);
+  const editableFields = ["title", "url", "class_level", "cover_color", "display_order"] as const;
+  if (!editableFields.some((field) => field in body)) {
+    throw new ApiError(400, "VALIDATION_ERROR", "Provide at least one PDF field to update.");
+  }
+
+  const hasTitle = "title" in body;
+  const hasUrl = "url" in body;
+  const hasClassLevel = "class_level" in body;
+  const hasCoverColor = "cover_color" in body;
+  const hasDisplayOrder = "display_order" in body;
+  const title = hasTitle ? requiredString(body, "title", { max: 200 }) : null;
+  const url = hasUrl ? validatePdfUrl(requiredString(body, "url", { max: 2048 })) : null;
+  const classLevel = hasClassLevel
+    ? normalizePdfClassLevel(optionalString(body, "class_level", { max: 30, allowNull: true }))
+    : null;
+  const coverColor = hasCoverColor
+    ? normalizePdfCoverColor(optionalString(body, "cover_color", { max: 20, allowNull: true }))
+    : null;
+  const displayOrder = hasDisplayOrder ? normalizePdfDisplayOrder(body.display_order) : null;
+  const sql = getDb(c.env);
+  const rows = await sql`
+    UPDATE pdfs
+    SET title = CASE WHEN ${hasTitle} THEN ${title} ELSE title END,
+        url = CASE WHEN ${hasUrl} THEN ${url} ELSE url END,
+        class_level = CASE WHEN ${hasClassLevel} THEN ${classLevel} ELSE class_level END,
+        cover_color = CASE WHEN ${hasCoverColor} THEN ${coverColor} ELSE cover_color END,
+        display_order = CASE WHEN ${hasDisplayOrder} THEN ${displayOrder} ELSE display_order END
+    WHERE id = ${c.req.param("id")}
+    RETURNING id, title, url, class_level, cover_color, display_order, created_at
+  `;
+  if (!rows[0]) throw new ApiError(404, "PDF_NOT_FOUND", "PDF was not found.");
+  return c.json({ pdf: rows[0] });
 });
 
 content.delete("/pdfs/:id", authMiddleware, requireRole("superadmin"), async (c) => {

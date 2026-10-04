@@ -61,8 +61,9 @@ All JSON responses use the shape shown below unless a route returns a plain-text
 | POST | `/api/events` | School or superadmin | Create an event; a school account is always scoped to its own school |
 | PATCH | `/api/events/:id` | School or superadmin | Update an event; school accounts can edit only their own events |
 | DELETE | `/api/events/:id` | School or superadmin | Delete an event; school accounts can delete only their own events |
-| GET | `/api/pdfs` | Public | List PDFs |
-| POST | `/api/pdfs` | Superadmin | Add a PDF using `title` and an absolute HTTP(S) `url` |
+| GET | `/api/pdfs?class_level=Baby` | Public | List PDFs, optionally filtered by class; includes class, cover color, and display order |
+| POST | `/api/pdfs` | Superadmin | Add a PDF using `title`, an absolute HTTP(S) `url`, and optional `class_level`, `cover_color`, and `display_order` |
+| PATCH | `/api/pdfs/:id` | Superadmin | Update a PDF's class, cover color, display order, title, or URL |
 | DELETE | `/api/pdfs/:id` | Superadmin | Delete a PDF |
 | GET | `/api/video-mappings` | Public | Return `{ "key": "youtubeId" }` mappings |
 | POST | `/api/video-mappings` | Superadmin | Create/update a mapping |
