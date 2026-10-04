@@ -1,0 +1,7 @@
+# Copy to .dev.vars for local Wrangler development. Never commit real values.
+DATABASE_URL=postgresql://USER:PASSWORD@HOST/DATABASE?sslmode=require
+JWT_SECRET=replace-with-a-random-secret-at-least-32-characters
+YO_API_USERNAME=replace-with-your-yo-api-username
+YO_API_PASSWORD=replace-with-your-yo-api-password
+YO_API_URL=https://your-yo-api-base-url
+YO_IPN_URL=https://your-worker-domain/api/yopayments/ipn

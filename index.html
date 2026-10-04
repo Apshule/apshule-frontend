@@ -214,6 +214,88 @@
         .default-avatar { background: #ccc; display: flex; align-items: center; justify-content: center; font-size: 40px; color: white; }
         .demo-notice { background: rgba(0,0,0,0.85); color: white; font-size: 13px; padding: 8px 16px; position: fixed; bottom: 80px; right: 10px; border-radius: 30px; z-index: 999; pointer-events: none; backdrop-filter: blur(6px); font-family: monospace; white-space: nowrap; }
         @media (max-width: 480px) { .demo-notice { font-size: 10px; bottom: 70px; } }
+
+        /* Phase 0b: operator Command Center. Education screens retain their existing styles. */
+        .signup-sector { text-align: left; }
+        .signup-sector:focus, .login-input:focus { outline: 3px solid rgba(255,140,66,.22); border-color: #4B2E9E; }
+        #loginError.success-message { color: #176b48; background: #e8f5ee; border: 1px solid #b9dfc9; padding: 12px 14px; border-radius: 14px; text-align: left; }
+        .app-container.is-command-center { max-width: none; min-height: 100dvh; padding-bottom: 0; background: #f1f0ec; color: #25243a; }
+        .is-command-center .header { padding: 16px clamp(18px, 4vw, 56px); background: #34276d; box-shadow: 0 3px 14px rgba(36,29,73,.14); }
+        .is-command-center .header-logo-img { width: 42px; height: 42px; }
+        .is-command-center .header-right .ai-icon-btn { display: none; }
+        .is-command-center .main-content { max-width: 1440px; margin: 0 auto; padding: 30px clamp(16px, 4vw, 56px) 64px; }
+        .is-command-center .bottom-nav { display: none; }
+        .is-command-center .main-content > .page { display: none !important; }
+        .command-center { max-width: 1328px; margin: 0 auto; animation: ccEnter .32s ease both; }
+        @keyframes ccEnter { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: translateY(0); } }
+        .cc-heading { display:flex; align-items:flex-end; justify-content:space-between; gap:20px; margin: 0 0 22px; }
+        .cc-eyebrow { color:#726d83; font-size:11px; font-weight:800; letter-spacing:.14em; text-transform:uppercase; margin-bottom:8px; }
+        .cc-heading h1 { color:#292641; font-size:clamp(25px, 3vw, 34px); letter-spacing:-.035em; line-height:1.08; }
+        .cc-heading p { margin-top:8px; color:#716f7b; font-size:14px; }
+        .cc-status { display:inline-flex; align-items:center; gap:8px; color:#356b54; background:#e5f0e8; border:1px solid #c9dfd0; border-radius:999px; padding:9px 13px; font-size:12px; font-weight:700; white-space:nowrap; }
+        .cc-status:before { content:""; width:7px; height:7px; border-radius:50%; background:#4e9b70; }
+        .cc-tabs { display:flex; gap:7px; padding:7px; margin:0 0 24px; overflow-x:auto; background:#e7e5e0; border:1px solid #dcdbd5; border-radius:15px; scrollbar-width:thin; }
+        .cc-tab { flex:1 0 auto; min-height:42px; padding:10px 17px; border:0; border-radius:10px; background:transparent; color:#5f5d6c; font-size:13px; font-weight:700; cursor:pointer; transition:background .18s ease, color .18s ease, transform .18s ease; }
+        .cc-tab:hover { background:rgba(255,255,255,.6); color:#34276d; }
+        .cc-tab:active { transform:translateY(1px); }
+        .cc-tab.active { color:#fff; background:#493b8a; box-shadow:0 3px 9px rgba(46,36,104,.18); }
+        .cc-view { display:none; }
+        .cc-view.active { display:block; }
+        .cc-view-title { display:flex; justify-content:space-between; align-items:center; gap:12px; margin: 0 0 15px; color:#353249; }
+        .cc-view-title h2 { font-size:18px; letter-spacing:-.02em; }
+        .cc-refresh { padding:8px 12px; border:1px solid #d8d4e7; border-radius:9px; background:#fff; color:#493b8a; font-size:12px; font-weight:700; cursor:pointer; }
+        .cc-refresh:hover { background:#f6f4fb; }
+        .cc-metric-grid { display:grid; grid-template-columns:repeat(4,minmax(0,1fr)); gap:13px; margin-bottom:18px; }
+        .cc-metric { min-height:112px; padding:18px 19px; border:1px solid #e2e0db; border-radius:15px; background:#fff; box-shadow:0 2px 7px rgba(42,39,63,.035); }
+        .cc-metric-label { color:#777482; font-size:12px; font-weight:650; }
+        .cc-metric-value { display:block; margin-top:13px; color:#302d49; font-size:29px; font-weight:760; line-height:1; letter-spacing:-.04em; font-variant-numeric:tabular-nums; }
+        .cc-metric-note { display:block; margin-top:7px; color:#8b8993; font-size:11px; }
+        .cc-global-grid { display:grid; grid-template-columns:minmax(0, .85fr) minmax(0, 1.5fr); gap:16px; align-items:start; }
+        .cc-surface { min-width:0; background:#fff; border:1px solid #e2e0db; border-radius:15px; box-shadow:0 2px 7px rgba(42,39,63,.035); }
+        .cc-surface-head { display:flex; justify-content:space-between; align-items:center; padding:16px 18px; border-bottom:1px solid #eeede9; }
+        .cc-surface-head h3 { color:#39364d; font-size:14px; }
+        .cc-sector-list { padding:5px 18px 12px; }
+        .cc-sector-row { display:flex; align-items:center; justify-content:space-between; gap:12px; padding:13px 0; border-bottom:1px solid #f0efec; }
+        .cc-sector-row:last-child { border-bottom:0; }
+        .cc-sector-name { color:#504e5c; font-size:13px; font-weight:650; }
+        .cc-sector-count { color:#34314b; font-size:14px; font-weight:760; font-variant-numeric:tabular-nums; }
+        .cc-audit-list { padding:0 17px; }
+        .cc-audit-row { display:grid; grid-template-columns:minmax(100px,.7fr) minmax(90px,.7fr) minmax(0,1.4fr) auto; align-items:center; gap:12px; padding:13px 0; border-bottom:1px solid #f0efec; font-size:12px; }
+        .cc-audit-row:last-child { border-bottom:0; }
+        .cc-audit-action { color:#464354; font-weight:700; }
+        .cc-audit-meta { color:#7a7884; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+        .cc-audit-time { color:#8b8993; text-align:right; white-space:nowrap; }
+        .cc-sector-message { max-width:760px; padding:clamp(24px,5vw,48px); border:1px solid #e1dfd9; border-radius:18px; background:#fff; box-shadow:0 5px 20px rgba(42,39,63,.045); }
+        .cc-sector-message h2 { color:#302d49; font-size:23px; letter-spacing:-.03em; }
+        .cc-sector-message p { color:#73717e; font-size:15px; margin-top:12px; }
+        .cc-sector-count-big { display:inline-block; margin-top:24px; padding:12px 16px; color:#44377e; background:#f1eff8; border-radius:11px; font-size:14px; font-weight:750; }
+        .cc-state { padding:16px 18px; color:#777482; font-size:13px; }
+        .cc-state.error { color:#a13d3d; }
+        .cc-state button { border:0; padding:0; margin-left:7px; color:#493b8a; background:none; font-weight:750; cursor:pointer; text-decoration:underline; }
+        .is-command-center #adminPanel { margin:0; padding:0; background:transparent; border-radius:0; }
+        .is-command-center #adminPanel > h3 { display:none; }
+        .is-command-center #superAdminSection { padding:20px; border:1px solid #e2e0db; border-radius:15px; background:#fff; }
+        .is-command-center #superAdminSection > h4:first-child { margin:0 0 12px; color:#39364d; }
+        .is-command-center #superAdminSection .admin-section { border-color:#eeede9; }
+        .is-command-center #superAdminSection .admin-section h4 { color:#40386d; }
+        @media (max-width: 760px) {
+            .cc-metric-grid { grid-template-columns:repeat(2,minmax(0,1fr)); }
+            .cc-global-grid { grid-template-columns:1fr; }
+            .cc-heading { align-items:flex-start; flex-direction:column; }
+            .cc-audit-row { grid-template-columns:minmax(75px,.8fr) minmax(0,1.2fr); gap:6px 12px; }
+            .cc-audit-meta { grid-column:1 / -1; white-space:normal; }
+            .cc-audit-time { text-align:left; }
+        }
+        @media (max-width: 480px) {
+            .is-command-center .header { padding:12px 14px; }
+            .is-command-center .tagline { display:none; }
+            .is-command-center .main-content { padding:22px 13px 40px; }
+            .cc-tabs { margin-left:-3px; margin-right:-3px; gap:4px; padding:5px; }
+            .cc-tab { padding:9px 12px; font-size:12px; }
+            .cc-metric { min-height:98px; padding:14px; }
+            .cc-metric-value { font-size:25px; }
+            .is-command-center #superAdminSection { padding:14px; }
+        }
     </style>
 </head>
 <body>
@@ -241,6 +323,13 @@
             <button id="loginBtn" class="login-btn">Login</button>
         </div>
         <div id="signupFormDiv" class="login-form">
+            <select id="signupSector" class="login-input signup-sector" aria-label="Choose your sector" required>
+                <option value="">Choose your sector...</option>
+                <option value="education">🏫 Education</option>
+                <option value="mfi">💰 Microfinance (coming soon)</option>
+                <option value="clinic">🏥 Clinic &amp; Pharmacy (coming soon)</option>
+                <option value="farm">🌾 Farming (coming soon)</option>
+            </select>
             <select id="signupRole" class="login-input" aria-label="Sign up as">
                 <option value="individual">Student / Learner</option>
                 <option value="teacher">Teacher</option>
@@ -334,6 +423,30 @@
     <div class="ai-drawer" id="aiDrawer"><div class="ai-drawer-header"><h3><i class="fas fa-robot"></i> AI Tutor</h3><button id="closeDrawerBtn" style="background:none; border:none; color:white; font-size:24px;">&times;</button></div><div class="ai-chat-messages" id="chatMessages"><div class="message ai"><div class="message-avatar"><i class="fas fa-robot"></i></div><div class="message-bubble">Hello! I'm your APSHULE AI Tutor. Ask me anything! 📚</div></div></div><div class="ai-chat-input"><input type="text" id="chatInput" placeholder="Ask me..."><button id="sendBtn">Send</button></div></div>
 
     <div class="main-content">
+        <section id="commandCenter" class="command-center hidden" aria-label="APSHULE Command Center">
+            <div class="cc-heading">
+                <div><div class="cc-eyebrow">APSHULE · PLATFORM OPERATIONS</div><h1>Command Center</h1><p>A cross-sector view of learning and the communities around it.</p></div>
+                <div class="cc-status">Operator workspace</div>
+            </div>
+            <div class="cc-tabs" role="tablist" aria-label="Platform sectors">
+                <button type="button" class="cc-tab active" role="tab" aria-selected="true" data-cc-tab="education">🏫 Education</button>
+                <button type="button" class="cc-tab" role="tab" aria-selected="false" data-cc-tab="mfi">💰 MFI</button>
+                <button type="button" class="cc-tab" role="tab" aria-selected="false" data-cc-tab="clinic">🏥 Clinic</button>
+                <button type="button" class="cc-tab" role="tab" aria-selected="false" data-cc-tab="farm">🌾 Farm</button>
+                <button type="button" class="cc-tab" role="tab" aria-selected="false" data-cc-tab="global">📊 Global</button>
+            </div>
+            <section id="ccEducationView" class="cc-view active" role="tabpanel">
+                <div class="cc-view-title"><h2>Education operations</h2><span class="cc-eyebrow" style="margin:0">Existing admin tools</span></div>
+                <div id="ccEducationMount"></div>
+            </section>
+            <section id="ccMfiView" class="cc-view" role="tabpanel"></section>
+            <section id="ccClinicView" class="cc-view" role="tabpanel"></section>
+            <section id="ccFarmView" class="cc-view" role="tabpanel"></section>
+            <section id="ccGlobalView" class="cc-view" role="tabpanel">
+                <div class="cc-view-title"><h2>Global overview</h2><button type="button" class="cc-refresh" id="ccRefreshGlobal">Refresh overview</button></div>
+                <div id="ccGlobalContent"><div class="cc-state">Loading platform overview…</div></div>
+            </section>
+        </section>
         <div id="homePage" class="page active-page">
             <div class="education-level"><button class="level-btn" data-level="nursery">🧒 Nursery</button><button class="level-btn" data-level="primary">🏫 Primary School</button><button class="level-btn" data-level="secondary">🎓 Secondary School</button></div>
             <div id="classSelectionSection"><div class="section-title">📚 Select Your Class</div><div id="classGrid" class="class-grid"></div></div>
@@ -469,6 +582,11 @@
         const data = await res.json().catch(() => ({}));
         if (!res.ok) throw new Error(data.error || res.statusText || 'Request failed');
         return data;
+    }
+    function responseList(data, key) {
+        if (Array.isArray(data)) return data;
+        if (data && Array.isArray(data[key])) return data[key];
+        return null;
     }
 
     // ---------- GLOBAL STATE ----------
@@ -610,8 +728,9 @@
         if (!container) return;
         try {
             const stats = await api('/api/video-views/stats');
-            if (!stats.length) { container.innerHTML = '<li>No views yet.</li>'; return; }
-            container.innerHTML = stats.slice(0, 10).map(s => `<li><strong>${escapeHtml(s.subject)}</strong> – ${s.count} views</li>`).join('');
+            const subjects = Array.isArray(stats?.bySubject) ? stats.bySubject : [];
+            if (!subjects.length) { container.innerHTML = '<li>No views yet.</li>'; return; }
+            container.innerHTML = subjects.slice(0, 10).map(s => `<li><strong>${escapeHtml(s.subject || 'Other')}</strong> – ${formatCount(s.views)} views</li>`).join('');
         } catch(e) { container.innerHTML = '<li>Error</li>'; }
     }
 
@@ -1062,6 +1181,22 @@
 
         const profilePicSection = document.getElementById('profilePicUploadSection');
         if (profilePicSection) profilePicSection.style.display = (isSchool || isSuper) ? "none" : "block";
+        const adminPanel = document.getElementById('adminPanel');
+        const commandCenter = document.getElementById('commandCenter');
+        if (isSuper) {
+            document.getElementById('appScreen').classList.add('is-command-center');
+            commandCenter.classList.remove('hidden');
+            document.getElementById('ccEducationMount').appendChild(adminPanel);
+            adminPanel.classList.add('show');
+            activateCommandTab('education');
+        } else {
+            document.getElementById('appScreen').classList.remove('is-command-center');
+            commandCenter.classList.add('hidden');
+            if (adminPanel.parentElement !== document.getElementById('homePage')) {
+                document.getElementById('homePage').appendChild(adminPanel);
+            }
+            adminPanel.classList.remove('show');
+        }
 
         if (isSchool) {
             const s = schools.find(sch => sch.id === currentUser.schoolId);
@@ -1095,9 +1230,9 @@
                 api('/api/video-mappings').catch(() => ({})),
                 api('/api/subjects').catch(() => ({ nursery: [], primary: [], secondary: [] })),
             ]);
-            schools = schoolsRes || [];
-            globalEventsList = eventsRes || [];
-            pdfMaterials = pdfsRes || [];
+            schools = responseList(schoolsRes, 'schools') || [];
+            globalEventsList = responseList(eventsRes, 'events') || [];
+            pdfMaterials = responseList(pdfsRes, 'pdfs') || [];
             videoMappings = mappingsRes || {};
             updateSubjects(subjectsRes);
 
@@ -1127,6 +1262,103 @@
         secondarySubjects = subjects.secondary || [];
     }
 
+    // ---------- SUPERADMIN COMMAND CENTER ----------
+    const ccSectorNames = {
+        education: 'Education',
+        mfi: 'Microfinance',
+        clinic: 'Clinic & Pharmacy',
+        farm: 'Farming'
+    };
+    const ccSectorViews = { mfi: 'ccMfiView', clinic: 'ccClinicView', farm: 'ccFarmView' };
+
+    function formatCount(value) {
+        const count = Number(value);
+        return Number.isFinite(count) ? count.toLocaleString() : '—';
+    }
+
+    async function loadSectorWaitlist(code) {
+        const container = document.getElementById(ccSectorViews[code]);
+        if (!container) return;
+        container.innerHTML = `<div class="cc-sector-message"><div class="cc-eyebrow">Sector rollout</div><h2>${escapeHtml(ccSectorNames[code])}</h2><p>Loading live waitlist count…</p></div>`;
+        try {
+            const sectors = await api('/api/sectors');
+            if (!Array.isArray(sectors)) throw new Error('Unexpected sector response');
+            const sector = sectors.find(item => item.code === code);
+            const count = sector ? formatCount(sector.waitlist_count) : '0';
+            container.innerHTML = `<div class="cc-sector-message"><div class="cc-eyebrow">Sector rollout</div><h2>${escapeHtml(ccSectorNames[code])}</h2><p>Coming soon. ${count} users on waitlist.</p><div class="cc-sector-count-big">${count} on the waitlist</div></div>`;
+        } catch (error) {
+            container.innerHTML = `<div class="cc-sector-message"><div class="cc-eyebrow">Sector rollout</div><h2>${escapeHtml(ccSectorNames[code])}</h2><div class="cc-state error">Could not load the live waitlist count. <button type="button" data-cc-retry="${code}">Try again</button></div></div>`;
+            container.querySelector('[data-cc-retry]')?.addEventListener('click', () => loadSectorWaitlist(code));
+        }
+    }
+
+    function auditValue(value) {
+        if (value == null || value === '') return '—';
+        if (typeof value === 'string') return value;
+        try { return JSON.stringify(value); } catch (e) { return String(value); }
+    }
+
+    async function loadGlobalOverview() {
+        const container = document.getElementById('ccGlobalContent');
+        if (!container) return;
+        container.innerHTML = '<div class="cc-state">Loading platform overview…</div>';
+        const results = await Promise.allSettled([
+            api('/api/sectors'),
+            api('/api/schools'),
+            api('/api/events'),
+            api('/api/video-views/stats'),
+            api('/api/audit-log?limit=10')
+        ]);
+        const [sectorsResult, schoolsResult, eventsResult, viewsResult, auditResult] = results;
+        const sectors = sectorsResult.status === 'fulfilled' && Array.isArray(sectorsResult.value) ? sectorsResult.value : null;
+        const schools = schoolsResult.status === 'fulfilled' ? responseList(schoolsResult.value, 'schools') : null;
+        const events = eventsResult.status === 'fulfilled' ? responseList(eventsResult.value, 'events') : null;
+        const videoStats = viewsResult.status === 'fulfilled' && viewsResult.value && typeof viewsResult.value === 'object' ? viewsResult.value : null;
+        const auditRows = auditResult.status === 'fulfilled' && Array.isArray(auditResult.value) ? auditResult.value.slice(0, 10) : null;
+        const totalViews = videoStats && Number.isFinite(Number(videoStats.total)) ? Number(videoStats.total) : null;
+
+        const metrics = [
+            ['Schools', schools ? schools.length : null, 'Registered school accounts'],
+            ['Events', events ? events.length : null, 'Current platform events'],
+            ['Video views', totalViews, 'Across all mapped lessons']
+        ].map(([label, value, note]) => `<div class="cc-metric"><span class="cc-metric-label">${label}</span><strong class="cc-metric-value">${value == null ? '—' : formatCount(value)}</strong><span class="cc-metric-note">${value == null ? 'Unable to load this total' : note}</span></div>`).join('');
+        const sectorList = sectors
+            ? (sectors.length
+                ? sectors.map(sector => `<div class="cc-sector-row"><span class="cc-sector-name">${escapeHtml(sector.name || ccSectorNames[sector.code] || sector.code || 'Sector')}</span><span class="cc-sector-count">${formatCount(sector.user_count)}</span></div>`).join('')
+                : '<div class="cc-state">No sector records returned.</div>')
+            : '<div class="cc-state error">Sector totals could not be loaded.</div>';
+
+        let auditContent;
+        if (!auditRows) auditContent = '<div class="cc-state error">Audit log could not be loaded.</div>';
+        else if (!auditRows.length) auditContent = '<div class="cc-state">No audit activity yet.</div>';
+        else auditContent = `<div class="cc-audit-list">${auditRows.map(row => {
+            const date = row.created_at ? new Date(row.created_at) : null;
+            const when = date && !Number.isNaN(date.getTime()) ? date.toLocaleString() : 'Time unavailable';
+            const target = row.target_table ? `${row.target_table}${row.target_id != null ? ` · ${row.target_id}` : ''}` : auditValue(row.metadata);
+            const detail = [row.actor_id != null ? `Actor ${row.actor_id}` : '', target].filter(Boolean).join(' · ') || '—';
+            return `<div class="cc-audit-row"><span class="cc-audit-action">${escapeHtml(row.action || 'Activity')}</span><span>${escapeHtml(row.sector || '—')}</span><span class="cc-audit-meta" title="${escapeHtml(detail)}">${escapeHtml(detail)}</span><span class="cc-audit-time">${escapeHtml(when)}</span></div>`;
+        }).join('')}</div>`;
+        container.innerHTML = `<div class="cc-metric-grid">${metrics}</div><div class="cc-global-grid"><section class="cc-surface"><div class="cc-surface-head"><h3>Total users by sector</h3></div><div class="cc-sector-list">${sectorList}</div></section><section class="cc-surface"><div class="cc-surface-head"><h3>Latest audit activity</h3><span class="cc-eyebrow" style="margin:0">10 most recent</span></div>${auditContent}</section></div>`;
+    }
+
+    function activateCommandTab(tab) {
+        const viewIds = {
+            education: 'ccEducationView',
+            mfi: 'ccMfiView',
+            clinic: 'ccClinicView',
+            farm: 'ccFarmView',
+            global: 'ccGlobalView'
+        };
+        document.querySelectorAll('.cc-tab').forEach(button => {
+            const active = button.dataset.ccTab === tab;
+            button.classList.toggle('active', active);
+            button.setAttribute('aria-selected', String(active));
+        });
+        Object.entries(viewIds).forEach(([key, id]) => document.getElementById(id)?.classList.toggle('active', key === tab));
+        if (['mfi', 'clinic', 'farm'].includes(tab)) loadSectorWaitlist(tab);
+        if (tab === 'global') loadGlobalOverview();
+    }
+
     // ---------- EVENT WIRING (all DOM listeners) ----------
     function wireEvents() {
         document.getElementById('sendBtn')?.addEventListener('click', sendChat);
@@ -1136,6 +1368,8 @@
         document.getElementById('drawerOverlay')?.addEventListener('click', () => { document.getElementById('aiDrawer').classList.remove('open'); document.getElementById('drawerOverlay').classList.remove('show'); });
 
         document.querySelectorAll('.nav-item').forEach(i => i.addEventListener('click', () => navigateTo(i.getAttribute('data-page'))));
+        document.querySelectorAll('.cc-tab').forEach(button => button.addEventListener('click', () => activateCommandTab(button.dataset.ccTab)));
+        document.getElementById('ccRefreshGlobal')?.addEventListener('click', loadGlobalOverview);
         document.getElementById('folderHeader')?.addEventListener('click', () => { const c = document.getElementById('folderContent'); const ic = document.querySelector('#folderHeader i:last-child'); c.classList.toggle('show'); ic.className = c.classList.contains('show') ? 'fas fa-chevron-up' : 'fas fa-chevron-down'; });
 
         document.querySelectorAll('.subscribe-btn-small').forEach(btn => {
@@ -1172,6 +1406,12 @@
         document.getElementById('adminMenuItem')?.addEventListener('click', () => {
             const ap = document.getElementById('adminPanel');
             if (!ap) return;
+            if (currentUser?.role === 'superadmin') {
+                activateCommandTab('education');
+                document.getElementById('ccEducationView')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                document.getElementById('moreDropdown')?.classList.remove('show');
+                return;
+            }
             ap.classList.toggle('show');
             if (ap.classList.contains('show')) {
                 renderPdfAdmin();
@@ -1335,14 +1575,17 @@
 
         // Auth forms
         const signupRole = document.getElementById('signupRole');
+        const signupSector = document.getElementById('signupSector');
         const updateSignupFields = () => {
-            const isTeacher = signupRole.value === 'teacher';
-            document.getElementById('individualSignupFields').hidden = isTeacher;
+            const isEducation = signupSector.value === 'education';
+            const isTeacher = isEducation && signupRole.value === 'teacher';
+            document.getElementById('individualSignupFields').hidden = !isEducation || isTeacher;
             document.getElementById('teacherSignupFields').hidden = !isTeacher;
-            document.getElementById('signupEducationLevel').required = !isTeacher;
-            document.getElementById('signupClassLevel').required = !isTeacher;
+            document.getElementById('signupEducationLevel').required = isEducation && !isTeacher;
+            document.getElementById('signupClassLevel').required = isEducation && !isTeacher;
         };
         signupRole.addEventListener('change', updateSignupFields);
+        signupSector.addEventListener('change', updateSignupFields);
         updateSignupFields();
 
         document.getElementById('signupBtn').addEventListener('click', async e => {
@@ -1352,28 +1595,39 @@
             const phone = document.getElementById('signupPhone').value.trim();
             const password = document.getElementById('signupPassword').value;
             const role = signupRole.value;
-            const isTeacher = role === 'teacher';
+            const sector = signupSector.value;
+            const isEducation = sector === 'education';
+            const isTeacher = isEducation && role === 'teacher';
             const educationLevel = document.getElementById('signupEducationLevel').value;
             const classLevel = document.getElementById('signupClassLevel').value;
             const lin = document.getElementById('signupLin').value.trim();
             const subjectsTaught = [...document.querySelectorAll('input[name="subjectsTaught"]:checked')].map(input => input.value);
             const assignedClasses = [...document.querySelectorAll('input[name="assignedClasses"]:checked')].map(input => input.value);
-            if (!name || !email || !phone || !password || (!isTeacher && (!educationLevel || !classLevel))) { document.getElementById('loginError').innerText = "Fill all required fields"; return; }
-            if (password.length < 8) { document.getElementById('loginError').innerText = "Password min 8 chars"; return; }
+            const errorBox = document.getElementById('loginError');
+            errorBox.className = 'error-message';
+            if (!sector || !name || !email || !phone || !password || (isEducation && !isTeacher && (!educationLevel || !classLevel))) { errorBox.innerText = "Fill all required fields"; return; }
+            if (password.length < 8) { errorBox.innerText = "Password min 8 chars"; return; }
             try {
                 const data = await api('/api/auth/signup', { method: 'POST', body: {
-                    name, email, phone, password, role,
-                    educationLevel: isTeacher ? null : educationLevel,
-                    classLevel: isTeacher ? null : classLevel,
-                    lin: isTeacher ? null : (lin || null),
+                    name, email, phone, password, role, sector,
+                    educationLevel: !isEducation || isTeacher ? null : educationLevel,
+                    classLevel: !isEducation || isTeacher ? null : classLevel,
+                    lin: !isEducation || isTeacher ? null : (lin || null),
                     subjectsTaught: isTeacher ? subjectsTaught : [],
                     assignedClasses: isTeacher ? assignedClasses : []
                 }, auth: false });
+                if (data?.waitlist === true) {
+                    document.querySelector('.login-tab[data-tab="login"]')?.click();
+                    const sectorName = { mfi: 'Microfinance', clinic: 'Clinic & Pharmacy', farm: 'Farming' }[sector] || 'Education';
+                    errorBox.className = 'success-message';
+                    errorBox.innerText = `Thanks! You're on the waitlist. We'll email you when ${sectorName} launches.`;
+                    return;
+                }
                 AUTH_TOKEN = data.token; localStorage.setItem('apshule_token', AUTH_TOKEN);
                 showNotification("Account created!");
                 await showAppFor(data.user);
                 startPolling(); refreshAllData();
-            } catch(err) { document.getElementById('loginError').innerText = err.message; }
+            } catch(err) { errorBox.className = 'error-message'; errorBox.innerText = err.message; }
         });
         document.getElementById('loginBtn').addEventListener('click', async e => {
             e.preventDefault();
@@ -1382,6 +1636,9 @@
             try {
                 const data = await api('/api/auth/login', { method: 'POST', body: { email, password }, auth: false });
                 AUTH_TOKEN = data.token; localStorage.setItem('apshule_token', AUTH_TOKEN);
+                if (data.user?.role === 'superadmin') {
+                    api('/api/audit', { method: 'POST', body: { action: 'login', sector: 'global', metadata: { ua: navigator.userAgent } } }).catch(() => {});
+                }
                 showNotification("Login successful");
                 await showAppFor(data.user);
                 startPolling(); refreshAllData();
