@@ -21,6 +21,8 @@ export function initAccountProfileUI({
     let currentUser = null;
     let profile = null;
     let school = null;
+    let subscriptions = [];
+    let paymentHistory = [];
     let pendingAvatar = "";
     let pendingLogo = "";
     let passwordDialog = null;
@@ -71,6 +73,17 @@ export function initAccountProfileUI({
         .ap-profile .ap-role-panel { margin-top:22px; padding-top:19px; border-top:1px solid var(--ap-line); }
         .ap-profile .ap-role-panel h3 { margin:0 0 3px; font-size:.98rem; }
         .ap-profile .ap-role-grid { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:13px; margin-top:14px; }
+        .ap-profile .ap-record-list { display:grid; gap:10px; margin-top:13px; }
+        .ap-profile .ap-record { display:flex; flex-wrap:wrap; justify-content:space-between; align-items:center; gap:12px; padding:12px 13px; border:1px solid var(--ap-line); border-radius:12px; background:#fff; }
+        .ap-profile .ap-record-main { min-width:0; display:grid; gap:4px; }
+        .ap-profile .ap-record-main strong { overflow-wrap:anywhere; }
+        .ap-profile .ap-record-detail { color:var(--ap-muted); font-size:.82rem; line-height:1.45; }
+        .ap-profile .ap-pill { flex:none; display:inline-flex; align-items:center; border-radius:999px; padding:5px 10px; font-size:.75rem; font-weight:750; text-transform:capitalize; }
+        .ap-profile .ap-pill--success,.ap-profile .ap-pill--active { color:#17583c; background:#e6f5ec; }
+        .ap-profile .ap-pill--pending { color:#8a5a09; background:#fff3d4; }
+        .ap-profile .ap-pill--failed,.ap-profile .ap-pill--expired { color:#9b3438; background:#fde9e8; }
+        .ap-profile .ap-pill--neutral { color:#5f596b; background:#efedf2; }
+        .ap-profile .ap-empty-state { margin:12px 0 0; color:var(--ap-muted); font-size:.88rem; }
         .ap-profile .ap-divider { height:1px; background:var(--ap-line); margin:22px 0; }
         .ap-profile .ap-color-field { display:flex; align-items:center; gap:10px; }
         .ap-profile input[type="color"].ap-control { width:52px; min-width:52px; height:44px; padding:5px; }
@@ -216,6 +229,14 @@ export function initAccountProfileUI({
               </div>
               ${statusMarkup("apProfileStatus")}
             </form>
+            <section class="ap-role-panel" aria-labelledby="ap-subscriptions-heading">
+              <h3 id="ap-subscriptions-heading">💳 My Subscriptions</h3>
+              <div id="apSubscriptionsList" class="ap-record-list" aria-live="polite"><p class="ap-empty-state">Loading subscriptions…</p></div>
+            </section>
+            <section class="ap-role-panel" aria-labelledby="ap-payment-history-heading">
+              <h3 id="ap-payment-history-heading">🧾 Payment History</h3>
+              <div id="apPaymentHistoryList" class="ap-record-list" aria-live="polite"><p class="ap-empty-state">Loading payment history…</p></div>
+            </section>
           </section>
           <div class="ap-modal-backdrop" id="apPasswordBackdrop" hidden>
             <section class="ap-modal" role="dialog" aria-modal="true" aria-labelledby="apPasswordTitle" aria-describedby="apPasswordHelp">
@@ -232,6 +253,7 @@ export function initAccountProfileUI({
 
         passwordDialog = accountMount.querySelector("#apPasswordBackdrop");
         wireProfileEvents(user);
+        void refreshPaymentData();
     }
 
     function wireProfileEvents(user) {
@@ -287,6 +309,77 @@ export function initAccountProfileUI({
             brandingMount?.scrollIntoView?.({ behavior: "smooth", block: "start" });
         });
         document.getElementById("apPasswordForm")?.addEventListener("submit", submitPassword);
+    }
+
+    function formatHistoryDate(value, includeTime = false) {
+        const date = new Date(value);
+        if (!Number.isFinite(date.getTime())) return "—";
+        const options = includeTime
+            ? { dateStyle: "medium", timeStyle: "short" }
+            : { dateStyle: "medium" };
+        return new Intl.DateTimeFormat("en-UG", options).format(date);
+    }
+
+    function formatAmount(amount, currency = "UGX") {
+        const value = Number(amount);
+        if (!Number.isFinite(value)) return `${esc(amount)} ${esc(currency)}`;
+        return `${esc(currency)} ${new Intl.NumberFormat("en-UG", { maximumFractionDigits: 0 }).format(value)}`;
+    }
+
+    function renderPaymentData() {
+        const subscriptionsNode = accountMount?.querySelector("#apSubscriptionsList");
+        const paymentsNode = accountMount?.querySelector("#apPaymentHistoryList");
+        if (!subscriptionsNode || !paymentsNode) return;
+
+        subscriptionsNode.innerHTML = subscriptions.length
+            ? subscriptions.map((item) => {
+                const active = item.active === true || item.active === "true" || item.subscription_status === "active";
+                const label = item.plan || item.plan_code || "Subscription";
+                const badge = active ? "Active" : "Expired";
+                return `<article class="ap-record"><div class="ap-record-main"><strong>${esc(label)}</strong><span class="ap-record-detail">Start: ${esc(formatHistoryDate(item.start_date))} · End: ${esc(formatHistoryDate(item.end_date))}</span></div><span class="ap-pill ap-pill--${active ? "active" : "expired"}">${badge}</span></article>`;
+            }).join("")
+            : `<p class="ap-empty-state">No subscriptions yet.</p>`;
+
+        paymentsNode.innerHTML = paymentHistory.length
+            ? paymentHistory.map((item) => {
+                const rawStatus = String(item.status || "pending").toLowerCase();
+                const status = rawStatus === "completed" ? "success" : rawStatus;
+                const badgeClass = ["success", "pending", "failed"].includes(status) ? status : "neutral";
+                const label = status === "success" ? "Success" : status;
+                return `<article class="ap-record"><div class="ap-record-main"><strong>${esc(item.plan || item.plan_code || "Subscription")}</strong><span class="ap-record-detail">${esc(formatHistoryDate(item.created_at, true))} · ${formatAmount(item.amount, item.currency || "UGX")}</span></div><span class="ap-pill ap-pill--${badgeClass}">${esc(label)}</span></article>`;
+            }).join("")
+            : `<p class="ap-empty-state">No payments yet.</p>`;
+    }
+
+    async function refreshPaymentData() {
+        if (!accountMount || !currentUser) return null;
+        const subscriptionsNode = accountMount.querySelector("#apSubscriptionsList");
+        const paymentsNode = accountMount.querySelector("#apPaymentHistoryList");
+        if (!subscriptionsNode || !paymentsNode) return null;
+        subscriptionsNode.innerHTML = `<p class="ap-empty-state">Loading subscriptions…</p>`;
+        paymentsNode.innerHTML = `<p class="ap-empty-state">Loading payment history…</p>`;
+        try {
+            const [subscriptionResponse, paymentResponse] = await Promise.all([
+                api("/api/users/me/subscriptions"),
+                api("/api/users/me/payments"),
+            ]);
+            subscriptions = Array.isArray(subscriptionResponse?.subscriptions)
+                ? subscriptionResponse.subscriptions
+                : [];
+            paymentHistory = Array.isArray(paymentResponse?.payments)
+                ? paymentResponse.payments
+                : [];
+            renderPaymentData();
+            return { subscriptions, payments: paymentHistory };
+        } catch (error) {
+            const message = esc(error?.message || "Payment history could not be loaded.");
+            subscriptionsNode.innerHTML = `<p class="ap-empty-state">Could not load subscriptions.</p>`;
+            paymentsNode.innerHTML = `<p class="ap-empty-state">${message} <button class="ap-button ap-button--link" id="apRetryPaymentHistory" type="button">Try again</button></p>`;
+            accountMount.querySelector("#apRetryPaymentHistory")?.addEventListener("click", () => {
+                void refreshPaymentData();
+            });
+            return null;
+        }
     }
 
     async function saveProfile(body, button) {
@@ -727,6 +820,8 @@ export function initAccountProfileUI({
         currentUser = user || (typeof getCurrentUser === "function" ? getCurrentUser() : null);
         profile = null;
         school = null;
+        subscriptions = [];
+        paymentHistory = [];
         pendingAvatar = "";
         pendingLogo = "";
         if (!currentUser) {
@@ -742,6 +837,7 @@ export function initAccountProfileUI({
     return {
         setUser,
         refreshProfile,
+        refreshPaymentData,
         refreshBranding,
         resetHeaderBranding,
     };

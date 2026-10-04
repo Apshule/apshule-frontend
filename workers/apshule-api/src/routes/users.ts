@@ -35,6 +35,37 @@ users.get("/me", authMiddleware, async (c) => {
   return c.json({ user: publicUser(rows[0] as Record<string, unknown>) });
 });
 
+users.get("/me/subscriptions", authMiddleware, async (c) => {
+  const sql = getDb(c.env);
+  const rows = await sql`
+    SELECT
+      s.id, s.plan_code, COALESCE(p.name, pay.plan) AS plan,
+      s.start_date, s.end_date,
+      (s.active IS TRUE AND s.end_date > NOW()) AS active,
+      CASE WHEN s.active IS TRUE AND s.end_date > NOW()
+        THEN 'active' ELSE 'expired' END AS subscription_status
+    FROM user_subscriptions s
+    LEFT JOIN subscription_plans p ON p.code = s.plan_code
+    LEFT JOIN payments pay ON pay.id = s.payment_id
+    WHERE s.user_id = ${c.get("user").id}
+    ORDER BY s.created_at DESC, s.start_date DESC
+  `;
+  return c.json({ subscriptions: rows });
+});
+
+users.get("/me/payments", authMiddleware, async (c) => {
+  const sql = getDb(c.env);
+  const rows = await sql`
+    SELECT id, reference, plan, plan_code, amount, currency, status,
+      created_at, updated_at, subscription_end
+    FROM payments
+    WHERE user_id = ${c.get("user").id}
+    ORDER BY created_at DESC
+    LIMIT 100
+  `;
+  return c.json({ payments: rows });
+});
+
 users.patch("/me", authMiddleware, async (c) => {
   const body = await readJson(c);
   const name = optionalString(body, "name", { max: 120 });
@@ -90,7 +121,7 @@ users.post("/me/subscription", authMiddleware, async (c) => {
     FROM payments
     WHERE user_id = ${c.get("user").id}
       AND plan = ${subscription}
-      AND status = 'completed'
+      AND status IN ('completed', 'success')
     ORDER BY updated_at DESC
     LIMIT 1
   `;

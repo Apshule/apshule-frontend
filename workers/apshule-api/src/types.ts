@@ -7,6 +7,7 @@ export interface Env {
   APP_URL?: string;
   YO_API_USERNAME?: string;
   YO_API_PASSWORD?: string;
+  YO_BASE_URL?: string;
   YO_API_URL?: string;
   YO_IPN_URL?: string;
 }

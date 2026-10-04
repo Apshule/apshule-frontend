@@ -6,7 +6,7 @@
   "scripts": {
     "dev": "wrangler dev --ip 0.0.0.0 --port 8787",
     "typecheck": "tsc --noEmit",
-    "test": "node --experimental-strip-types --test tests/*.test.mjs",
+    "test": "node --experimental-strip-types --experimental-loader ./tests/ts-js-loader.mjs --test tests/*.test.mjs",
     "build": "wrangler deploy --dry-run",
     "deploy": "wrangler deploy"
   },

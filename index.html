@@ -1475,7 +1475,18 @@
             <div class="welcome-card"><div class="welcome-title">Welcome to APSHULE</div><div class="welcome-subtitle">Let's Learn With Ease From Anywhere at Anytime</div></div>
             <div class="announcements-section"><div class="announcements-header"><i class="fas fa-bullhorn"></i> <span>📢 UPCOMING SEMINARS & EVENTS</span><i class="fas fa-volume-up"></i></div><div class="announcements-ticker"><div class="ticker-wrap"><div class="ticker" id="eventsTicker"></div></div></div></div>
             <div class="materials-folder"><button type="button" class="elibrary-launch-card" id="elibraryLaunchButton" aria-label="Open Learning Materials PDF library"><span class="elibrary-launch-icon"><i class="fas fa-book-open" aria-hidden="true"></i></span><span class="elibrary-launch-copy"><strong>Learning Materials (PDFs)</strong><small>Browse class books and study materials</small></span><i class="fas fa-chevron-right elibrary-launch-arrow" aria-hidden="true"></i></button></div>
-            <div class="payment-plans-section"><div class="payment-plans-title">🎯 Subscription Plans</div><div class="payment-plans-grid"><div class="payment-card daily"><div>Daily</div><div class="payment-plan-price">UGX 500</div><button class="subscribe-btn-small" data-plan="Daily" data-price="500">Subscribe</button></div><div class="payment-card weekly"><div>Weekly</div><div class="payment-plan-price">UGX 3,000</div><button class="subscribe-btn-small" data-plan="Weekly" data-price="3000">Subscribe</button></div><div class="payment-card monthly"><div>Monthly</div><div class="payment-plan-price">UGX 10,000</div><button class="subscribe-btn-small" data-plan="Monthly" data-price="10000">Subscribe</button></div><div class="payment-card half"><div>Term Plan</div><div class="payment-plan-price">UGX 50,000</div><button class="subscribe-btn-small" data-plan="Term" data-price="50000">Subscribe</button></div><div class="payment-card half"><div>Half Year</div><div class="payment-plan-price">UGX 80,000</div><button class="subscribe-btn-small" data-plan="Half Year" data-price="80000">Subscribe</button></div><div class="payment-card full"><div>Full Year</div><div class="payment-plan-price">UGX 150,000</div><button class="subscribe-btn-small" data-plan="Full Year" data-price="150000">Subscribe</button></div></div></div>
+            <div class="payment-plans-section">
+                <div class="payment-plans-title">🎯 Subscription Plans</div>
+                <p id="subscriptionPlanStatus" role="status" aria-live="polite" style="min-height:1.2em;text-align:center;color:#716d7d;font-size:12px">Loading subscription plans…</p>
+                <div class="payment-plans-grid">
+                    <div class="payment-card daily"><div>Daily</div><div class="payment-plan-price">UGX 500</div><button class="subscribe-btn-small" data-plan-code="daily" disabled>Subscribe</button></div>
+                    <div class="payment-card weekly"><div>Weekly</div><div class="payment-plan-price">UGX 3,000</div><button class="subscribe-btn-small" data-plan-code="weekly" disabled>Subscribe</button></div>
+                    <div class="payment-card monthly"><div>Monthly</div><div class="payment-plan-price">UGX 10,000</div><button class="subscribe-btn-small" data-plan-code="monthly" disabled>Subscribe</button></div>
+                    <div class="payment-card half"><div>Term Plan</div><div class="payment-plan-price">UGX 50,000</div><button class="subscribe-btn-small" data-plan-code="term" disabled>Subscribe</button></div>
+                    <div class="payment-card half"><div>Half Year</div><div class="payment-plan-price">UGX 80,000</div><button class="subscribe-btn-small" data-plan-code="half_year" disabled>Subscribe</button></div>
+                    <div class="payment-card full"><div>Full Year</div><div class="payment-plan-price">UGX 150,000</div><button class="subscribe-btn-small" data-plan-code="full_year" disabled>Subscribe</button></div>
+                </div>
+            </div>
 
             <div id="adminPanel" class="admin-panel">
                 <h3><i class="fas fa-lock"></i> Admin Panel</h3>
@@ -1935,35 +1946,139 @@
     }
     setInterval(updateGreeting, 60000);
 
-    // ---------- PESAPAL (via Worker) ----------
-    function showPaymentLoading(show) {
+    // ---------- YO! PAYMENTS ----------
+    function showPaymentLoading(show, message = "Connecting to Yo! Payments…") {
         let el = document.getElementById('paymentLoadingOverlay');
         if (show) {
             if (!el) {
                 el = document.createElement('div');
                 el.id = 'paymentLoadingOverlay';
                 el.className = 'payment-loading';
-                el.innerHTML = '<i class="fas fa-spinner fa-pulse fa-3x"></i><span>Redirecting to Pesapal...</span>';
+                el.setAttribute('role', 'status');
+                el.setAttribute('aria-live', 'polite');
+                el.innerHTML = '<i class="fas fa-spinner fa-pulse fa-3x" aria-hidden="true"></i><span></span>';
                 document.body.appendChild(el);
             } else el.style.display = 'flex';
+            const label = el.querySelector('span');
+            if (label) label.textContent = message;
         } else if (el) el.style.display = 'none';
     }
 
-    async function initiatePesapalPayment(plan, amount, email, phone, name) {
-        showPaymentLoading(true);
+    async function loadSubscriptionPlans() {
+        const buttons = Array.from(document.querySelectorAll('.subscribe-btn-small'));
+        const status = document.getElementById('subscriptionPlanStatus');
+        buttons.forEach(button => { button.disabled = true; });
         try {
-            const data = await api('/api/pesapal/initiate', {
-                method: 'POST',
-                body: { amount, currency: "UGX", description: `${plan} Subscription - APSHULE`, email, phone, name, reference: `SUB_${Date.now()}_${currentUser.uid}` }
+            const response = await api('/api/subscription-plans', { auth: false });
+            if (!Array.isArray(response?.plans) || response.plans.length === 0) {
+                throw new Error("No subscription plans are currently available.");
+            }
+            const available = new Map(response.plans.map(plan => [String(plan.code), plan]));
+            let enabledCount = 0;
+            buttons.forEach(button => {
+                const plan = available.get(button.dataset.planCode);
+                const card = button.closest('.payment-card');
+                const title = card?.querySelector('div:first-child');
+                const price = card?.querySelector('.payment-plan-price');
+                const amount = Number(plan?.price);
+                if (!plan || !Number.isSafeInteger(amount) || amount <= 0 || plan.currency !== 'UGX') {
+                    button.disabled = true;
+                    return;
+                }
+                if (title) title.textContent = plan.name;
+                if (price) price.textContent = `UGX ${new Intl.NumberFormat('en-UG').format(amount)}`;
+                button.disabled = false;
+                enabledCount++;
             });
-            if (data.redirect_url) {
-                sessionStorage.setItem('pesapal_order_tracking_id', data.order_tracking_id);
-                sessionStorage.setItem('pesapal_merchant_reference', data.merchant_reference);
-                window.location.href = data.redirect_url;
-            } else throw new Error(data.error || "Failed to initiate payment");
-        } catch (err) {
-            showNotification("Payment error: " + err.message, "error");
-            showPaymentLoading(false);
+            if (!enabledCount) throw new Error("No valid UGX subscription plans are available.");
+            if (status) status.textContent = "";
+        } catch (error) {
+            buttons.forEach(button => { button.disabled = true; });
+            if (status) status.textContent = "Subscription plans could not be loaded. Refresh the page to try again.";
+            console.error("Subscription plans could not be loaded.");
+        }
+    }
+
+    async function refreshAfterSubscriptionPayment() {
+        try {
+            const refreshed = await requestCurrentUser();
+            if (refreshed) {
+                currentUser = refreshed;
+                user = refreshed;
+                updateGreeting();
+                await profileUI?.setUser(refreshed);
+            } else {
+                await profileUI?.refreshProfile();
+            }
+        } catch {
+            await profileUI?.refreshProfile();
+        }
+        await profileUI?.refreshPaymentData();
+    }
+
+    async function initiateYoPayment(planCode, button) {
+        if (!currentUser) {
+            showNotification("Please log in", "error");
+            return;
+        }
+        if (currentUser.impersonatedBy || currentUser.impersonated_by) {
+            showNotification("Payments are unavailable during impersonation.", "error");
+            return;
+        }
+
+        const originalLabel = button.textContent;
+        let redirecting = false;
+        button.disabled = true;
+        button.textContent = "Starting…";
+        showPaymentLoading(true, "Starting your payment…");
+        try {
+            const initiated = await api('/api/yopayments/initiate', {
+                method: 'POST',
+                body: { plan_code: planCode }
+            });
+            const reference = String(initiated?.reference || "");
+            if (!reference) throw new Error("The payment service did not return a reference.");
+            sessionStorage.setItem('yo_payment_reference', reference);
+
+            if (initiated.redirect_url) {
+                redirecting = true;
+                showPaymentLoading(true, "Continue securely with Yo! Payments…");
+                window.location.assign(initiated.redirect_url);
+                return;
+            }
+
+            showPaymentLoading(true, "Approve the payment request on your phone…");
+            for (let attempt = 0; attempt < 18; attempt++) {
+                await new Promise(resolve => window.setTimeout(resolve, 5000));
+                try {
+                    const result = await api('/api/yopayments/status', {
+                        method: 'POST',
+                        body: { reference }
+                    });
+                    if (result?.status === "success") {
+                        sessionStorage.removeItem('yo_payment_reference');
+                        showNotification("Payment successful!", "success");
+                        await refreshAfterSubscriptionPayment();
+                        return;
+                    }
+                    if (result?.status === "failed" || result?.status === "cancelled") {
+                        sessionStorage.removeItem('yo_payment_reference');
+                        showNotification("Payment failed. You can try again.", "error");
+                        return;
+                    }
+                } catch {
+                    // Keep polling through temporary provider or network errors.
+                }
+            }
+            showNotification("Payment pending. Check My Subscriptions.", "info");
+        } catch (error) {
+            showNotification(`Payment error: ${error?.message || "Could not start payment."}`, "error");
+        } finally {
+            if (!redirecting) {
+                showPaymentLoading(false);
+                button.disabled = false;
+                button.textContent = originalLabel;
+            }
         }
     }
 
@@ -1986,6 +2101,44 @@
                 showPaymentLoading(false);
                 window.history.replaceState({}, document.title, window.location.pathname);
             }
+        }
+    }
+
+    let yoPaymentReturnCheckRunning = false;
+    async function checkYoPaymentReturn() {
+        if (!currentUser || yoPaymentReturnCheckRunning) return;
+        const url = new URL(window.location.href);
+        const queryReference = url.searchParams.get('reference');
+        const reference = queryReference || sessionStorage.getItem('yo_payment_reference');
+        if (!reference) return;
+
+        if (queryReference) {
+            url.searchParams.delete('reference');
+            window.history.replaceState({}, document.title, `${url.pathname}${url.search}${url.hash}`);
+        }
+
+        yoPaymentReturnCheckRunning = true;
+        showPaymentLoading(true, "Checking your payment status…");
+        try {
+            const result = await api('/api/yopayments/status', {
+                method: 'POST',
+                body: { reference }
+            });
+            if (result?.status === "success") {
+                sessionStorage.removeItem('yo_payment_reference');
+                showNotification("Payment successful!", "success");
+                await refreshAfterSubscriptionPayment();
+            } else if (result?.status === "failed" || result?.status === "cancelled") {
+                sessionStorage.removeItem('yo_payment_reference');
+                showNotification("Payment failed. You can try again.", "error");
+            } else {
+                showNotification("Payment pending. Check My Subscriptions.", "info");
+            }
+        } catch {
+            showNotification("Could not verify your payment yet. Check My Subscriptions shortly.", "info");
+        } finally {
+            showPaymentLoading(false);
+            yoPaymentReturnCheckRunning = false;
         }
     }
 
@@ -3433,6 +3586,7 @@
         document.getElementById('loginScreen').classList.add('hidden');
         document.getElementById('appScreen').classList.remove('hidden');
         updateGreeting();
+        void checkYoPaymentReturn();
         if (reportCardsUI) await reportCardsUI.setUser(currentUser);
         if (bulkImportUI) await bulkImportUI.setUser(currentUser);
 
@@ -4903,6 +5057,7 @@
             },
             getSiteBrandLogo: () => siteBrandLogo,
         });
+        void loadSubscriptionPlans();
         wireTeacherDashboardEvents();
         document.getElementById('sendBtn')?.addEventListener('click', sendChat);
         document.getElementById('chatInput')?.addEventListener('keypress', e => { if (e.key === 'Enter') sendChat(); });
@@ -5142,10 +5297,7 @@
         document.querySelectorAll('.subscribe-btn-small').forEach(btn => {
             btn.addEventListener('click', async e => {
                 e.stopPropagation();
-                if (!currentUser) { alert('Please login first'); return; }
-                const plan = btn.getAttribute('data-plan');
-                const amount = parseInt(btn.getAttribute('data-price'));
-                await initiatePesapalPayment(plan, amount, currentUser.email, currentUser.phone || "N/A", currentUser.name);
+                await initiateYoPayment(btn.dataset.planCode, btn);
             });
         });
 
