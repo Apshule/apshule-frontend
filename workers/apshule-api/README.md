@@ -30,12 +30,15 @@ pnpm --filter @workspace/apshule-api exec wrangler secret put YO_API_USERNAME
 pnpm --filter @workspace/apshule-api exec wrangler secret put YO_API_PASSWORD
 pnpm --filter @workspace/apshule-api exec wrangler secret put YO_API_URL
 pnpm --filter @workspace/apshule-api exec wrangler secret put YO_IPN_URL
+pnpm --filter @workspace/apshule-api exec wrangler secret put SETTINGS_ENCRYPTION_KEY
 # Initial database setup only: run workers/apshule-api/schema.sql in Neon.
 # Routine updates: apply only the matching migration under workers/apshule-api/migrations/.
 pnpm --filter @workspace/apshule-api run deploy
 ```
 
 Use a randomly generated `JWT_SECRET` with at least 32 bytes of entropy. Set `YO_IPN_URL` to the deployed Worker URL followed by `/api/yopayments/ipn`. `YO_API_URL` is the HTTPS base URL for the Yo API; the Worker appends `/acdepositfunds` and `/actransactioncheckstatus`.
+
+For encrypted superadmin platform settings, `SETTINGS_ENCRYPTION_KEY` must be the same 32-byte hexadecimal secret in Replit and the Cloudflare Worker. Never commit or log this value.
 
 ## API
 

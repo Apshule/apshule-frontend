@@ -343,6 +343,12 @@ CREATE TABLE IF NOT EXISTS settings (
   value JSONB NOT NULL DEFAULT '{}',
   updated_at TIMESTAMPTZ DEFAULT NOW()
 );
+CREATE TABLE IF NOT EXISTS platform_settings (
+  key TEXT PRIMARY KEY,
+  value TEXT NOT NULL,
+  updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  updated_by UUID REFERENCES users(id) ON DELETE SET NULL
+);
 INSERT INTO settings (key, value) VALUES
   ('about', '{"vision":"To be Africa''s leading digital learning platform.","mission":"To provide quality, accessible education.","coreValues":["Excellence","Accessibility","Innovation"],"team":[{"name":"Tebuswake Abdallah","role":"CEO","photo":""}],"contact":{"phone":"+256705732540","email":"apshule@gmail.com","address":"Kampala","whatsapp":"+256705732540"}}'::jsonb)
 ON CONFLICT (key) DO NOTHING;

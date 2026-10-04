@@ -132,3 +132,50 @@ test("status checks use PrivateTransactionReference and support YO_API_URL alias
     globalThis.fetch = originalFetch;
   }
 });
+
+test("Yo client uses encrypted-settings fallback only where Worker secrets are absent", async () => {
+  const originalFetch = globalThis.fetch;
+  let capturedUrl;
+  let capturedAuth;
+  let fallbackCalls = 0;
+  globalThis.fetch = async (input, init) => {
+    capturedUrl = String(input);
+    capturedAuth = init.headers.Authorization;
+    return new Response(
+      "<AutoCreate><Response><Status>OK</Status><TransactionReference>YO-REF</TransactionReference></Response></AutoCreate>",
+      { status: 200 },
+    );
+  };
+
+  try {
+    const result = await initiateDeposit(
+      {
+        YO_API_USERNAME: "worker-user",
+        YO_BASE_URL: "https://worker-payments.example",
+      },
+      {
+        amount: 500,
+        account: "256705732540",
+        narrative: "APSHULE Daily Subscription",
+        phone: "256705732540",
+        reference: "SUB-FALLBACK",
+        ipnUrl: "https://example.test/api/yopayments/ipn",
+      },
+      async () => {
+        fallbackCalls++;
+        return {
+          api_username: "database-user",
+          api_password: "database-password",
+          base_url: "https://database-payments.example",
+        };
+      },
+    );
+
+    assert.equal(result.ok, true);
+    assert.equal(fallbackCalls, 1);
+    assert.equal(capturedUrl, "https://worker-payments.example/acdepositfunds");
+    assert.equal(capturedAuth, `Basic ${btoa("worker-user:database-password")}`);
+  } finally {
+    globalThis.fetch = originalFetch;
+  }
+});

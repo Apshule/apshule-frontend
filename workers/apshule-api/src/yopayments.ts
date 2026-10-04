@@ -58,6 +58,14 @@ export interface YoApiResponse {
   parsed: YoFields;
 }
 
+export interface YoSettingsFallback {
+  api_username?: string;
+  api_password?: string;
+  base_url?: string;
+}
+
+export type YoSettingsFallbackResolver = () => Promise<YoSettingsFallback>;
+
 function buildRequestXml(
   username: string,
   password: string,
@@ -133,11 +141,29 @@ async function sendYoRequest(
   env: Env,
   endpoint: "acdepositfunds" | "actransactioncheckstatus",
   fields: Record<string, string | number>,
+  resolveFallback?: YoSettingsFallbackResolver,
 ): Promise<YoApiResponse> {
-  const username = requireEnv(env.YO_API_USERNAME, "YO_API_USERNAME");
-  const password = requireEnv(env.YO_API_PASSWORD, "YO_API_PASSWORD");
+  const environmentUsername = env.YO_API_USERNAME?.trim();
+  const environmentPassword = env.YO_API_PASSWORD?.trim();
+  const environmentBaseUrl = env.YO_BASE_URL?.trim() || env.YO_API_URL?.trim();
+  let fallback: YoSettingsFallback = {};
+  if (
+    resolveFallback &&
+    (!environmentUsername || !environmentPassword || !environmentBaseUrl)
+  ) {
+    fallback = await resolveFallback();
+  }
+
+  const username = requireEnv(
+    environmentUsername || fallback.api_username,
+    "YO_API_USERNAME",
+  );
+  const password = requireEnv(
+    environmentPassword || fallback.api_password,
+    "YO_API_PASSWORD",
+  );
   const baseUrl = requireEnv(
-    env.YO_BASE_URL ?? env.YO_API_URL,
+    environmentBaseUrl || fallback.base_url,
     "YO_BASE_URL or YO_API_URL",
   );
 
@@ -187,7 +213,11 @@ async function sendYoRequest(
   };
 }
 
-export function initiateDeposit(env: Env, input: YoRequest): Promise<YoApiResponse> {
+export function initiateDeposit(
+  env: Env,
+  input: YoRequest,
+  resolveFallback?: YoSettingsFallbackResolver,
+): Promise<YoApiResponse> {
   return sendYoRequest(env, "acdepositfunds", {
     NonBlocking: "FALSE",
     Amount: input.amount,
@@ -196,16 +226,17 @@ export function initiateDeposit(env: Env, input: YoRequest): Promise<YoApiRespon
     Phone: input.phone,
     ExternalReference: input.reference,
     InstantNotificationUrl: input.ipnUrl,
-  });
+  }, resolveFallback);
 }
 
 export function checkStatus(
   env: Env,
   input: { transactionRef: string },
+  resolveFallback?: YoSettingsFallbackResolver,
 ): Promise<YoApiResponse> {
   return sendYoRequest(env, "actransactioncheckstatus", {
     PrivateTransactionReference: input.transactionRef,
-  });
+  }, resolveFallback);
 }
 
 export function normalizedYoStatus(fields: YoFields): "success" | "failed" | "pending" {

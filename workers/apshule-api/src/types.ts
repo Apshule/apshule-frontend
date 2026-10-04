@@ -10,6 +10,7 @@ export interface Env {
   YO_BASE_URL?: string;
   YO_API_URL?: string;
   YO_IPN_URL?: string;
+  SETTINGS_ENCRYPTION_KEY?: string;
 }
 
 export type UserRole = "individual" | "teacher" | "school" | "superadmin";

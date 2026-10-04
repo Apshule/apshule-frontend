@@ -23,8 +23,16 @@ function virtualModule(source) {
 
 export async function resolve(specifier, context, nextResolve) {
   if (
-    (specifier === "./db.js" && context.parentURL?.endsWith("/src/yopayments.ts")) ||
-    (specifier === "../db.js" && context.parentURL?.endsWith("/src/routes/payments.ts"))
+    (
+      specifier === "./db.js" &&
+      /\/src\/(yopayments|yo-platform-settings|platform-settings-crypto)\.ts$/u.test(
+        context.parentURL ?? "",
+      )
+    ) ||
+    (
+      specifier === "../db.js" &&
+      /\/src\/routes\/(payments|platform-settings)\.ts$/u.test(context.parentURL ?? "")
+    )
   ) {
     return virtualModule(dbStub);
   }
@@ -34,6 +42,31 @@ export async function resolve(specifier, context, nextResolve) {
   ) {
     return virtualModule(`
       export const authMiddleware = async (c, next) => next();
+    `);
+  }
+  if (
+    specifier === "../auth.js" &&
+    context.parentURL?.endsWith("/src/routes/platform-settings.ts")
+  ) {
+    return virtualModule(`
+      export const authMiddleware = async (c, next) => {
+        c.set("user", {
+          id: "00000000-0000-4000-8000-000000000123",
+          role: c.req.header("x-test-role") || "superadmin",
+          sector: "education",
+          impersonatedBy: c.req.header("x-test-impersonated") || null
+        });
+        await next();
+      };
+      export function requireRealSuperAdmin() {
+        return async (c, next) => {
+          const user = c.get("user");
+          if (user.role !== "superadmin" || user.impersonatedBy) {
+            return c.json({ error: "FORBIDDEN" }, 403);
+          }
+          await next();
+        };
+      }
     `);
   }
   if (
@@ -48,6 +81,21 @@ export async function resolve(specifier, context, nextResolve) {
             value.length > (options.max ?? 1000)) {
           throw new Error("Invalid string");
         }
+        return value;
+      }
+    `);
+  }
+  if (
+    specifier === "../http.js" &&
+    context.parentURL?.endsWith("/src/routes/platform-settings.ts")
+  ) {
+    return virtualModule(`
+      export async function readJson(c) { return c.req.json(); }
+      export function optionalString(body, key, options = {}) {
+        if (!(key in body)) return undefined;
+        if (typeof body[key] !== "string") throw new Error("Invalid string");
+        const value = body[key].trim();
+        if (value.length > (options.max ?? 500)) throw new Error("String too long");
         return value;
       }
     `);

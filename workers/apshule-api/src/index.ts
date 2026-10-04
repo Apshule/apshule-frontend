@@ -6,6 +6,7 @@ import authRoutes from "./routes/auth-routes.js";
 import contentRoutes from "./routes/content.js";
 import eventsRoutes from "./routes/events.js";
 import paymentsRoutes from "./routes/payments.js";
+import platformSettingsRoutes from "./routes/platform-settings.js";
 import subscriptionPlansRoutes from "./routes/subscription-plans.js";
 import schoolsRoutes from "./routes/schools.js";
 import settingsRoutes from "./routes/settings.js";
@@ -129,6 +130,7 @@ app.route("/api", bulkImportRoutes);
 app.route("/api", retoolingRoutes);
 app.route("/api", earningsRoutes);
 app.route("/api/yopayments", paymentsRoutes);
+app.route("/api/superadmin/platform-settings", platformSettingsRoutes);
 app.route("/api/subscription-plans", subscriptionPlansRoutes);
 
 app.notFound((c) =>

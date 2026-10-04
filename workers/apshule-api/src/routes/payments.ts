@@ -12,6 +12,7 @@ import {
   type YoFields,
   type YoApiResponse,
 } from "../yopayments.js";
+import { createYoPaymentSettingsResolver } from "../yo-platform-settings.js";
 import type { AppEnv } from "../types.js";
 
 const payments = new Hono<AppEnv>();
@@ -290,7 +291,12 @@ payments.post("/initiate", authMiddleware, async (c) => {
     throw new ApiError(503, "INVALID_PLAN", "The subscription plan is not configured as a valid UGX price.");
   }
 
-  const ipnUrl = requireEnv(c.env.YO_IPN_URL, "YO_IPN_URL");
+  const resolveYoSettings = createYoPaymentSettingsResolver(c.env, sql);
+  const yoSettings = await resolveYoSettings();
+  requireEnv(yoSettings.api_username, "YO_API_USERNAME");
+  requireEnv(yoSettings.api_password, "YO_API_PASSWORD");
+  requireEnv(yoSettings.base_url, "YO_BASE_URL or YO_API_URL");
+  const ipnUrl = requireEnv(yoSettings.ipn_url, "YO_IPN_URL");
   try {
     if (new URL(ipnUrl).protocol !== "https:") throw new Error("HTTPS required");
   } catch {
@@ -338,7 +344,7 @@ payments.post("/initiate", authMiddleware, async (c) => {
       phone,
       reference,
       ipnUrl,
-    });
+    }, async () => yoSettings);
   } catch (error) {
     await recordAudit(sql, {
       actorId: user.id,
@@ -423,9 +429,11 @@ payments.post("/status", authMiddleware, async (c) => {
   if (!payment) throw new ApiError(404, "PAYMENT_NOT_FOUND", "Payment was not found.");
 
   if (!isSuccessfulStatus(payment.status)) {
+    const resolveYoSettings = createYoPaymentSettingsResolver(c.env, sql);
+    const yoSettings = await resolveYoSettings();
     const yoResult = await checkStatus(c.env, {
       transactionRef: payment.yo_transaction_ref ?? payment.reference,
-    });
+    }, async () => yoSettings);
     if (!yoResult.ok) {
       throw new ApiError(502, "YO_STATUS_FAILED", "Yo! Payments could not verify this payment yet.");
     }
@@ -528,9 +536,11 @@ payments.post("/ipn", async (c) => {
       return c.text("OK");
     }
 
+    const resolveYoSettings = createYoPaymentSettingsResolver(c.env, sql);
+    const yoSettings = await resolveYoSettings();
     const yoResult = await checkStatus(c.env, {
       transactionRef: payment.yo_transaction_ref ?? payment.reference,
-    });
+    }, async () => yoSettings);
     if (!yoResult.ok) {
       throw new ApiError(502, "YO_STATUS_FAILED", "Yo! Payments could not verify this IPN.");
     }

@@ -1502,6 +1502,25 @@
                         <button id="addSchoolBtn" class="admin-toggle">➕ Add School Account</button>
                     </div>
                     <div id="schoolsAdminList"></div>
+                    <div class="admin-section" id="yoPaymentSettingsSection">
+                        <h4>⚙️ Payment Settings</h4>
+                        <p style="font-size:13px; color:#625d6e;">
+                            Yo! settings are encrypted in Neon. Passwords are never prefilled and credentials are not saved in browser storage.
+                            Existing Cloudflare Worker <code>YO_*</code> secrets take precedence over these saved fallback values.
+                        </p>
+                        <div class="add-subject-form" style="background:#f8f7fb; padding:15px; border-radius:16px;">
+                            <label for="yoApiUsername">Yo! API username</label>
+                            <input type="text" id="yoApiUsername" autocomplete="off" placeholder="Leave blank to keep the current username">
+                            <label for="yoApiPassword">Yo! API password</label>
+                            <input type="password" id="yoApiPassword" autocomplete="new-password" placeholder="Leave blank to keep the current password">
+                            <label for="yoBaseUrl">Base URL</label>
+                            <input type="url" id="yoBaseUrl" autocomplete="url" placeholder="https://payments.yo.co.ug">
+                            <label for="yoIpnUrl">IPN URL</label>
+                            <input type="url" id="yoIpnUrl" autocomplete="url" placeholder="https://apshule-api.apshule-migration.workers.dev/api/yopayments/ipn">
+                            <button type="button" id="saveYoPaymentSettingsBtn" class="admin-toggle">Save Payment Settings</button>
+                            <div id="yoPaymentSettingsStatus" role="status" aria-live="polite" style="margin-top:8px; font-size:13px;"></div>
+                        </div>
+                    </div>
                     <div class="admin-section">
                         <h4>🖼️ Upload / Change Brand Logo</h4>
                         <div class="add-pdf-form" style="background:#f0f0f0; padding:15px; border-radius:16px;">
@@ -1962,6 +1981,86 @@
             const label = el.querySelector('span');
             if (label) label.textContent = message;
         } else if (el) el.style.display = 'none';
+    }
+
+    async function loadYoPaymentSettings() {
+        const status = document.getElementById('yoPaymentSettingsStatus');
+        if (!currentUser || currentUser.role !== 'superadmin' || currentUser.impersonatedBy || currentUser.impersonated_by) {
+            return null;
+        }
+        if (status) status.textContent = "Loading payment settings…";
+        try {
+            const settings = await api('/api/superadmin/platform-settings/yopayments');
+            document.getElementById('yoApiUsername').value = '';
+            document.getElementById('yoApiPassword').value = '';
+            document.getElementById('yoBaseUrl').value = settings.base_url || 'https://payments.yo.co.ug';
+            document.getElementById('yoIpnUrl').value = settings.ipn_url || 'https://apshule-api.apshule-migration.workers.dev/api/yopayments/ipn';
+            const usernameState = settings.configured?.api_username
+                ? `Username configured (${settings.api_username || 'masked'}).`
+                : "Username is not configured.";
+            const passwordState = settings.configured?.api_password
+                ? "Password is configured; it is never returned."
+                : "Password is not configured.";
+            const overridden = Object.entries(settings.sources || {})
+                .filter(([, source]) => source === 'worker_secret')
+                .map(([key]) => key.replaceAll('_', ' '));
+            const overrideState = overridden.length
+                ? ` Worker secrets currently take precedence for: ${overridden.join(', ')}.`
+                : "";
+            if (status) status.textContent = `${usernameState} ${passwordState}${overrideState}`;
+            return settings;
+        } catch (error) {
+            if (status) status.textContent = error?.message || "Could not load payment settings.";
+            return null;
+        }
+    }
+
+    async function saveYoPaymentSettings() {
+        if (!currentUser || currentUser.role !== 'superadmin' || currentUser.impersonatedBy || currentUser.impersonated_by) {
+            showNotification("Only a signed-in Super Admin can update payment settings.", "error");
+            return;
+        }
+        const button = document.getElementById('saveYoPaymentSettingsBtn');
+        const status = document.getElementById('yoPaymentSettingsStatus');
+        const apiUsername = document.getElementById('yoApiUsername').value.trim();
+        const apiPassword = document.getElementById('yoApiPassword').value;
+        const baseUrl = document.getElementById('yoBaseUrl').value.trim();
+        const ipnUrl = document.getElementById('yoIpnUrl').value.trim();
+        if (!baseUrl || !ipnUrl) {
+            if (status) status.textContent = "Enter both the Base URL and IPN URL.";
+            return;
+        }
+
+        button.disabled = true;
+        if (status) status.textContent = "Saving encrypted payment settings…";
+        try {
+            const result = await api('/api/superadmin/platform-settings/yopayments', {
+                method: 'POST',
+                body: {
+                    api_username: apiUsername,
+                    api_password: apiPassword,
+                    base_url: baseUrl,
+                    ipn_url: ipnUrl
+                }
+            });
+            document.getElementById('yoApiUsername').value = '';
+            document.getElementById('yoApiPassword').value = '';
+            const savedKeys = Array.isArray(result?.updated_keys) ? result.updated_keys.length : 0;
+            const refreshed = await loadYoPaymentSettings();
+            const overridden = Object.entries(refreshed?.sources || {})
+                .filter(([, source]) => source === 'worker_secret')
+                .map(([key]) => key.replaceAll('_', ' '));
+            if (status) {
+                status.textContent = `Payment settings saved encrypted (${savedKeys} values updated).` +
+                    (overridden.length ? ` Worker secrets still take precedence for: ${overridden.join(', ')}.` : "");
+            }
+            showNotification("Payment settings saved.", "success");
+        } catch (error) {
+            if (status) status.textContent = error?.message || "Payment settings could not be saved.";
+            showNotification(error?.message || "Payment settings could not be saved.", "error");
+        } finally {
+            button.disabled = false;
+        }
     }
 
     async function loadSubscriptionPlans() {
@@ -3564,6 +3663,7 @@
             document.getElementById('ccEducationMount').appendChild(adminPanel);
             adminPanel.classList.add('show');
             activateCommandTab('education');
+            if (!currentUser.impersonatedBy && !currentUser.impersonated_by) void loadYoPaymentSettings();
         } else {
             document.getElementById('appScreen').classList.remove('is-command-center');
             commandCenter.classList.add('hidden');
@@ -5360,6 +5460,7 @@
         document.getElementById('closeFeedbackBtn')?.addEventListener('click', () => { document.getElementById('videoModal').classList.remove('show'); document.getElementById('youtubeIframe').src = ''; document.getElementById('feedbackSection').style.display = 'none'; });
 
         // Admin buttons
+        document.getElementById('saveYoPaymentSettingsBtn')?.addEventListener('click', saveYoPaymentSettings);
         document.getElementById('addSchoolBtn')?.addEventListener('click', async () => {
             const name = document.getElementById('schoolName').value.trim();
             const contact = document.getElementById('schoolContact').value.trim();

@@ -26,6 +26,7 @@ function createPaymentState() {
 function createMockSql(state) {
   return async (parts, ...values) => {
     const query = parts.join(" ");
+    if (query.includes("FROM platform_settings")) return [];
     if (query.includes("SELECT id, user_id") && query.includes("FROM payments")) {
       return [{ ...state.payment }];
     }
