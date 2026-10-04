@@ -6340,5 +6340,25 @@
     });
 })();
 </script>
+<script>
+  // Auto-fade the responsive demo notice after 30 seconds
+  (function() {
+    const notice = document.getElementById('responsiveDemoNotice');
+    if (!notice) return;
+    // Skip if already dismissed (sessionStorage)
+    if (sessionStorage.getItem('demoNoticeDismissed') === 'true') {
+      notice.style.display = 'none';
+      return;
+    }
+    setTimeout(() => {
+      notice.style.transition = 'opacity 1.5s ease-out';
+      notice.style.opacity = '0';
+      setTimeout(() => {
+        notice.style.display = 'none';
+        sessionStorage.setItem('demoNoticeDismissed', 'true');
+      }, 1600);
+    }, 30000);
+  })();
+</script>
 </body>
 </html>
