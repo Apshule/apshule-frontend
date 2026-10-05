@@ -5,6 +5,7 @@ const APPLICATION_STATUSES = [
   "submitted",
   "pending_director",
   "approved",
+  "disbursed",
   "rejected",
   "changes_requested",
   "cancelled",
@@ -25,10 +26,13 @@ export function createMfiLoansUI({
     error: null,
     products: [],
     applications: [],
+    loans: [],
+    officerPortfolio: [],
     customers: [],
     branches: [],
     stats: {},
     filters: { status: "", branch_id: "", search: "" },
+    loanFilters: { status: "", branch_id: "", search: "" },
     detailId: null,
     detail: null,
     detailLoading: false,
@@ -41,6 +45,19 @@ export function createMfiLoansUI({
     availableCollateralCustomer: "",
     confirmProductDeactivate: "",
     confirmCancelApplication: false,
+    loanDetailId: null,
+    loanDetail: null,
+    loanSchedule: [],
+    loanPayments: [],
+    loanHistory: [],
+    loanDetailTab: "overview",
+    loanDetailLoading: false,
+    loanDetailError: null,
+    disbursementFormOpen: false,
+    paymentFormOpen: false,
+    creditNoteFormOpen: false,
+    reversePaymentId: "",
+    receiptPaymentId: "",
   };
 
   const esc = (value) => {
@@ -55,6 +72,8 @@ export function createMfiLoansUI({
   const isApplicationCreator = () => ["loan_officer", "loan_manager", "mfi_admin"].includes(role());
   const isManager = () => ["loan_manager", "mfi_admin"].includes(role());
   const isDirector = () => ["loan_director", "mfi_admin"].includes(role());
+  const canDisburse = () => ["loan_manager", "loan_director", "mfi_admin"].includes(role());
+  const canRecordPayments = () => ["loan_officer", "loan_manager", "mfi_admin"].includes(role());
   const records = (payload, key) => Array.isArray(payload?.[key]) ? payload[key] : [];
   const date = (value) => typeof formattedDate === "function" ? formattedDate(value) : value || "—";
   const amount = (value) => typeof money === "function" ? money(value) : `UGX ${Number(value || 0).toLocaleString()}`;
@@ -63,6 +82,16 @@ export function createMfiLoansUI({
   const statusLabel = (value) => String(value || "draft").replaceAll("_", " ");
   const statusBadge = (value) => {
     const safeStatus = APPLICATION_STATUSES.includes(value) ? value : "draft";
+    return `<span class="mfi-loan-status mfi-loan-status--${safeStatus}">${esc(statusLabel(safeStatus))}</span>`;
+  };
+  const loanStatusBadge = (value) => {
+    const safeStatus = ["active", "past_due", "defaulted", "completed", "written_off"].includes(value)
+      ? value
+      : "active";
+    return `<span class="mfi-loan-status mfi-loan-status--${safeStatus}">${esc(statusLabel(safeStatus))}</span>`;
+  };
+  const scheduleStatusBadge = (value) => {
+    const safeStatus = ["pending", "partial", "overdue", "paid"].includes(value) ? value : "pending";
     return `<span class="mfi-loan-status mfi-loan-status--${safeStatus}">${esc(statusLabel(safeStatus))}</span>`;
   };
   const errorText = (error) => error?.message || "Something went wrong. Please try again.";
@@ -76,22 +105,31 @@ export function createMfiLoansUI({
         <button type="button" data-loan-subtab="products" aria-selected="${state.subtab === "products"}">Products</button>
         <button type="button" data-loan-subtab="applications" aria-selected="${state.subtab === "applications"}">Applications</button>
         <button type="button" data-loan-subtab="ready" aria-selected="${state.subtab === "ready"}">Ready to Disburse</button>
+        <button type="button" data-loan-subtab="portfolio" aria-selected="${state.subtab === "portfolio"}">Loans</button>
       </nav>`;
     let content = "";
-    if (state.detailId) {
+    if (state.loanDetailId) {
+      content = state.loanDetailLoading
+        ? loadingPanel("Loading loan account…")
+        : state.loanDetailError
+          ? `<section class="mfi-panel"><div class="mfi-state mfi-error-state"><div class="mfi-state-symbol">!</div><strong>Loan account unavailable</strong><p>${esc(errorText(state.loanDetailError))}</p><button type="button" class="mfi-btn mfi-btn--quiet" data-loan-action="retry-loan-detail">Try again</button></div></section>`
+          : loanDetailView();
+    } else if (state.detailId) {
       content = state.detailLoading
         ? loadingPanel("Loading application details…")
         : state.detailError
           ? `<section class="mfi-panel"><div class="mfi-state mfi-error-state"><div class="mfi-state-symbol">!</div><strong>Application detail unavailable</strong><p>${esc(errorText(state.detailError))}</p><button type="button" class="mfi-btn mfi-btn--quiet" data-loan-action="retry-detail">Try again</button></div></section>`
           : detailView();
     } else if (state.loading) {
-      content = loadingPanel(state.subtab === "products" ? "Loading loan products…" : "Loading loan applications…");
+      content = loadingPanel(state.subtab === "products" ? "Loading loan products…" : state.subtab === "portfolio" ? "Loading loan portfolio…" : "Loading loan applications…");
     } else if (state.error) {
       content = errorPanel(state.error, "Try again");
     } else if (state.subtab === "products") {
       content = productView();
     } else if (state.subtab === "ready") {
       content = readyView();
+    } else if (state.subtab === "portfolio") {
+      content = portfolioView();
     } else {
       content = applicationView();
     }
@@ -155,7 +193,7 @@ export function createMfiLoansUI({
             ${inputField("Annual interest rate (%)", "interest_rate", product.interest_rate ?? 24, "number", true, 'min="0" max="1000" step="any"')}
             <div class="mfi-field"><label for="loan-interest-method">Interest method *</label><select id="loan-interest-method" class="mfi-control" name="interest_method" required><option value="reducing_balance" ${product.interest_method !== "flat" ? "selected" : ""}>Reducing balance</option><option value="flat" ${product.interest_method === "flat" ? "selected" : ""}>Flat</option></select></div>
             ${inputField("Term (months)", "term_months", product.term_months ?? 12, "number", true, 'min="1" max="360" step="1"')}
-            <div class="mfi-field"><label for="loan-repayment-frequency">Repayment frequency</label><select id="loan-repayment-frequency" class="mfi-control" name="repayment_frequency"><option value="monthly" ${!product.repayment_frequency || product.repayment_frequency === "monthly" ? "selected" : ""}>Monthly</option><option value="weekly" ${product.repayment_frequency === "weekly" ? "selected" : ""}>Weekly</option><option value="biweekly" ${product.repayment_frequency === "biweekly" ? "selected" : ""}>Biweekly</option><option value="daily" ${product.repayment_frequency === "daily" ? "selected" : ""}>Daily</option></select></div>
+            <div class="mfi-field"><label for="loan-repayment-frequency">Repayment frequency</label><select id="loan-repayment-frequency" class="mfi-control" name="repayment_frequency"><option value="monthly" ${!product.repayment_frequency || product.repayment_frequency === "monthly" ? "selected" : ""}>Monthly</option><option value="weekly" ${product.repayment_frequency === "weekly" ? "selected" : ""}>Weekly</option><option value="biweekly" ${product.repayment_frequency === "biweekly" ? "selected" : ""}>Biweekly</option></select></div>
             ${inputField("Processing fee (%)", "processing_fee_percent", product.processing_fee_percent ?? 2, "number", false, 'min="0" max="100" step="any"')}
             ${inputField("Insurance fee (%)", "insurance_fee_percent", product.insurance_fee_percent ?? 1, "number", false, 'min="0" max="100" step="any"')}
             ${inputField("Late fee (%)", "late_fee_percent", product.late_fee_percent ?? 2, "number", false, 'min="0" max="100" step="any"')}
@@ -246,9 +284,412 @@ export function createMfiLoansUI({
       : `<tr><td colspan="6"><div class="mfi-state"><div class="mfi-state-symbol">·</div><strong>No approved applications yet</strong><p>Applications appear here after final approval.</p></div></td></tr>`;
     return `<section class="mfi-panel">
       <div class="mfi-section-head"><div><h2>Ready to disburse</h2><p>Approved applications awaiting the next phase.</p></div></div>
-      <div class="mfi-loan-phase-note"><strong>Disbursement comes in Phase 3C-2.</strong><span>This view does not create disbursements or repayment schedules.</span></div>
       <div class="mfi-table-wrap"><table class="mfi-table"><thead><tr><th>Reference</th><th>Customer</th><th>Product</th><th>Approved amount</th><th>Approved</th><th>Actions</th></tr></thead><tbody>${rows}</tbody></table></div>
     </section>`;
+  }
+
+  function portfolioView() {
+    const stats = state.stats || {};
+    const loans = state.loans || [];
+    const loanStatusOptions = ["active", "past_due", "defaulted", "completed", "written_off"];
+    const rows = loans.length
+      ? loans.map((loan) => `
+          <tr>
+            <td><button type="button" class="mfi-link-button" data-loan-action="open-loan" data-id="${esc(loan.id)}">${esc(loan.loan_number)}</button><small>${esc(loan.product_name || "Loan")}</small></td>
+            <td><strong>${esc(customerName(loan))}</strong><small>${esc(loan.customer_phone || "")}</small></td>
+            <td>${amount(loan.principal)}</td>
+            <td>${amount(loan.outstanding_balance)}</td>
+            <td>${loan.next_due_date ? date(loan.next_due_date) : "—"}${loan.next_due_balance != null ? `<small>${amount(loan.next_due_balance)}</small>` : ""}</td>
+            <td>${loanStatusBadge(loan.status)}</td>
+            <td>${esc(loan.days_overdue || 0)}</td>
+            <td><button type="button" class="mfi-btn mfi-btn--quiet mfi-btn--small" data-loan-action="open-loan" data-id="${esc(loan.id)}">Open</button></td>
+          </tr>`).join("")
+      : `<tr><td colspan="8"><div class="mfi-state"><div class="mfi-state-symbol">·</div><strong>No loans match these filters</strong><p>Approved applications appear here after disbursement.</p></div></td></tr>`;
+    const officerRows = state.officerPortfolio.length
+      ? state.officerPortfolio.map((officer) => `<tr><td>${esc(officer.officer_name || "Unassigned")}</td><td>${esc(officer.open_loans ?? 0)}</td><td>${amount(officer.total_disbursed)}</td><td>${amount(officer.outstanding_balance)}</td><td>${esc(officer.past_due_loans ?? 0)}</td><td>${esc(officer.defaulted_loans ?? 0)}</td></tr>`).join("")
+      : `<tr><td colspan="6"><div class="mfi-state"><strong>No officer portfolio data</strong></div></td></tr>`;
+    return `
+      <section class="mfi-metrics mfi-loan-metrics mfi-portfolio-metrics">
+        ${metric("Active loans", stats.active_loans)}
+        ${metric("Total disbursed", amount(stats.total_disbursed))}
+        ${metric("Outstanding", amount(stats.total_outstanding))}
+        ${metric("Overdue", stats.overdue_count)}
+        ${metric("Defaulted", stats.defaulted_count)}
+      </section>
+      <section class="mfi-panel">
+        <div class="mfi-section-head"><div><h2>Loan portfolio</h2><p>Disbursed accounts, upcoming installments, and current arrears.</p></div></div>
+        <form class="mfi-toolbar mfi-loan-filters" data-loan-form="loan-filters">
+          <div class="mfi-field"><label for="servicing-status">Status</label><select id="servicing-status" class="mfi-control" name="status"><option value="">All statuses</option>${loanStatusOptions.map((status) => `<option value="${status}" ${state.loanFilters.status === status ? "selected" : ""}>${esc(statusLabel(status))}</option>`).join("")}</select></div>
+          <div class="mfi-field"><label for="servicing-branch">Branch</label><select id="servicing-branch" class="mfi-control" name="branch_id"><option value="">All branches</option>${state.branches.map((branch) => `<option value="${esc(branch.id)}" ${state.loanFilters.branch_id === branch.id ? "selected" : ""}>${esc(branch.name)}</option>`).join("")}</select></div>
+          <div class="mfi-field"><label for="servicing-officer">Officer</label><select id="servicing-officer" class="mfi-control" name="officer_id"><option value="">All officers</option>${state.officerPortfolio.filter((officer) => officer.officer_id).map((officer) => `<option value="${esc(officer.officer_id)}" ${state.loanFilters.officer_id === officer.officer_id ? "selected" : ""}>${esc(officer.officer_name)}</option>`).join("")}</select></div>
+          <div class="mfi-field"><label for="servicing-customer">Customer</label><select id="servicing-customer" class="mfi-control" name="customer_id"><option value="">All customers</option>${state.customers.map((customer) => `<option value="${esc(customer.id)}" ${state.loanFilters.customer_id === customer.id ? "selected" : ""}>${esc(`${customer.first_name || ""} ${customer.last_name || ""}`.trim())} · ${esc(customer.phone || "No phone")}</option>`).join("")}</select></div>
+          <div class="mfi-field"><label for="servicing-search">Search loan or customer</label><input id="servicing-search" class="mfi-control" type="search" name="search" value="${esc(state.loanFilters.search)}" placeholder="Loan number, name, or phone"></div>
+          <button class="mfi-btn mfi-btn--quiet" type="submit">Apply filters</button>
+        </form>
+        <div class="mfi-table-wrap"><table class="mfi-table"><thead><tr><th>Loan #</th><th>Customer</th><th>Principal</th><th>Outstanding</th><th>Next due</th><th>Status</th><th>Days overdue</th><th></th></tr></thead><tbody>${rows}</tbody></table></div>
+      </section>
+      <section class="mfi-panel">
+        <div class="mfi-section-head"><div><h2>Portfolio by officer</h2><p>Open balance and delinquency by assigned loan officer.</p></div></div>
+        <div class="mfi-table-wrap"><table class="mfi-table"><thead><tr><th>Officer</th><th>Open loans</th><th>Total disbursed</th><th>Outstanding</th><th>Past due</th><th>Defaulted</th></tr></thead><tbody>${officerRows}</tbody></table></div>
+      </section>`;
+  }
+
+  function loanDetailView() {
+    const payload = state.loanDetail || {};
+    const loan = payload.loan || {};
+    const total = Number(loan.total_repayable || 0);
+    const paid = Number(loan.total_paid || 0);
+    const progress = total > 0 ? Math.min(100, Math.max(0, Math.round((paid / total) * 100))) : 0;
+    const nextSchedule = state.loanSchedule.find((schedule) => schedule.status !== "paid");
+    const tabs = [
+      ["overview", "Overview"],
+      ["schedule", "Schedule"],
+      ["payments", "Payments"],
+      ["history", "History"],
+    ];
+    const actionButtons = [
+      canRecordPayments() && ["active", "past_due", "defaulted"].includes(loan.status)
+        ? `<button type="button" class="mfi-btn" data-loan-action="open-payment-form">Record payment</button>`
+        : "",
+      `<button type="button" class="mfi-btn mfi-btn--quiet" data-loan-action="print-schedule">Print schedule</button>`,
+      isManager() && ["active", "past_due", "defaulted"].includes(loan.status)
+        ? `<button type="button" class="mfi-btn mfi-btn--quiet" data-loan-action="open-credit-form">Issue credit note</button>`
+        : "",
+    ].filter(Boolean).join("");
+    return `<section class="mfi-panel mfi-loan-detail">
+      <div class="mfi-section-head">
+        <div><button type="button" class="mfi-link-button" data-loan-action="back-to-portfolio">← Loans</button><h2>${esc(loan.loan_number || "Loan account")}</h2><p>${esc(customerName(loan))} · ${esc(loan.product_name || "Loan product")} · ${esc(loan.branch_name || "No branch")}</p></div>
+        <div>${loanStatusBadge(loan.status)}${Number(loan.days_overdue) > 0 ? `<small class="mfi-loan-overdue">${esc(loan.days_overdue)} days overdue</small>` : ""}</div>
+      </div>
+      <div class="mfi-metrics mfi-loan-metrics">
+        ${metric("Principal", amount(loan.principal))}
+        ${metric("Total repayable", amount(loan.total_repayable))}
+        ${metric("Paid", amount(loan.total_paid))}
+        ${metric("Outstanding", amount(loan.outstanding_balance))}
+      </div>
+      <div class="mfi-loan-progress" aria-label="${progress}% repaid"><div class="mfi-loan-progress-track"><span style="width:${progress}%"></span></div><small>${progress}% repaid</small></div>
+      <div class="mfi-action-row mfi-loan-detail-actions">${actionButtons}</div>
+      <nav class="mfi-subtabs mfi-loan-detail-tabs" role="tablist" aria-label="Loan detail">
+        ${tabs.map(([id, label]) => `<button type="button" data-loan-action="loan-detail-tab" data-tab="${id}" aria-selected="${state.loanDetailTab === id}">${esc(label)}</button>`).join("")}
+      </nav>
+      ${state.loanDetailTab === "overview" ? loanOverviewView(loan, nextSchedule)
+        : state.loanDetailTab === "schedule" ? loanScheduleView()
+          : state.loanDetailTab === "payments" ? loanPaymentsView()
+            : loanHistoryView()}
+      ${state.receiptPaymentId ? `<div class="mfi-loan-receipt-success" role="status"><div><strong>Payment recorded</strong><span>Receipt ${esc(state.loanPayments.find((item) => item.id === state.receiptPaymentId)?.receipt_number || "")}</span></div><button type="button" class="mfi-btn mfi-btn--quiet mfi-btn--small" data-loan-action="print-receipt" data-id="${esc(state.receiptPaymentId)}">Open receipt</button><button type="button" class="mfi-btn mfi-btn--quiet mfi-btn--small" data-loan-action="dismiss-receipt">Dismiss</button></div>` : ""}
+      ${state.paymentFormOpen ? paymentFormView(loan, nextSchedule) : ""}
+      ${state.creditNoteFormOpen ? creditNoteFormView() : ""}
+    </section>`;
+  }
+
+  function loanOverviewView(loan, nextSchedule) {
+    const rate = `${esc(loan.interest_rate ?? 0)}% · ${esc(String(loan.interest_method || "").replaceAll("_", " "))}`;
+    const nextBalance = nextSchedule
+      ? Math.max(0, Number(nextSchedule.total_due || 0) - Number(nextSchedule.total_paid || 0)) +
+        Math.max(0, Number(nextSchedule.late_fee_due || 0) - Number(nextSchedule.late_fee_paid || 0))
+      : 0;
+    return `<div class="mfi-loan-overview">
+      <article class="mfi-subpanel"><h3>Loan terms</h3><div class="mfi-info-grid">
+        <div class="mfi-info-item"><span>Customer</span><strong>${esc(customerName(loan))}</strong></div>
+        <div class="mfi-info-item"><span>Phone</span><strong>${esc(loan.customer_phone || "—")}</strong></div>
+        <div class="mfi-info-item"><span>Product</span><strong>${esc(loan.product_name || "—")}</strong></div>
+        <div class="mfi-info-item"><span>Interest</span><strong>${rate}</strong></div>
+        <div class="mfi-info-item"><span>Term</span><strong>${esc(loan.term_months || "—")} months · ${esc(loan.repayment_frequency || "monthly")}</strong></div>
+        <div class="mfi-info-item"><span>Disbursed</span><strong>${date(loan.disbursed_at)}</strong></div>
+        <div class="mfi-info-item"><span>Disbursed by</span><strong>${esc(loan.disbursed_by_name || "—")}</strong></div>
+        <div class="mfi-info-item"><span>Disbursement reference</span><strong>${esc(loan.disbursement_reference || "—")}</strong></div>
+      </div></article>
+      <article class="mfi-subpanel mfi-next-installment"><h3>Next installment</h3>${nextSchedule
+        ? `<strong>${amount(nextBalance)}</strong><span>Installment ${esc(nextSchedule.installment_number)} · due ${date(nextSchedule.due_date)}</span><small>${esc(statusLabel(nextSchedule.status))}</small>`
+        : `<strong>No balance due</strong><span>There are no unpaid schedule rows.</span>`}</article>
+    </div>`;
+  }
+
+  function loanScheduleView() {
+    const rows = state.loanSchedule.length
+      ? state.loanSchedule.map((schedule) => {
+        const balance = Math.max(0, Number(schedule.principal_due) - Number(schedule.principal_paid)) +
+          Math.max(0, Number(schedule.interest_due) - Number(schedule.interest_paid)) +
+          Math.max(0, Number(schedule.fees_due) - Number(schedule.fees_paid)) +
+          Math.max(0, Number(schedule.late_fee_due) - Number(schedule.late_fee_paid));
+        return `<tr class="mfi-schedule-row mfi-schedule-row--${esc(schedule.status)}">
+          <td>${esc(schedule.installment_number)}</td><td>${date(schedule.due_date)}</td>
+          <td>${amount(schedule.principal_due)}</td><td>${amount(schedule.interest_due)}</td>
+          <td>${amount(Number(schedule.fees_due || 0) + Number(schedule.late_fee_due || 0))}</td>
+          <td>${amount(schedule.total_due)}</td><td>${amount(schedule.total_paid)}</td>
+          <td>${amount(balance)}</td><td>${scheduleStatusBadge(schedule.status)}</td>
+        </tr>`;
+      }).join("")
+      : `<tr><td colspan="9"><div class="mfi-state"><strong>No repayment schedule</strong></div></td></tr>`;
+    return `<div class="mfi-table-wrap mfi-loan-schedule-print" id="mfi-loan-schedule"><table class="mfi-table"><thead><tr><th>#</th><th>Due date</th><th>Principal</th><th>Interest</th><th>Fees</th><th>Total due</th><th>Paid</th><th>Balance</th><th>Status</th></tr></thead><tbody>${rows}</tbody></table></div>`;
+  }
+
+  function loanPaymentsView() {
+    const rows = state.loanPayments.length
+      ? state.loanPayments.map((payment) => {
+        const reversed = Boolean(payment.reversed_at);
+        const reverseForm = state.reversePaymentId === payment.id
+          ? `<form class="mfi-inline-form mfi-payment-reversal-form" data-loan-form="reverse-payment" data-id="${esc(payment.id)}"><div class="mfi-field"><label>Reversal reason *</label><textarea class="mfi-control" name="reason" rows="2" minlength="5" maxlength="500" required placeholder="Explain why this payment is being reversed"></textarea></div><div class="mfi-action-row"><button class="mfi-btn mfi-btn--danger" type="submit">Confirm reversal</button><button class="mfi-btn mfi-btn--quiet" type="button" data-loan-action="cancel-reverse-payment">Cancel</button></div><div class="mfi-form-error" data-loan-form-error hidden></div></form>`
+          : "";
+        return `<tr>
+          <td><strong>${esc(payment.receipt_number)}</strong>${reversed ? `<small>Reversed ${date(payment.reversed_at)}</small>` : ""}</td>
+          <td>${date(payment.paid_at)}</td><td>${amount(payment.amount)}</td><td>${esc(String(payment.payment_method || "").replaceAll("_", " "))}</td>
+          <td>${amount(Number(payment.principal_applied || 0) + Number(payment.interest_applied || 0) + Number(payment.fees_applied || 0) + Number(payment.late_fees_applied || 0))}${Number(payment.overpayment) > 0 ? `<small>${amount(payment.overpayment)} overpayment</small>` : ""}</td>
+          <td>${esc(payment.recorded_by_name || "—")}</td>
+          <td><div class="mfi-row-actions"><button type="button" class="mfi-btn mfi-btn--quiet mfi-btn--small" data-loan-action="print-receipt" data-id="${esc(payment.id)}">Receipt</button>${isManager() && !reversed ? `<button type="button" class="mfi-btn mfi-btn--quiet mfi-btn--small" data-loan-action="reverse-payment" data-id="${esc(payment.id)}">Reverse</button>` : ""}</div>${reversed && payment.reversal_reason ? `<small>${esc(payment.reversal_reason)}</small>` : ""}</td>
+        </tr>${reverseForm ? `<tr><td colspan="7">${reverseForm}</td></tr>` : ""}`;
+      }).join("")
+      : `<tr><td colspan="7"><div class="mfi-state"><strong>No payments recorded</strong><p>Receipts appear here after a payment is saved.</p></div></td></tr>`;
+    return `<div class="mfi-table-wrap"><table class="mfi-table"><thead><tr><th>Receipt #</th><th>Date</th><th>Amount</th><th>Method</th><th>Applied</th><th>By</th><th>Actions</th></tr></thead><tbody>${rows}</tbody></table></div>`;
+  }
+
+  function loanHistoryView() {
+    const entries = state.loanHistory.length
+      ? state.loanHistory.map((entry) => `<article class="mfi-timeline-item"><div class="mfi-timeline-dot"></div><div><strong>${esc(statusLabel(entry.action))}</strong><p>${esc(historySummary(entry))}</p><small>${esc(entry.actor_name || "System")} · ${date(entry.created_at)}</small></div></article>`).join("")
+      : `<div class="mfi-timeline-empty">No loan history is available.</div>`;
+    return `<div class="mfi-timeline">${entries}</div>`;
+  }
+
+  function historySummary(entry) {
+    const metadata = entry.metadata && typeof entry.metadata === "object" ? entry.metadata : {};
+    if (metadata.applied_amount != null) {
+      return `Credit note ${amount(metadata.applied_amount)}${metadata.reason ? ` · ${String(metadata.reason)}` : ""}`;
+    }
+    if (metadata.amount != null) {
+      const receipt = metadata.receipt_number && metadata.receipt_number !== "assigned_at_payment"
+        ? ` · ${String(metadata.receipt_number)}`
+        : "";
+      return `Payment ${amount(metadata.amount)}${receipt}${metadata.reason ? ` · ${String(metadata.reason)}` : ""}`;
+    }
+    if (metadata.principal != null) {
+      return `Principal ${amount(metadata.principal)}${metadata.total_repayable != null ? ` · Total repayable ${amount(metadata.total_repayable)}` : ""}`;
+    }
+    if (metadata.reason) return String(metadata.reason);
+    return "Loan record updated.";
+  }
+
+  function paymentFormView(loan, nextSchedule) {
+    const initialAmount = nextSchedule
+      ? Math.max(0, Number(nextSchedule.total_due || 0) - Number(nextSchedule.total_paid || 0)) +
+        Math.max(0, Number(nextSchedule.late_fee_due || 0) - Number(nextSchedule.late_fee_paid || 0))
+      : 0;
+    return `<div class="mfi-loan-modal-backdrop"><section class="mfi-loan-modal" role="dialog" aria-modal="true" aria-labelledby="payment-modal-title">
+      <div class="mfi-section-head"><div><h3 id="payment-modal-title">Record payment</h3><p>${esc(loan.loan_number)} · ${esc(customerName(loan))}</p></div><button type="button" class="mfi-btn mfi-btn--quiet mfi-btn--small" data-loan-action="close-payment-form">Close</button></div>
+      <form data-loan-form="payment">
+        <div class="mfi-form-grid">
+          ${inputField("Amount (UGX)", "amount", initialAmount, "number", true, 'min="1" step="1"')}
+          <div class="mfi-field"><label for="payment-method">Method *</label><select id="payment-method" class="mfi-control" name="payment_method" required><option value="cash">Cash</option><option value="mobile_money">Mobile money</option><option value="bank">Bank</option></select></div>
+          ${inputField("Payment date", "payment_date", todayInKampala(), "date", true, "")}
+          ${inputField("Reference", "payment_reference", "", "text", false, 'maxlength="160"')}
+          <div class="mfi-field mfi-span-2"><label for="payment-notes">Notes</label><textarea id="payment-notes" class="mfi-control" name="notes" maxlength="1000" rows="2"></textarea></div>
+        </div>
+        <div class="mfi-loan-allocation-preview" data-payment-preview>${paymentPreviewMarkup(initialAmount, todayInKampala())}</div>
+        <div class="mfi-action-row"><button class="mfi-btn" type="submit">Save payment</button><button class="mfi-btn mfi-btn--quiet" type="button" data-loan-action="close-payment-form">Cancel</button></div>
+        <div class="mfi-form-error" data-loan-form-error hidden></div>
+      </form>
+    </section></div>`;
+  }
+
+  function creditNoteFormView() {
+    return `<div class="mfi-loan-modal-backdrop"><section class="mfi-loan-modal" role="dialog" aria-modal="true" aria-labelledby="credit-modal-title">
+      <div class="mfi-section-head"><div><h3 id="credit-modal-title">Issue credit note</h3><p>Reduces eligible future principal only. Overdue, paid, and partially paid installments are excluded.</p></div><button type="button" class="mfi-btn mfi-btn--quiet mfi-btn--small" data-loan-action="close-credit-form">Close</button></div>
+      <form data-loan-form="credit-note"><div class="mfi-form-grid">
+        ${inputField("Credit amount (UGX)", "amount", "", "number", true, 'min="1" step="1"')}
+        <div class="mfi-field mfi-span-2"><label for="credit-note-reason">Reason *</label><textarea id="credit-note-reason" class="mfi-control" name="reason" rows="3" minlength="5" maxlength="1000" required></textarea></div>
+      </div><div class="mfi-action-row"><button class="mfi-btn" type="submit">Apply credit note</button><button class="mfi-btn mfi-btn--quiet" type="button" data-loan-action="close-credit-form">Cancel</button></div><div class="mfi-form-error" data-loan-form-error hidden></div></form>
+    </section></div>`;
+  }
+
+  function paymentPreviewMarkup(rawAmount, paymentDate) {
+    const amountValue = Math.max(0, Math.floor(Number(rawAmount) || 0));
+    const allocations = previewPaymentAllocation(amountValue, paymentDate);
+    return `<strong>Estimated allocation</strong><div class="mfi-info-grid">
+      <div class="mfi-info-item"><span>Late fees</span><strong>${amount(allocations.late_fees)}</strong></div>
+      <div class="mfi-info-item"><span>Fees</span><strong>${amount(allocations.fees)}</strong></div>
+      <div class="mfi-info-item"><span>Interest</span><strong>${amount(allocations.interest)}</strong></div>
+      <div class="mfi-info-item"><span>Principal</span><strong>${amount(allocations.principal)}</strong></div>
+      <div class="mfi-info-item"><span>Overpayment</span><strong>${amount(allocations.overpayment)}</strong></div>
+    </div><small>Allocation is a preview; the server verifies current balances before saving.</small>`;
+  }
+
+  function previewPaymentAllocation(rawAmount, paymentDate = todayInKampala()) {
+    let remaining = Math.max(0, Math.floor(Number(rawAmount) || 0));
+    const totals = { late_fees: 0, fees: 0, interest: 0, principal: 0, overpayment: 0 };
+    const schedules = [...state.loanSchedule].sort((left, right) =>
+      String(left.due_date).slice(0, 10).localeCompare(String(right.due_date).slice(0, 10)) ||
+      Number(left.installment_number) - Number(right.installment_number),
+    ).map((schedule) => {
+      const daysLate = Math.max(0, Math.floor(
+        (Date.parse(`${paymentDate}T00:00:00Z`) - Date.parse(`${String(schedule.due_date).slice(0, 10)}T00:00:00Z`)) / 86_400_000,
+      ));
+      const grace = Number(state.loanDetail?.loan?.grace_period_days || 0);
+      const calculatedLateFee = Math.round(
+        Number(schedule.total_due || 0) * Number(state.loanDetail?.loan?.late_fee_percent || 0) / 100 *
+        Math.max(0, daysLate - grace) / 30,
+      );
+      return { ...schedule, late_fee_due: Math.max(Number(schedule.late_fee_due || 0), calculatedLateFee, Number(schedule.late_fee_paid || 0)) };
+    });
+    const components = [
+      ["late_fees", "late_fee_due", "late_fee_paid"],
+      ["fees", "fees_due", "fees_paid"],
+      ["interest", "interest_due", "interest_paid"],
+      ["principal", "principal_due", "principal_paid"],
+    ];
+    for (const schedule of schedules) {
+      for (const [name, dueKey, paidKey] of components) {
+        if (remaining <= 0) break;
+        const due = Math.max(0, Math.round(Number(schedule[dueKey] || 0) - Number(schedule[paidKey] || 0)));
+        const applied = Math.min(remaining, due);
+        totals[name] += applied;
+        remaining -= applied;
+      }
+      if (remaining <= 0) break;
+    }
+    totals.overpayment = remaining;
+    return totals;
+  }
+
+  function splitPreviewAmount(total, count) {
+    if (count <= 0) return [];
+    const base = Math.floor(total / count);
+    const remainder = total - base * count;
+    return Array.from({ length: count }, (_, index) => base + (index < remainder ? 1 : 0));
+  }
+
+  function scheduleDate(start, index, frequency) {
+    const value = /^\d{4}-\d{2}-\d{2}$/u.test(String(start || "")) ? start : todayInKampala();
+    if (frequency === "monthly") {
+      const [year, month, day] = value.split("-").map(Number);
+      const monthIndex = month - 1 + index;
+      const targetYear = year + Math.floor(monthIndex / 12);
+      const targetMonth = ((monthIndex % 12) + 12) % 12;
+      const lastDay = new Date(Date.UTC(targetYear, targetMonth + 1, 0)).getUTCDate();
+      return `${targetYear}-${String(targetMonth + 1).padStart(2, "0")}-${String(Math.min(day, lastDay)).padStart(2, "0")}`;
+    }
+    const dateValue = new Date(`${value}T00:00:00.000Z`);
+    dateValue.setUTCDate(dateValue.getUTCDate() + (frequency === "weekly" ? 7 : 14) * index);
+    return dateValue.toISOString().slice(0, 10);
+  }
+
+  function disbursementPreview(application, product, firstInstallmentDate) {
+    const principal = Math.round(Number(application.approved_amount || 0));
+    const termMonths = Number(application.term_months || product.term_months || 0);
+    const frequency = application.repayment_frequency || product.repayment_frequency || "monthly";
+    const periodsPerMonth = frequency === "weekly" ? 4 : frequency === "biweekly" ? 2 : 1;
+    const periods = Math.max(0, Math.round(termMonths * periodsPerMonth));
+    const method = application.interest_method || product.interest_method || "reducing_balance";
+    const annualRate = Number(application.interest_rate ?? product.interest_rate ?? 0);
+    let principalParts = [];
+    let interestParts = [];
+    if (method === "flat") {
+      const totalInterest = Math.round(principal * (annualRate / 100) * (termMonths / 12));
+      principalParts = splitPreviewAmount(principal, periods);
+      interestParts = splitPreviewAmount(totalInterest, periods);
+    } else if (periods > 0) {
+      const periodsPerYear = frequency === "weekly" ? 52 : frequency === "biweekly" ? 26 : 12;
+      const periodRate = annualRate / 100 / periodsPerYear;
+      const payment = periodRate === 0
+        ? principal / periods
+        : principal * periodRate / (1 - Math.pow(1 + periodRate, -periods));
+      let balance = principal;
+      for (let index = 0; index < periods; index += 1) {
+        const interest = Math.round(balance * periodRate);
+        const principalPart = index === periods - 1
+          ? balance
+          : Math.min(balance, Math.max(0, Math.round(payment - interest)));
+        principalParts.push(principalPart);
+        interestParts.push(interest);
+        balance -= principalPart;
+      }
+      if (balance !== 0 && principalParts.length) principalParts[principalParts.length - 1] += balance;
+    }
+    const totalFees = Math.round(principal * (
+      Number(application.processing_fee_percent ?? product.processing_fee_percent ?? 0) +
+      Number(application.insurance_fee_percent ?? product.insurance_fee_percent ?? 0)
+    ) / 100);
+    const feeParts = splitPreviewAmount(totalFees, periods);
+    const schedules = principalParts.map((principalDue, index) => ({
+      installment_number: index + 1,
+      due_date: scheduleDate(firstInstallmentDate, index, frequency),
+      principal_due: principalDue,
+      interest_due: interestParts[index] || 0,
+      fees_due: feeParts[index] || 0,
+      total_due: principalDue + (interestParts[index] || 0) + (feeParts[index] || 0),
+    }));
+    const totalInterest = interestParts.reduce((sum, value) => sum + value, 0);
+    return {
+      periods,
+      totalInterest,
+      totalFees,
+      totalRepayable: principal + totalInterest + totalFees,
+      schedules,
+    };
+  }
+
+  function disbursementPreviewMarkup(application, product, firstInstallmentDate) {
+    const preview = disbursementPreview(application, product, firstInstallmentDate);
+    const rows = preview.schedules.slice(0, 5).map((schedule) => `<tr>
+      <td>${esc(schedule.installment_number)}</td><td>${esc(date(schedule.due_date))}</td>
+      <td>${amount(schedule.principal_due)}</td><td>${amount(schedule.interest_due)}</td>
+      <td>${amount(schedule.fees_due)}</td><td>${amount(schedule.total_due)}</td>
+    </tr>`).join("");
+    const scheduleTable = rows
+      ? `<div class="mfi-table-wrap mfi-disbursement-preview-table"><table class="mfi-table"><thead><tr><th>#</th><th>Due date</th><th>Principal</th><th>Interest</th><th>Fees</th><th>Total</th></tr></thead><tbody>${rows}</tbody></table></div>`
+      : `<p>Approved loan terms are needed to preview the schedule.</p>`;
+    return `<section class="mfi-loan-preview"><strong>${preview.periods}-installment schedule · ${amount(preview.totalRepayable)} total repayable</strong>
+      <p>${amount(application.approved_amount)} principal · ${amount(preview.totalInterest)} interest · ${amount(preview.totalFees)} fees</p>
+      ${scheduleTable}${preview.periods > 5 ? `<small>Showing the first 5 of ${preview.periods} installments.</small>` : ""}
+      <small>The server recalculates and validates every schedule row before disbursing.</small>
+    </section>`;
+  }
+
+  function updateDisbursementPreview(form) {
+    const previewNode = form.querySelector("[data-disbursement-preview]");
+    if (!previewNode) return;
+    previewNode.innerHTML = disbursementPreviewMarkup(
+      state.detail?.application || {},
+      state.detail?.product || {},
+      form.elements.namedItem("first_installment_date")?.value,
+    );
+  }
+
+  function todayInKampala() {
+    const parts = new Intl.DateTimeFormat("en-CA", {
+      timeZone: "Africa/Kampala",
+      year: "numeric",
+      month: "2-digit",
+      day: "2-digit",
+    }).formatToParts(new Date());
+    const part = (type) => parts.find((item) => item.type === type)?.value || "";
+    return `${part("year")}-${part("month")}-${part("day")}`;
+  }
+
+  function oneMonthAfter(value) {
+    const [year, month, day] = value.split("-").map(Number);
+    const target = new Date(Date.UTC(year, month, 1));
+    const lastDay = new Date(Date.UTC(year, month + 1, 0)).getUTCDate();
+    target.setUTCDate(Math.min(day, lastDay));
+    return target.toISOString().slice(0, 10);
+  }
+
+  function disbursementFormView() {
+    const application = state.detail?.application || {};
+    const product = state.detail?.product || {};
+    const today = todayInKampala();
+    return `<div class="mfi-loan-modal-backdrop"><section class="mfi-loan-modal" role="dialog" aria-modal="true" aria-labelledby="disburse-modal-title">
+      <div class="mfi-section-head"><div><h3 id="disburse-modal-title">Disburse loan</h3><p>${esc(application.reference || "")} · Approved amount ${amount(application.approved_amount)}</p></div><button type="button" class="mfi-btn mfi-btn--quiet mfi-btn--small" data-loan-action="close-disbursement-form">Close</button></div>
+      <form data-loan-form="disbursement">
+        <div class="mfi-form-grid">
+          ${inputField("Disbursement date", "disbursement_date", today, "date", true, "")}
+          ${inputField("First installment date", "first_installment_date", oneMonthAfter(today), "date", true, "")}
+          <div class="mfi-field"><label for="disbursement-method">Method *</label><select id="disbursement-method" class="mfi-control" name="disbursement_method" required><option value="cash">Cash</option><option value="mobile_money">Mobile money</option><option value="bank">Bank</option></select></div>
+          ${inputField("Reference", "disbursement_reference", "", "text", false, 'maxlength="160"')}
+        </div>
+        <div data-disbursement-preview>${disbursementPreviewMarkup(application, product, oneMonthAfter(today))}</div>
+        <div class="mfi-action-row"><button class="mfi-btn" type="submit">Confirm disbursement</button><button class="mfi-btn mfi-btn--quiet" type="button" data-loan-action="close-disbursement-form">Cancel</button></div>
+        <div class="mfi-form-error" data-loan-form-error hidden></div>
+      </form>
+    </section></div>`;
   }
 
   function applicationFormView() {
@@ -315,6 +756,7 @@ export function createMfiLoansUI({
     return `<section class="mfi-panel mfi-loan-detail">
       <div class="mfi-section-head"><div><button type="button" class="mfi-link-button" data-loan-action="back-to-applications">← Applications</button><h2>${esc(application.reference || "Loan application")}</h2><p>${amount(application.approved_amount ?? application.requested_amount)} requested · ${date(application.submitted_at || application.created_at)}</p></div><div>${statusBadge(status)}</div></div>
       <div class="mfi-action-row mfi-loan-detail-actions">${actions}</div>
+      ${state.disbursementFormOpen ? disbursementFormView() : ""}
       ${state.applicationForm ? applicationFormView() : ""}
       ${state.reviewForm ? reviewFormView() : ""}
       ${state.collateralPickerOpen ? collateralPickerView() : ""}
@@ -351,7 +793,7 @@ export function createMfiLoansUI({
       }
       if (managerOrOwner(application)) buttons.push(`<button type="button" class="mfi-btn mfi-btn--quiet" data-loan-action="ask-cancel">Cancel application</button>`);
     } else if (status === "approved") {
-      buttons.push(`<span class="mfi-loan-phase-note"><strong>Ready for disbursement</strong><span>Disbursement is part of Phase 3C-2.</span></span>`);
+      if (canDisburse()) buttons.push(`<button type="button" class="mfi-btn" data-loan-action="open-disbursement-form">Disburse loan</button>`);
     } else if (status === "rejected" && isManager()) {
       buttons.push(`<button type="button" class="mfi-btn mfi-btn--quiet" data-loan-action="reopen-application">Reopen as draft</button>`);
     } else if (status === "changes_requested" && managerOrOwner(application)) {
@@ -409,6 +851,27 @@ export function createMfiLoansUI({
       if (state.subtab === "products") {
         const query = canManageProduct() ? "?include_inactive=true" : "";
         state.products = records(await request(`/api/mfi/loan-products${query}`), "products");
+      } else if (state.subtab === "portfolio") {
+        const params = new URLSearchParams();
+        for (const key of ["status", "branch_id", "officer_id", "customer_id", "search"]) {
+          const value = state.loanFilters[key];
+          if (value) params.set(key, value);
+        }
+        const query = params.toString();
+        const [loanPayload, statsPayload, officerPayload] = await Promise.all([
+          request(`/api/mfi/loans${query ? `?${query}` : ""}`),
+          request("/api/mfi/loans/stats"),
+          request("/api/mfi/loans/portfolio-by-officer"),
+        ]);
+        state.loans = records(loanPayload, "loans");
+        state.stats = statsPayload?.stats || {};
+        state.officerPortfolio = records(officerPayload, "officers");
+        if (!state.customers.length) {
+          state.customers = records(await request("/api/mfi/customers"), "customers");
+        }
+        if (!state.branches.length) {
+          state.branches = records(await request("/api/mfi/loans/branches"), "branches");
+        }
       } else {
         const params = new URLSearchParams();
         if (state.subtab === "ready") params.set("status", "approved");
@@ -444,6 +907,8 @@ export function createMfiLoansUI({
   }
 
   async function openApplication(id) {
+    state.loanDetailId = null;
+    state.loanDetail = null;
     state.detailId = id;
     state.detail = null;
     state.detailLoading = true;
@@ -459,6 +924,135 @@ export function createMfiLoansUI({
     } finally {
       state.detailLoading = false;
       renderParent();
+    }
+  }
+
+  async function openLoan(id) {
+    state.detailId = null;
+    state.detail = null;
+    state.loanDetailId = id;
+    state.loanDetail = null;
+    state.loanSchedule = [];
+    state.loanPayments = [];
+    state.loanHistory = [];
+    state.loanDetailTab = "overview";
+    state.loanDetailLoading = true;
+    state.loanDetailError = null;
+    state.paymentFormOpen = false;
+    state.creditNoteFormOpen = false;
+    state.disbursementFormOpen = false;
+    state.reversePaymentId = "";
+    renderParent();
+    try {
+      const payload = await request(`/api/mfi/loans/${encodeURIComponent(id)}`);
+      state.loanDetail = payload;
+      state.loanSchedule = records(payload, "schedules");
+      state.loanPayments = records(payload, "payments");
+      state.loanHistory = records(payload, "history");
+    } catch (error) {
+      state.loanDetailError = error;
+    } finally {
+      state.loanDetailLoading = false;
+      renderParent();
+    }
+  }
+
+  async function submitDisbursement(form) {
+    const application = state.detail?.application || {};
+    const body = bodyFromForm(form);
+    body.application_id = application.id;
+    const result = await request("/api/mfi/loans/disburse", { method: "POST", body });
+    const loan = result?.loan || {};
+    state.disbursementFormOpen = false;
+    state.subtab = "portfolio";
+    state.detailId = null;
+    state.detail = null;
+    announce(`Loan ${result?.loan_number || loan.loan_number || ""} disbursed.`, "success");
+    if (loan.id) await openLoan(loan.id);
+    else await load();
+  }
+
+  async function recordPayment(form) {
+    const loanId = state.loanDetailId;
+    const result = await request(`/api/mfi/loans/${encodeURIComponent(loanId)}/payments`, {
+      method: "POST",
+      body: bodyFromForm(form),
+    });
+    const payment = result?.payment || {};
+    state.paymentFormOpen = false;
+    state.loanDetailTab = "payments";
+    state.receiptPaymentId = payment.id || "";
+    announce(`Payment recorded. Receipt ${payment.receipt_number || ""}.`, "success");
+    await openLoan(loanId);
+  }
+
+  async function submitCreditNote(form) {
+    const loanId = state.loanDetailId;
+    const result = await request(`/api/mfi/loans/${encodeURIComponent(loanId)}/credit-note`, {
+      method: "POST",
+      body: bodyFromForm(form),
+    });
+    state.creditNoteFormOpen = false;
+    const applied = Number(result?.applied_amount || 0);
+    announce(`Credit note applied: ${amount(applied)} to future principal.`, "success");
+    await openLoan(loanId);
+  }
+
+  async function reversePayment(form) {
+    const loanId = state.loanDetailId;
+    const paymentId = form.dataset.id;
+    await request(`/api/mfi/loans/${encodeURIComponent(loanId)}/payments/${encodeURIComponent(paymentId)}/reverse`, {
+      method: "POST",
+      body: bodyFromForm(form),
+    });
+    state.reversePaymentId = "";
+    announce("Payment reversed and loan balances recalculated.", "success");
+    await openLoan(loanId);
+  }
+
+  function printSchedule() {
+    const popup = window.open("", "_blank");
+    if (!popup) {
+      announce("Allow pop-ups to print the loan schedule.", "error");
+      return;
+    }
+    const loan = state.loanDetail?.loan || {};
+    const rows = state.loanSchedule.map((schedule) => {
+      const balance = Math.max(0, Number(schedule.principal_due) - Number(schedule.principal_paid)) +
+        Math.max(0, Number(schedule.interest_due) - Number(schedule.interest_paid)) +
+        Math.max(0, Number(schedule.fees_due) - Number(schedule.fees_paid)) +
+        Math.max(0, Number(schedule.late_fee_due) - Number(schedule.late_fee_paid));
+      return `<tr><td>${esc(schedule.installment_number)}</td><td>${esc(date(schedule.due_date))}</td><td>${esc(amount(schedule.principal_due))}</td><td>${esc(amount(schedule.interest_due))}</td><td>${esc(amount(Number(schedule.fees_due || 0) + Number(schedule.late_fee_due || 0)))}</td><td>${esc(amount(schedule.total_due))}</td><td>${esc(amount(schedule.total_paid))}</td><td>${esc(amount(balance))}</td><td>${esc(statusLabel(schedule.status))}</td></tr>`;
+    }).join("");
+    popup.document.write(`<!doctype html><html><head><meta charset="utf-8"><title>Loan schedule ${esc(loan.loan_number)}</title><style>body{font:14px Arial,sans-serif;margin:32px;color:#173b43}h1{font-size:22px}table{width:100%;border-collapse:collapse;margin-top:24px}th,td{padding:9px;border:1px solid #dce7e3;text-align:left}th{background:#f5f7f2}small{color:#697e80}@media print{body{margin:12px}}</style></head><body><h1>Repayment schedule · ${esc(loan.loan_number)}</h1><p>${esc(customerName(loan))} · Principal ${esc(amount(loan.principal))} · Total repayable ${esc(amount(loan.total_repayable))}</p><table><thead><tr><th>#</th><th>Due date</th><th>Principal</th><th>Interest</th><th>Fees</th><th>Total due</th><th>Paid</th><th>Balance</th><th>Status</th></tr></thead><tbody>${rows}</tbody></table></body></html>`);
+    popup.document.close();
+    popup.focus();
+    popup.print();
+  }
+
+  async function printReceipt(paymentId) {
+    const popup = window.open("", "_blank");
+    if (!popup) {
+      announce("Allow pop-ups to open the payment receipt.", "error");
+      return;
+    }
+    try {
+      const payload = await request(`/api/mfi/loans/${encodeURIComponent(state.loanDetailId)}/receipt/${encodeURIComponent(paymentId)}`);
+      const receipt = payload?.receipt || {};
+      const applied = [
+        ["Principal", receipt.principal_applied],
+        ["Interest", receipt.interest_applied],
+        ["Fees", receipt.fees_applied],
+        ["Late fees", receipt.late_fees_applied],
+        ["Overpayment", receipt.overpayment],
+      ].map(([label, value]) => `<tr><th>${esc(label)}</th><td>${esc(amount(value))}</td></tr>`).join("");
+      popup.document.write(`<!doctype html><html><head><meta charset="utf-8"><title>Receipt ${esc(receipt.receipt_number)}</title><style>body{font:15px Arial,sans-serif;max-width:620px;margin:48px auto;padding:28px;color:#173b43;border:1px solid #dce7e3}h1{font-size:23px;margin:0 0 8px}.muted{color:#697e80}strong{font-size:20px}table{width:100%;border-collapse:collapse;margin:22px 0}th,td{padding:10px;border-bottom:1px solid #dce7e3;text-align:left}td{text-align:right}.stamp{color:#a0443e;font-weight:bold;border:2px solid #a0443e;display:inline-block;padding:6px 10px;margin-top:12px}@media print{body{margin:0 auto;border:0}}</style></head><body><h1>Payment receipt</h1><p class="muted">${esc(receipt.loan_number)} · ${esc(receipt.first_name || "")} ${esc(receipt.last_name || "")}</p><p>Receipt number<br><strong>${esc(receipt.receipt_number)}</strong></p><p>Date: ${esc(date(receipt.paid_at))} · Method: ${esc(String(receipt.payment_method || "").replaceAll("_", " "))}</p><p>Amount received<br><strong>${esc(amount(receipt.amount))}</strong></p><table>${applied}</table>${receipt.payment_reference ? `<p>Reference: ${esc(receipt.payment_reference)}</p>` : ""}${receipt.reversed_at ? `<div class="stamp">REVERSED · ${esc(receipt.reversal_reason || "")}</div>` : ""}<p class="muted">Recorded by ${esc(receipt.recorded_by_name || "—")}</p></body></html>`);
+      popup.document.close();
+      popup.focus();
+      popup.print();
+    } catch (error) {
+      popup.close();
+      announce(errorText(error), "error");
     }
   }
 
@@ -494,7 +1088,10 @@ export function createMfiLoansUI({
       state.subtab = target.dataset.loanSubtab;
       state.detailId = null;
       state.detail = null;
+      state.loanDetailId = null;
+      state.loanDetail = null;
       state.applicationForm = null;
+      state.disbursementFormOpen = false;
       await load();
       return;
     }
@@ -503,6 +1100,58 @@ export function createMfiLoansUI({
     const id = target.dataset.id;
     if (action === "retry") await load();
     if (action === "retry-detail") await openApplication(state.detailId);
+    if (action === "retry-loan-detail") await openLoan(state.loanDetailId);
+    if (action === "open-loan") await openLoan(id);
+    if (action === "back-to-portfolio") {
+      state.loanDetailId = null;
+      state.loanDetail = null;
+      state.receiptPaymentId = "";
+      state.subtab = "portfolio";
+      await load();
+    }
+    if (action === "loan-detail-tab") {
+      state.loanDetailTab = target.dataset.tab || "overview";
+      state.reversePaymentId = "";
+      renderParent();
+    }
+    if (action === "open-disbursement-form") {
+      state.disbursementFormOpen = true;
+      renderParent();
+    }
+    if (action === "close-disbursement-form") {
+      state.disbursementFormOpen = false;
+      renderParent();
+    }
+    if (action === "open-payment-form") {
+      state.paymentFormOpen = true;
+      renderParent();
+    }
+    if (action === "close-payment-form") {
+      state.paymentFormOpen = false;
+      renderParent();
+    }
+    if (action === "open-credit-form") {
+      state.creditNoteFormOpen = true;
+      renderParent();
+    }
+    if (action === "close-credit-form") {
+      state.creditNoteFormOpen = false;
+      renderParent();
+    }
+    if (action === "reverse-payment") {
+      state.reversePaymentId = id || "";
+      renderParent();
+    }
+    if (action === "cancel-reverse-payment") {
+      state.reversePaymentId = "";
+      renderParent();
+    }
+    if (action === "print-schedule") printSchedule();
+    if (action === "print-receipt") await printReceipt(id);
+    if (action === "dismiss-receipt") {
+      state.receiptPaymentId = "";
+      renderParent();
+    }
     if (action === "new-product") {
       state.productForm = {};
       renderParent();
@@ -554,6 +1203,7 @@ export function createMfiLoansUI({
       state.detailId = null;
       state.detail = null;
       state.applicationForm = null;
+      state.disbursementFormOpen = false;
       await load();
     }
     if (action === "submit-application") await submitApplicationDirectly();
@@ -621,6 +1271,16 @@ export function createMfiLoansUI({
           search: String(data.get("search") || "").trim(),
         };
         await load();
+      } else if (type === "loan-filters") {
+        const data = new FormData(form);
+        state.loanFilters = {
+          status: String(data.get("status") || ""),
+          branch_id: String(data.get("branch_id") || ""),
+          officer_id: String(data.get("officer_id") || ""),
+          customer_id: String(data.get("customer_id") || ""),
+          search: String(data.get("search") || "").trim(),
+        };
+        await load();
       } else if (type === "product") {
         await saveProduct(form);
       } else if (type === "application") {
@@ -629,6 +1289,14 @@ export function createMfiLoansUI({
         await linkCollateral(form);
       } else if (type === "review") {
         await submitReview(form);
+      } else if (type === "disbursement") {
+        await submitDisbursement(form);
+      } else if (type === "payment") {
+        await recordPayment(form);
+      } else if (type === "credit-note") {
+        await submitCreditNote(form);
+      } else if (type === "reverse-payment") {
+        await reversePayment(form);
       }
     } catch (error) {
       if (errorNode) {
@@ -648,6 +1316,14 @@ export function createMfiLoansUI({
     const control = event.target;
     const form = control.closest("form[data-loan-form]");
     if (!form) return;
+    if (form.dataset.loanForm === "disbursement" && control.name === "first_installment_date") {
+      updateDisbursementPreview(form);
+    }
+    if (form.dataset.loanForm === "payment" && control.name === "payment_date") {
+      const preview = form.querySelector("[data-payment-preview]");
+      const amountInput = form.elements.namedItem("amount");
+      if (preview && amountInput) preview.innerHTML = paymentPreviewMarkup(amountInput.value, control.value || todayInKampala());
+    }
     if (form.dataset.loanForm === "application" && control.name === "customer_id") {
       try {
         await loadApprovedCollateral(control.value);
@@ -676,6 +1352,16 @@ export function createMfiLoansUI({
   }
 
   function handleInput(event) {
+    const disbursementForm = event.target.closest('form[data-loan-form="disbursement"]');
+    if (disbursementForm && event.target.name === "first_installment_date") {
+      updateDisbursementPreview(disbursementForm);
+    }
+    const paymentForm = event.target.closest('form[data-loan-form="payment"]');
+    if (paymentForm && event.target.name === "amount") {
+      const preview = paymentForm.querySelector("[data-payment-preview]");
+      const paymentDate = paymentForm.elements.namedItem("payment_date")?.value || todayInKampala();
+      if (preview) preview.innerHTML = paymentPreviewMarkup(event.target.value, paymentDate);
+    }
     const form = event.target.closest('form[data-loan-form="product"]');
     if (form) updateProductPreview(form);
   }
@@ -880,10 +1566,13 @@ export function createMfiLoansUI({
       error: null,
       products: [],
       applications: [],
+      loans: [],
+      officerPortfolio: [],
       customers: [],
       branches: [],
       stats: {},
       filters: { status: "", branch_id: "", search: "" },
+      loanFilters: { status: "", branch_id: "", officer_id: "", customer_id: "", search: "" },
       detailId: null,
       detail: null,
       detailLoading: false,
@@ -896,6 +1585,19 @@ export function createMfiLoansUI({
       availableCollateralCustomer: "",
       confirmProductDeactivate: "",
       confirmCancelApplication: false,
+      loanDetailId: null,
+      loanDetail: null,
+      loanSchedule: [],
+      loanPayments: [],
+      loanHistory: [],
+      loanDetailTab: "overview",
+      loanDetailLoading: false,
+      loanDetailError: null,
+      disbursementFormOpen: false,
+      paymentFormOpen: false,
+      creditNoteFormOpen: false,
+      reversePaymentId: "",
+      receiptPaymentId: "",
     });
   }
 

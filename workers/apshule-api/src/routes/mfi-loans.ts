@@ -22,15 +22,16 @@ const APPLICATION_STATUSES = [
   "submitted",
   "pending_director",
   "approved",
+  "disbursed",
   "rejected",
   "changes_requested",
   "cancelled",
 ] as const;
 const INTEREST_METHODS = ["flat", "reducing_balance"] as const;
-const REPAYMENT_FREQUENCIES = ["daily", "weekly", "biweekly", "monthly"] as const;
+const REPAYMENT_FREQUENCIES = ["weekly", "biweekly", "monthly"] as const;
 const MANAGER_ROLES = ["loan_manager", "mfi_admin"] as const;
 
-const requireMfiSector = createMiddleware<AppEnv>(async (c, next) => {
+export const requireMfiSector = createMiddleware<AppEnv>(async (c, next) => {
   const user = c.get("user");
   if (user.role !== "superadmin" && user.sector !== "mfi") {
     throw new ApiError(403, "MFI_SECTOR_REQUIRED", "This endpoint is for MFI accounts.");
@@ -40,14 +41,14 @@ const requireMfiSector = createMiddleware<AppEnv>(async (c, next) => {
 
 loans.use("/mfi/*", authMiddleware, requireMfiSector);
 
-function uuid(value: string, field = "id"): string {
+export function uuid(value: string, field = "id"): string {
   if (!UUID_PATTERN.test(value)) {
     throw new ApiError(400, "VALIDATION_ERROR", `${field} must be a valid UUID.`);
   }
   return value;
 }
 
-function optionalText(body: Record<string, unknown>, key: string, max = 2000) {
+export function optionalText(body: Record<string, unknown>, key: string, max = 2000) {
   const value = optionalString(body, key, { max, allowNull: true });
   if (value === undefined || value === null) return value;
   return value.trim() || null;
@@ -86,7 +87,7 @@ function optionalBoolean(
   throw new ApiError(400, "VALIDATION_ERROR", `${key} must be true or false.`);
 }
 
-function requestIp(c: { req: { header(name: string): string | undefined } }): string | null {
+export function requestIp(c: { req: { header(name: string): string | undefined } }): string | null {
   return (
     c.req.header("CF-Connecting-IP") ??
     c.req.header("X-Forwarded-For")?.split(",")[0]?.trim() ??
@@ -94,7 +95,7 @@ function requestIp(c: { req: { header(name: string): string | undefined } }): st
   )?.slice(0, 255) ?? null;
 }
 
-function requestedOrganizationId(
+export function requestedOrganizationId(
   c: { req: { query(name: string): string | undefined } },
   body?: Record<string, unknown>,
 ): string | undefined {
@@ -107,7 +108,7 @@ function requestedOrganizationId(
   return value ? uuid(value, "organization_id") : undefined;
 }
 
-async function organizationForUser(
+export async function organizationForUser(
   sql: ReturnType<typeof getDb>,
   user: AuthenticatedUser,
   requested?: string,
@@ -143,7 +144,7 @@ async function organizationForUser(
   return id;
 }
 
-function jsonMetadata(value: Record<string, unknown>): string {
+export function jsonMetadata(value: Record<string, unknown>): string {
   return JSON.stringify(value);
 }
 
@@ -1446,13 +1447,93 @@ loans.get(
       FROM mfi_loan_applications
       WHERE organization_id = ${organizationId}
     `;
-    return c.json({ stats: rows[0] ?? {
+    const portfolioRows = await sql`
+      SELECT
+        COUNT(*) FILTER (WHERE status IN ('active', 'past_due', 'defaulted'))::int AS active_loans,
+        COUNT(*) FILTER (WHERE status = 'defaulted')::int AS defaulted_count,
+        COALESCE(SUM(principal), 0) AS total_disbursed,
+        COALESCE(SUM(outstanding_balance), 0) AS total_outstanding,
+        COALESCE(SUM(principal) FILTER (
+          WHERE disbursed_at >= date_trunc('month', NOW())
+        ), 0) AS disbursed_this_month,
+        COALESCE((
+          SELECT SUM(payment.amount)
+          FROM mfi_loan_payments payment
+          WHERE payment.organization_id = ${organizationId}
+            AND payment.reversed_at IS NULL
+            AND payment.paid_at >= date_trunc('month', NOW())
+        ), 0) AS collected_this_month,
+        COALESCE((
+          SELECT SUM(payment.amount)
+          FROM mfi_loan_payments payment
+          WHERE payment.organization_id = ${organizationId}
+            AND payment.reversed_at IS NULL
+            AND (payment.paid_at AT TIME ZONE 'Africa/Kampala')::date =
+              (NOW() AT TIME ZONE 'Africa/Kampala')::date
+        ), 0) AS collected_today,
+        COALESCE((
+          SELECT SUM(GREATEST(0, schedule.principal_due - schedule.principal_paid)
+            + GREATEST(0, schedule.interest_due - schedule.interest_paid)
+            + GREATEST(0, schedule.fees_due - schedule.fees_paid)
+            + GREATEST(0, schedule.late_fee_due - schedule.late_fee_paid))
+          FROM mfi_loan_schedules schedule
+          JOIN mfi_loans scheduled_loan ON scheduled_loan.id = schedule.loan_id
+          WHERE scheduled_loan.organization_id = ${organizationId}
+            AND schedule.status = 'overdue'
+            AND schedule.due_date < CURRENT_DATE
+        ), 0) AS overdue_amount,
+        (
+          SELECT COUNT(DISTINCT loan.id)::int
+          FROM mfi_loans loan
+          JOIN mfi_loan_schedules schedule ON schedule.loan_id = loan.id
+          WHERE loan.organization_id = ${organizationId}
+            AND schedule.status = 'overdue'
+            AND schedule.due_date < CURRENT_DATE
+        ) AS overdue_count,
+        COALESCE((
+          SELECT SUM(GREATEST(0, schedule.principal_due - schedule.principal_paid)
+            + GREATEST(0, schedule.interest_due - schedule.interest_paid)
+            + GREATEST(0, schedule.fees_due - schedule.fees_paid)
+            + GREATEST(0, schedule.late_fee_due - schedule.late_fee_paid))
+          FROM mfi_loan_schedules schedule
+          JOIN mfi_loans scheduled_loan ON scheduled_loan.id = schedule.loan_id
+          WHERE scheduled_loan.organization_id = ${organizationId}
+            AND schedule.status <> 'paid'
+            AND schedule.due_date BETWEEN CURRENT_DATE AND CURRENT_DATE + 7
+        ), 0) AS due_next_7_days
+      FROM mfi_loans
+      WHERE organization_id = ${organizationId}
+    `;
+    const applicationStats = rows[0] ?? {
       pending_applications: 0,
       approved_this_month: 0,
       rejected_this_month: 0,
       total_pipeline_value: 0,
       avg_ticket_size: 0,
-    } });
+    };
+    const portfolioStats = portfolioRows[0] ?? {
+      active_loans: 0,
+      defaulted_count: 0,
+      total_disbursed: 0,
+      total_outstanding: 0,
+      disbursed_this_month: 0,
+      collected_this_month: 0,
+      collected_today: 0,
+      overdue_amount: 0,
+      overdue_count: 0,
+      due_next_7_days: 0,
+    };
+    const activeLoanCount = Number(portfolioStats.active_loans ?? 0);
+    const overdueLoanCount = Number(portfolioStats.overdue_count ?? 0);
+    return c.json({
+      stats: {
+        ...applicationStats,
+        ...portfolioStats,
+        overdue_percentage: activeLoanCount > 0
+          ? Math.round((overdueLoanCount / activeLoanCount) * 1000) / 10
+          : 0,
+      },
+    });
   },
 );
 

@@ -46,6 +46,7 @@ export function initMfiUI({ api, getCurrentUser, notify, escapeHtml }) {
     settings: null,
     organization: null,
     stats: null,
+    loanStats: null,
     audit: [],
     organizations: [],
     commandStats: null,
@@ -226,7 +227,7 @@ export function initMfiUI({ api, getCurrentUser, notify, escapeHtml }) {
   }
 
   function dashboardView() {
-    if (state.dashboardLoading) return `<section class="mfi-metrics">${Array.from({ length: 5 }, () => '<div class="mfi-metric"><div class="mfi-skeleton"><span></span></div></div>').join("")}</section><section class="mfi-panel">${skeletonRows(4)}</section>`;
+    if (state.dashboardLoading) return `<section class="mfi-metrics">${Array.from({ length: 10 }, () => '<div class="mfi-metric"><div class="mfi-skeleton"><span></span></div></div>').join("")}</section><section class="mfi-panel">${skeletonRows(4)}</section>`;
     if (state.dashboardError) return `<section class="mfi-panel">${errorState(state.dashboardError, "dashboard")}</section>`;
     if (!isAdmin()) {
       return `<div class="mfi-dashboard-grid">
@@ -235,7 +236,9 @@ export function initMfiUI({ api, getCurrentUser, notify, escapeHtml }) {
       </div>`;
     }
     const stats = state.stats || {};
+    const loanStats = state.loanStats || {};
     const metric = (label, key) => `<div class="mfi-metric"><span class="mfi-metric-label">${esc(label)}</span><strong class="mfi-metric-value">${esc(value(stats, key, 0))}</strong></div>`;
+    const loanMetric = (label, key, formatted = false, suffix = "") => `<div class="mfi-metric"><span class="mfi-metric-label">${esc(label)}</span><strong class="mfi-metric-value">${formatted ? money(value(loanStats, key, 0)) : esc(value(loanStats, key, 0))}${esc(suffix)}</strong></div>`;
     const activity = state.audit.length ? state.audit.map((item) => {
       const who = value(item, "actor_name", value(item, "actor_email", "MFI staff"));
       const target = item.metadata && typeof item.metadata === "object"
@@ -247,8 +250,15 @@ export function initMfiUI({ api, getCurrentUser, notify, escapeHtml }) {
       <section class="mfi-metrics">
         ${metric("Organizations", "organizations")}${metric("Branches", "branches")}${metric("Active officers", "officers")}
         <div class="mfi-metric"><span class="mfi-metric-label">Customers</span><strong class="mfi-metric-value">${esc(value(stats, "customers", 0))}</strong><span class="mfi-metric-note">${esc(value(stats, "active_customers", 0))} active</span></div>
-        <div class="mfi-metric"><span class="mfi-metric-label">Loan portfolio</span><strong class="mfi-metric-value">Coming soon</strong></div>
-        <div class="mfi-metric"><span class="mfi-metric-label">Collections</span><strong class="mfi-metric-value">Coming soon</strong></div>
+        ${loanMetric("Active loans", "active_loans")}
+        ${loanMetric("Total disbursed", "total_disbursed", true)}
+        ${loanMetric("Outstanding balance", "total_outstanding", true)}
+        ${loanMetric("Collected today", "collected_today", true)}
+        ${loanMetric("Collected this month", "collected_this_month", true)}
+        ${loanMetric("Overdue loans", "overdue_count")}
+        ${loanMetric("Overdue rate", "overdue_percentage", false, "%")}
+        ${loanMetric("Defaulted loans", "defaulted_count")}
+        ${loanMetric("Due in next 7 days", "due_next_7_days", true)}
       </section>
       <div class="mfi-dashboard-grid">
         <section class="mfi-panel">
@@ -540,14 +550,16 @@ export function initMfiUI({ api, getCurrentUser, notify, escapeHtml }) {
 
   async function loadDashboard() {
     try {
-      const [statsPayload, auditPayload, orgPayload] = await Promise.all([
+      const [statsPayload, auditPayload, orgPayload, loanStatsPayload] = await Promise.all([
         request("/api/mfi/stats"),
         request("/api/mfi/audit-log"),
         request("/api/mfi/organizations"),
+        request("/api/mfi/loans/stats"),
       ]);
       state.stats = statsPayload?.stats || {};
       state.audit = listOf(auditPayload, "audit");
       state.organization = listOf(orgPayload, "organizations")[0] || state.organization;
+      state.loanStats = loanStatsPayload?.stats || {};
       state.dashboardError = null;
     } catch (error) {
       state.dashboardError = error;
@@ -1498,7 +1510,7 @@ export function initMfiUI({ api, getCurrentUser, notify, escapeHtml }) {
     if (state.commandLoading) return `<div class="mfi-page-intro"><div><p class="mfi-eyebrow">APSHULE · MFI OPERATIONS</p><h1>Microfinance organizations</h1><p>Organizations, branch reach, and customer records across the platform.</p></div></div><div class="mfi-metrics">${Array.from({ length: 10 }, () => '<div class="mfi-metric"><span>Loading</span><strong>—</strong></div>').join("")}</div><section class="mfi-panel">${skeletonRows(4)}</section>`;
     if (state.commandError) return `<div class="mfi-page-intro"><div><p class="mfi-eyebrow">APSHULE · MFI OPERATIONS</p><h1>Microfinance organizations</h1><p>Platform-wide MFI organization directory.</p></div></div><section class="mfi-panel"><div class="mfi-state mfi-error-state"><div class="mfi-state-symbol">!</div><strong>Command Center data unavailable</strong><p>${esc(errorMessage(state.commandError))}</p><button type="button" class="mfi-btn mfi-btn--quiet" data-command-retry>Try again</button></div></section>`;
     const stats = state.commandStats || {};
-    const metricValue = (key) => key === "loan_pipeline_value"
+    const metricValue = (key) => ["loan_pipeline_value", "total_outstanding"].includes(key)
       ? money(value(stats, key, 0))
       : esc(value(stats, key, 0));
     const metrics = [
@@ -1512,15 +1524,19 @@ export function initMfiUI({ api, getCurrentUser, notify, escapeHtml }) {
       ["Approved applications", "loan_approved"],
       ["Rejected applications", "loan_rejected"],
       ["Loan pipeline value", "loan_pipeline_value"],
+      ["Total loans", "total_loans"],
+      ["Outstanding portfolio", "total_outstanding"],
+      ["Overdue loans", "overdue_loans"],
+      ["Defaults", "defaulted_loans"],
     ].map(([label, key]) => `<div class="mfi-metric"><span>${esc(label)}</span><strong>${metricValue(key)}</strong></div>`).join("");
     const orgRows = state.organizations.length ? state.organizations.map((org) => `<tr>
-      <td><div class="mfi-brand-preview"><div class="mfi-brand-mark" style="background:${esc(safeColor(org.brand_color))}">${safeImage(org.logo_base64) ? `<img src="${esc(safeImage(org.logo_base64))}" alt="">` : "A."}</div><div class="mfi-primary-cell"><strong>${text(org, "name")}</strong><span>${text(org, "city")}${org.district ? `, ${text(org, "district")}` : ""}</span></div></div></td>
-      <td>${text(org, "registration_number")}</td><td>${text(org, "admin_name")}</td><td>${text(org, "admin_email")}</td><td>${esc(value(org, "branch_count", 0))}</td><td>${esc(value(org, "customer_count", 0))}</td><td>${esc(value(org, "collateral_count", 0))}</td>
-     </tr>`).join("") : `<tr><td colspan="7"><div class="mfi-state"><div class="mfi-state-symbol">·</div><strong>No MFI organizations yet</strong><p>Create the first organization to start platform operations.</p></div></td></tr>`;
+       <td><div class="mfi-brand-preview"><div class="mfi-brand-mark" style="background:${esc(safeColor(org.brand_color))}">${safeImage(org.logo_base64) ? `<img src="${esc(safeImage(org.logo_base64))}" alt="">` : "A."}</div><div class="mfi-primary-cell"><strong>${text(org, "name")}</strong><span>${text(org, "city")}${org.district ? `, ${text(org, "district")}` : ""}</span></div></div></td>
+       <td>${text(org, "registration_number")}</td><td>${text(org, "admin_name")}</td><td>${text(org, "admin_email")}</td><td>${esc(value(org, "branch_count", 0))}</td><td>${esc(value(org, "customer_count", 0))}</td><td>${esc(value(org, "collateral_count", 0))}</td><td>${esc(value(org, "total_loans", 0))}</td><td>${money(value(org, "outstanding_balance", 0))}</td><td>${esc(value(org, "overdue_loans", 0))}</td><td>${esc(value(org, "defaulted_loans", 0))}</td>
+      </tr>`).join("") : `<tr><td colspan="11"><div class="mfi-state"><div class="mfi-state-symbol">·</div><strong>No MFI organizations yet</strong><p>Create the first organization to start platform operations.</p></div></td></tr>`;
     return `<div class="mfi-page-intro"><div><p class="mfi-eyebrow">APSHULE · MFI OPERATIONS</p><h1>Microfinance organizations</h1><p>Organization coverage and customer records across the platform.</p></div><button type="button" class="mfi-btn" data-command-add>＋ Add organization</button></div>
       <div class="mfi-metrics">${metrics}</div>
       ${state.commandFormOpen ? commandOrganizationForm() : ""}
-       <section class="mfi-panel"><div class="mfi-section-head"><div><h2>Organization directory</h2><p>${state.organizations.length} organizations · live platform records</p></div></div><div class="mfi-table-wrap"><table class="mfi-table"><thead><tr><th>Organization</th><th>Registration</th><th>Administrator</th><th>Login email</th><th>Branches</th><th>Customers</th><th>Collateral</th></tr></thead><tbody>${orgRows}</tbody></table></div></section>`;
+        <section class="mfi-panel"><div class="mfi-section-head"><div><h2>Organization directory</h2><p>${state.organizations.length} organizations · live platform records</p></div></div><div class="mfi-table-wrap"><table class="mfi-table"><thead><tr><th>Organization</th><th>Registration</th><th>Administrator</th><th>Login email</th><th>Branches</th><th>Customers</th><th>Collateral</th><th>Loans</th><th>Outstanding</th><th>Overdue</th><th>Defaults</th></tr></thead><tbody>${orgRows}</tbody></table></div></section>`;
   }
 
   function commandOrganizationForm() {

@@ -209,7 +209,17 @@ mfi.get("/mfi/organizations", requireRole("superadmin", "mfi_admin"), async (c) 
       (SELECT COUNT(*)::int FROM mfi_customers c
         WHERE c.organization_id = o.id) AS customer_count,
       (SELECT COUNT(*)::int FROM mfi_collateral collateral
-        WHERE collateral.organization_id = o.id) AS collateral_count
+        WHERE collateral.organization_id = o.id) AS collateral_count,
+      (SELECT COUNT(*)::int FROM mfi_loans loan
+        WHERE loan.organization_id = o.id) AS total_loans,
+      (SELECT COALESCE(SUM(loan.outstanding_balance), 0) FROM mfi_loans loan
+        WHERE loan.organization_id = o.id) AS outstanding_balance,
+      (SELECT COUNT(DISTINCT loan.id)::int FROM mfi_loans loan
+        JOIN mfi_loan_schedules schedule ON schedule.loan_id = loan.id
+        WHERE loan.organization_id = o.id AND schedule.status = 'overdue'
+          AND schedule.due_date < CURRENT_DATE) AS overdue_loans,
+      (SELECT COUNT(*)::int FROM mfi_loans loan
+        WHERE loan.organization_id = o.id AND loan.status = 'defaulted') AS defaulted_loans
     FROM mfi_organizations o
     LEFT JOIN users admin ON admin.id = o.created_by
     WHERE ${user.role === "superadmin"} OR o.created_by = ${user.id}
@@ -432,7 +442,32 @@ mfi.get("/mfi/stats", requireRole("superadmin", "mfi_admin"), async (c) => {
         JOIN mfi_organizations loan_org ON loan_org.id = loan_app.organization_id
         WHERE (${organizationId === null} OR loan_org.id = ${organizationId})
           AND loan_app.status IN ('submitted', 'pending_director', 'changes_requested')
-      ), 0) AS loan_pipeline_value
+      ), 0) AS loan_pipeline_value,
+      (
+        SELECT COUNT(*)::int FROM mfi_loans loan
+        JOIN mfi_organizations loan_org ON loan_org.id = loan.organization_id
+        WHERE ${organizationId === null} OR loan_org.id = ${organizationId}
+      ) AS total_loans,
+      COALESCE((
+        SELECT SUM(loan.outstanding_balance)
+        FROM mfi_loans loan
+        JOIN mfi_organizations loan_org ON loan_org.id = loan.organization_id
+        WHERE ${organizationId === null} OR loan_org.id = ${organizationId}
+      ), 0) AS total_outstanding,
+      (
+        SELECT COUNT(*)::int FROM mfi_loans loan
+        JOIN mfi_organizations loan_org ON loan_org.id = loan.organization_id
+        WHERE (${organizationId === null} OR loan_org.id = ${organizationId})
+          AND loan.status = 'defaulted'
+      ) AS defaulted_loans,
+      (
+        SELECT COUNT(DISTINCT loan.id)::int
+        FROM mfi_loans loan
+        JOIN mfi_organizations loan_org ON loan_org.id = loan.organization_id
+        JOIN mfi_loan_schedules schedule ON schedule.loan_id = loan.id
+        WHERE (${organizationId === null} OR loan_org.id = ${organizationId})
+          AND schedule.status = 'overdue' AND schedule.due_date < CURRENT_DATE
+      ) AS overdue_loans
     FROM mfi_organizations o
     LEFT JOIN mfi_branches b ON b.organization_id = o.id
     LEFT JOIN mfi_officers off ON off.organization_id = o.id
@@ -451,6 +486,10 @@ mfi.get("/mfi/stats", requireRole("superadmin", "mfi_admin"), async (c) => {
     loan_approved: 0,
     loan_rejected: 0,
     loan_pipeline_value: 0,
+    total_loans: 0,
+    total_outstanding: 0,
+    overdue_loans: 0,
+    defaulted_loans: 0,
   } });
 });
 
