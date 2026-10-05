@@ -528,6 +528,7 @@
         .teacher-refresh:hover, .teacher-back:hover, .teacher-secondary:hover { background:#f5f2fb; border-color:#bdb2d8; }
         .teacher-primary { border-color:#493b8a; background:#493b8a; color:#fff; }
         .teacher-primary:hover { transform:translateY(-1px); background:#3d3175; }
+        .teacher-primary-link { width:100%; text-decoration:none; }
         .teacher-danger { border-color:#f0cccc; background:#fff7f7; color:#a33737; }
         .teacher-danger:hover { background:#ffeded; }
         .teacher-refresh:focus-visible, .teacher-back:focus-visible, .teacher-secondary:focus-visible,
@@ -606,6 +607,10 @@
         .teacher-curriculum-info-strip strong { color:#302942; }
         .teacher-curriculum-detail-copy { padding:12px; border:1px solid #eeeaf2; border-radius:10px; background:#fff; color:#433c53; font-size:13px; line-height:1.55; white-space:pre-wrap; overflow-wrap:anywhere; }
         .teacher-curriculum-detail-copy + .teacher-curriculum-detail-copy { margin-top:9px; }
+        .teacher-curriculum-detail-copy + .teacher-curriculum-resource-link,
+        .teacher-curriculum-resource-link + .teacher-curriculum-detail-copy { margin-top:9px; }
+        .teacher-curriculum-link-fallback { margin:6px 0 0; color:#888; font-size:12px; line-height:1.45; overflow-wrap:anywhere; }
+        .teacher-curriculum-link-fallback a { color:#493b8a; text-decoration:underline; overflow-wrap:anywhere; }
         .teacher-curriculum-action-bar { display:flex; flex-wrap:wrap; gap:8px; margin-top:14px; }
         .teacher-curriculum-action-bar button:disabled { opacity:.55; cursor:not-allowed; }
         .teacher-curriculum-list-tab[aria-selected="true"] { border-color:#493b8a; background:#493b8a; color:#fff; }
@@ -4461,7 +4466,7 @@
     function teacherCurriculumRowMarkup(link, extra = "") {
         return `<button type="button" class="teacher-list-row" data-teacher-curriculum="${escapeHtml(link.id)}">
             <span class="teacher-list-row-copy">
-                <strong>${escapeHtml(link.topic || "Untitled topic")}</strong>
+                <strong>${escapeHtml(teacherCurriculumTopicTitle(link))}</strong>
                 <small>${escapeHtml(link.subject || "Subject not set")} · ${escapeHtml(teacherClassLabel(link.class_level))}${extra}</small>
             </span>
             <i class="fas fa-chevron-right" aria-hidden="true"></i>
@@ -4507,7 +4512,7 @@
         list.innerHTML = favorites.map(link => `
             <div class="teacher-curriculum-favorite-card">
                 ${teacherCurriculumRowMarkup(link)}
-                <button type="button" class="teacher-curriculum-remove-favorite" data-curriculum-unfavorite="${escapeHtml(link.id)}" aria-label="Remove ${escapeHtml(link.topic || "topic")} from favorites" title="Remove from favorites" ${navigator.onLine ? "" : "disabled"}>⭐</button>
+                <button type="button" class="teacher-curriculum-remove-favorite" data-curriculum-unfavorite="${escapeHtml(link.id)}" aria-label="Remove ${escapeHtml(teacherCurriculumTopicTitle(link))} from favorites" title="Remove from favorites" ${navigator.onLine ? "" : "disabled"}>⭐</button>
             </div>`).join("");
     }
 
@@ -4625,6 +4630,25 @@
         }
     }
 
+    function teacherCurriculumTopicTitle(link) {
+        const topic = [link?.topic, link?.title, link?.name]
+            .find(value => typeof value === "string" && value.trim());
+        return topic ? topic.trim() : `Topic #${String(link?.id || "").slice(0, 6)}`;
+    }
+
+    function teacherCurriculumResourceLinkMarkup(link, field, label, title) {
+        const url = teacherCurriculumHttpsUrl(link?.[field]);
+        if (!url) {
+            return `<div class="teacher-curriculum-detail-copy"><strong>${escapeHtml(title)}</strong><br>Not linked yet — ask admin</div>`;
+        }
+        const href = escapeHtml(url);
+        const dataField = escapeHtml(field);
+        return `<div class="teacher-curriculum-resource-link">
+            <a class="teacher-primary teacher-primary-link" href="${href}" target="_blank" rel="noopener noreferrer" data-curriculum-open="${dataField}">${escapeHtml(label)}</a>
+            <p class="teacher-curriculum-link-fallback">If the book doesn't open, copy this link: <a href="${href}" target="_blank" rel="noopener noreferrer" data-curriculum-open="${dataField}">${href}</a></p>
+        </div>`;
+    }
+
     function renderTeacherCurriculumDetail() {
         const link = teacherDashboardState.selectedCurriculumLink;
         if (!link) return;
@@ -4634,36 +4658,33 @@
             { id: "learner-book", label: "Learner Book" },
             { id: "teacher-guide", label: "Teacher Guide" }
         ];
-        const openButton = (field, label, title) => teacherCurriculumHttpsUrl(link[field])
-            ? `<button type="button" class="teacher-primary" data-curriculum-open="${field}">${label}</button>`
-            : `<div class="teacher-curriculum-detail-copy"><strong>${title}</strong><br>Not linked yet</div>`;
         let content = "";
         if (teacherDashboardState.curriculumTab === "syllabus") {
             const reference = link.syllabus_ref
                 ? `<div class="teacher-curriculum-detail-copy"><strong>Syllabus reference</strong><br>${escapeHtml(link.syllabus_ref)}</div>`
                 : "";
             content = `${reference}
-                ${openButton("syllabus_url", "📖 Open Syllabus", "Syllabus")}`;
+                ${teacherCurriculumResourceLinkMarkup(link, "syllabus_url", "📖 Open Syllabus", "Syllabus")}`;
         } else if (teacherDashboardState.curriculumTab === "learner-book") {
             const page = link.learner_book_page
                 ? `<div class="teacher-curriculum-detail-copy"><strong>📄 Learner Book</strong><br>Page ${escapeHtml(link.learner_book_page)}</div>`
                 : "";
             content = `${page}
-                ${openButton("learner_book_url", "📗 Open Learner Book", "Learner Book")}
+                ${teacherCurriculumResourceLinkMarkup(link, "learner_book_url", "📗 Open Learner Book", "Learner Book")}
                 <div class="teacher-curriculum-detail-copy"><strong>Summary</strong><br>${escapeHtml(link.summary_text || "Not provided")}</div>`;
         } else {
             const page = link.teacher_guide_page
                 ? `<div class="teacher-curriculum-detail-copy"><strong>📄 Teacher Guide</strong><br>Page ${escapeHtml(link.teacher_guide_page)}</div>`
                 : "";
             content = `${page}
-                ${openButton("teacher_guide_url", "📕 Open Teacher Guide", "Teacher Guide")}
+                ${teacherCurriculumResourceLinkMarkup(link, "teacher_guide_url", "📕 Open Teacher Guide", "Teacher Guide")}
                 <div class="teacher-curriculum-detail-copy"><strong>Activity suggestion</strong><br>${escapeHtml(link.activity_suggestion || "Not provided")}</div>`;
         }
         const isFavorite = teacherDashboardState.curriculumFavorites.some(item => item.id === link.id);
         detail.innerHTML = `
             <header class="teacher-curriculum-detail-header">
                 <button type="button" class="teacher-back" data-curriculum-results-back><i class="fas fa-arrow-left" aria-hidden="true"></i> Back</button>
-                <div class="teacher-curriculum-detail-title"><h2>${escapeHtml(link.topic || "Untitled topic")}</h2><p>${escapeHtml(link.subject || "Subject not set")} · ${escapeHtml(teacherClassLabel(link.class_level))}</p></div>
+                <div class="teacher-curriculum-detail-title"><h2>${escapeHtml(teacherCurriculumTopicTitle(link))}</h2><p>${escapeHtml(link.subject || "Subject not set")} · ${escapeHtml(teacherClassLabel(link.class_level))}</p></div>
             </header>
             <div class="teacher-curriculum-info-strip">
                 <div><strong>Subject</strong><br>${escapeHtml(link.subject || "Not provided")}</div>
@@ -4705,7 +4726,7 @@
     async function shareTeacherCurriculumSummary() {
         const link = teacherDashboardState.selectedCurriculumLink;
         if (!link) return;
-        const summary = `${link.topic || "Untitled topic"} · ${link.subject || "Subject not set"} · ${teacherClassLabel(link.class_level)}\nSyllabus: ${link.syllabus_ref || "Not provided"}\nLearner Book p.${link.learner_book_page || "—"} | Teacher Guide p.${link.teacher_guide_page || "—"}`;
+        const summary = `${teacherCurriculumTopicTitle(link)} · ${link.subject || "Subject not set"} · ${teacherClassLabel(link.class_level)}\nSyllabus: ${link.syllabus_ref || "Not provided"}\nLearner Book p.${link.learner_book_page || "—"} | Teacher Guide p.${link.teacher_guide_page || "—"}`;
         try {
             await navigator.clipboard.writeText(summary);
             showNotification("Copied to clipboard.");
@@ -4917,25 +4938,17 @@
             if (button) void openTeacherCurriculumLink(button.dataset.teacherCurriculum);
         });
         document.getElementById("teacherCurriculumDetail")?.addEventListener("click", event => {
-            const openButton = event.target.closest("[data-curriculum-open]");
-            if (openButton) {
+            const openLink = event.target.closest("[data-curriculum-open]");
+            if (openLink) {
                 const urlField = {
                     syllabus_url: "syllabus_url",
                     learner_book_url: "learner_book_url",
                     teacher_guide_url: "teacher_guide_url"
-                }[openButton.dataset.curriculumOpen];
+                }[openLink.dataset.curriculumOpen];
                 const url = urlField
                     ? teacherCurriculumHttpsUrl(teacherDashboardState.selectedCurriculumLink?.[urlField])
                     : null;
-                if (!url) return;
-                console.log("[linker] opening", url);
-                try {
-                    const openedWindow = window.open(url, "_blank");
-                    if (openedWindow) openedWindow.opener = null;
-                    else window.location.href = url;
-                } catch (_) {
-                    window.location.href = url;
-                }
+                if (url) console.log("[linker] opening", url);
                 return;
             }
             if (event.target.closest("[data-curriculum-results-back]")) {

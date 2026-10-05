@@ -5,15 +5,35 @@ import vm from "node:vm";
 
 const html = await readFile(new URL("../index.html", import.meta.url), "utf8");
 
-test("teacher Curriculum Linker accepts trimmed HTTPS URLs only", () => {
-  const helper = html.match(
-    /^    function teacherCurriculumHttpsUrl\(value\) \{[\s\S]*?^    \}/mu,
+function sourceFunction(name, parameters) {
+  const source = html.match(
+    new RegExp(`^    function ${name}\\(${parameters}\\) \\{[\\s\\S]*?^    \\}`, "mu"),
   )?.[0];
-  assert.ok(helper, "the teacher URL validator should exist in index.html");
+  assert.ok(source, `${name} should exist in index.html`);
+  return source;
+}
 
-  const context = vm.createContext({ URL });
-  vm.runInContext(`${helper}\nglobalThis.validateUrl = teacherCurriculumHttpsUrl;`, context);
+const validator = sourceFunction("teacherCurriculumHttpsUrl", "value");
+const topicTitle = sourceFunction("teacherCurriculumTopicTitle", "link");
+const resourceLink = sourceFunction(
+  "teacherCurriculumResourceLinkMarkup",
+  "link, field, label, title",
+);
+const context = vm.createContext({
+  URL,
+  escapeHtml: value => String(value).replace(/[&<>"]/gu, character => ({
+    "&": "&amp;",
+    "<": "&lt;",
+    ">": "&gt;",
+    "\"": "&quot;",
+  })[character]),
+});
+vm.runInContext(
+  `${validator}\n${topicTitle}\n${resourceLink}\nglobalThis.validateUrl = teacherCurriculumHttpsUrl;\nglobalThis.topicTitle = teacherCurriculumTopicTitle;\nglobalThis.renderResourceLink = teacherCurriculumResourceLinkMarkup;`,
+  context,
+);
 
+test("teacher Curriculum Linker accepts trimmed HTTPS URLs only", () => {
   assert.equal(
     context.validateUrl("  https://ncdc.go.ug/books/agriculture.pdf \n"),
     "https://ncdc.go.ug/books/agriculture.pdf",
@@ -24,7 +44,58 @@ test("teacher Curriculum Linker accepts trimmed HTTPS URLs only", () => {
   assert.equal(context.validateUrl(null), null);
 });
 
-test("Curriculum Linker buttons and click handler use the same URL fields", () => {
+test("topic labels use topic, legacy title/name, then the record ID", () => {
+  assert.equal(
+    context.topicTitle({ topic: "Photosynthesis", title: "Old title", name: "Name", id: "abc123" }),
+    "Photosynthesis",
+  );
+  assert.equal(
+    context.topicTitle({ topic: " ", title: "Legacy title", name: "Name", id: "abc123" }),
+    "Legacy title",
+  );
+  assert.equal(
+    context.topicTitle({ topic: null, title: null, name: "Legacy name", id: "abc123" }),
+    "Legacy name",
+  );
+  assert.equal(
+    context.topicTitle({ topic: null, title: null, name: null, id: "abc12345" }),
+    "Topic #abc123",
+  );
+});
+
+test("valid curriculum URLs render real anchors and a copyable fallback", () => {
+  const url = "https://ncdc.go.ug/books/agriculture.pdf?download=1&course=al";
+  const markup = context.renderResourceLink(
+    { syllabus_url: ` ${url} ` },
+    "syllabus_url",
+    "📖 Open Syllabus",
+    "Syllabus",
+  );
+
+  assert.equal((markup.match(/<a\b/gu) || []).length, 2);
+  assert.match(
+    markup,
+    /<a class="teacher-primary teacher-primary-link" href="https:\/\/ncdc\.go\.ug\/books\/agriculture\.pdf\?download=1&amp;course=al" target="_blank" rel="noopener noreferrer"/u,
+  );
+  assert.match(markup, /If the book doesn't open, copy this link:/u);
+  assert.match(markup, /data-curriculum-open="syllabus_url"/u);
+  assert.doesNotMatch(markup, /Not linked/u);
+});
+
+test("missing and insecure curriculum URLs ask the teacher to contact an admin", () => {
+  for (const value of [null, "http://ncdc.go.ug/book.pdf", "javascript:alert(1)"]) {
+    const markup = context.renderResourceLink(
+      { learner_book_url: value },
+      "learner_book_url",
+      "📗 Open Learner Book",
+      "Learner Book",
+    );
+    assert.match(markup, /Not linked yet — ask admin/u);
+    assert.doesNotMatch(markup, /<a\b/u);
+  }
+});
+
+test("all curriculum resource tabs use anchors and the click handler only logs opens", () => {
   const rendererStart = html.indexOf("function renderTeacherCurriculumDetail()");
   const rendererEnd = html.indexOf(
     "\n    async function toggleTeacherCurriculumFavorite",
@@ -45,11 +116,11 @@ test("Curriculum Linker buttons and click handler use the same URL fields", () =
   assert.notEqual(handlerEnd, -1);
   const handler = html.slice(handlerStart, handlerEnd);
 
-  const renderedFields = [...renderer.matchAll(/openButton\("([^"]+)"/gu)]
+  const renderedFields = [...renderer.matchAll(/teacherCurriculumResourceLinkMarkup\(link, "([^"]+)"/gu)]
     .map((match) => match[1])
     .sort();
   const mapping = handler.match(
-    /const urlField = \{([\s\S]*?)\n\s+\}\[openButton\.dataset\.curriculumOpen\];/u,
+    /const urlField = \{([\s\S]*?)\n\s+\}\[openLink\.dataset\.curriculumOpen\];/u,
   )?.[1];
   assert.ok(mapping, "the click handler should whitelist the link fields");
   const handledFields = [...mapping.matchAll(/^\s*([a-z_]+):/gmu)]
@@ -62,7 +133,13 @@ test("Curriculum Linker buttons and click handler use the same URL fields", () =
     "teacher_guide_url",
   ]);
   assert.deepEqual(handledFields, renderedFields);
-  assert.match(handler, /window\.open\(url, "_blank"\)/u);
-  assert.match(handler, /else window\.location\.href = url/u);
-  assert.match(handler, /console\.log\("\[linker\] opening", url\)/u);
+  assert.match(handler, /if \(url\) console\.log\("\[linker\] opening", url\)/u);
+  assert.doesNotMatch(handler, /window\.open|window\.location|preventDefault/u);
+  assert.match(renderer, /teacherCurriculumTopicTitle\(link\)/u);
+});
+
+test("the service worker uses cache v5 and claims clients on activation", async () => {
+  const sw = await readFile(new URL("../sw.js", import.meta.url), "utf8");
+  assert.match(sw, /const CACHE_NAME = "apshule-cache-v5"/u);
+  assert.match(sw, /await self\.clients\.claim\(\)/u);
 });
