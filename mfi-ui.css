@@ -1279,4 +1279,186 @@
     flex: 1 1 100%;
   }
 }
+
+.mfi-portal .mfi-loans-tabs {
+  overflow-x: auto;
+  white-space: nowrap;
+}
+
+.mfi-portal .mfi-loan-status {
+  display: inline-flex;
+  align-items: center;
+  border-radius: 999px;
+  padding: 5px 9px;
+  font-size: 11px;
+  font-weight: 700;
+  line-height: 1.2;
+  text-transform: capitalize;
+  white-space: nowrap;
+}
+
+.mfi-portal .mfi-loan-status--draft,
+.mfi-portal .mfi-loan-status--cancelled {
+  color: #4c5867;
+  background: #edf0f3;
+}
+
+.mfi-portal .mfi-loan-status--submitted {
+  color: #96520c;
+  background: #fff0dc;
+}
+
+.mfi-portal .mfi-loan-status--pending_director {
+  color: #6637a2;
+  background: #f1e9ff;
+}
+
+.mfi-portal .mfi-loan-status--approved {
+  color: #176441;
+  background: #e2f4e9;
+}
+
+.mfi-portal .mfi-loan-status--rejected {
+  color: #a13333;
+  background: #fbe8e7;
+}
+
+.mfi-portal .mfi-loan-status--changes_requested {
+  color: #775a00;
+  background: #fff4c7;
+}
+
+.mfi-portal .mfi-loan-status--cancelled {
+  text-decoration: line-through;
+}
+
+.mfi-portal .mfi-loan-form-panel {
+  margin: 16px 0;
+  padding: 18px;
+  border: 1px solid var(--mfi-line);
+  border-radius: 16px;
+  background: var(--mfi-paper);
+}
+
+.mfi-portal .mfi-loan-form-panel textarea.mfi-control {
+  min-height: 84px;
+  resize: vertical;
+}
+
+.mfi-portal .mfi-loan-readonly {
+  display: flex;
+  align-items: center;
+  min-height: 42px;
+  padding: 10px 12px;
+  color: var(--mfi-muted);
+  background: var(--mfi-paper);
+}
+
+.mfi-portal .mfi-loan-check {
+  display: flex;
+  align-items: flex-end;
+  min-height: 58px;
+}
+
+.mfi-portal .mfi-loan-check label {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+}
+
+.mfi-portal .mfi-loan-check input {
+  width: 18px;
+  height: 18px;
+  margin: 0;
+  accent-color: var(--mfi-primary);
+}
+
+.mfi-portal .mfi-loan-preview,
+.mfi-portal .mfi-loan-phase-note {
+  display: block;
+  margin-top: 14px;
+  padding: 14px 16px;
+  border: 1px solid var(--mfi-line);
+  border-radius: 13px;
+  background: var(--mfi-accent-wash);
+}
+
+.mfi-portal .mfi-loan-preview p,
+.mfi-portal .mfi-loan-phase-note span {
+  display: block;
+  margin: 5px 0 0;
+  color: var(--mfi-muted);
+  font-size: 13px;
+}
+
+.mfi-portal .mfi-loan-preview small {
+  display: block;
+  margin-top: 7px;
+  color: var(--mfi-muted);
+}
+
+.mfi-portal .mfi-loan-confirm {
+  margin: 14px 0;
+  border: 1px solid var(--mfi-line);
+  border-radius: 14px;
+}
+
+.mfi-portal .mfi-loan-metrics {
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+}
+
+.mfi-portal .mfi-loan-filters {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  align-items: end;
+  gap: 12px;
+  margin: 0 0 18px;
+}
+
+.mfi-portal .mfi-loan-filters > .mfi-btn {
+  min-height: 42px;
+}
+
+.mfi-portal .mfi-loan-customer-photo {
+  width: 64px;
+  height: 64px;
+  margin-bottom: 10px;
+  object-fit: cover;
+  border: 1px solid var(--mfi-line);
+  border-radius: 14px;
+}
+
+.mfi-portal .mfi-loan-detail-actions {
+  justify-content: flex-start;
+  margin: 0 0 16px;
+}
+
+.mfi-portal .mfi-loan-detail .mfi-timeline {
+  margin-top: 10px;
+}
+
+.mfi-portal .mfi-loans small {
+  display: block;
+  margin-top: 3px;
+  color: var(--mfi-muted);
+  font-size: 11px;
+}
+
+@media (max-width: 760px) {
+  .mfi-portal .mfi-loan-metrics {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .mfi-portal .mfi-loan-filters {
+    grid-template-columns: 1fr;
+  }
+
+  .mfi-portal .mfi-loan-form-panel {
+    padding: 14px;
+  }
+
+  .mfi-portal .mfi-loan-detail-actions {
+    flex-wrap: wrap;
+  }
+}
 }

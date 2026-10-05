@@ -1,8 +1,11 @@
+import { createMfiLoansUI } from "./mfi-loans-ui.js";
+
 const MFI_TABS = [
   ["dashboard", "Dashboard"],
   ["branches", "Branches"],
   ["customers", "Customers"],
   ["collateral", "Collateral"],
+  ["loans", "💰 Loans"],
   ["officers", "Officers"],
   ["settings", "Settings"],
   ["reports", "Reports"],
@@ -120,6 +123,15 @@ export function initMfiUI({ api, getCurrentUser, notify, escapeHtml }) {
   };
   const actionLabel = (action) => String(action || "updated").replace(/^mfi\./, "").replaceAll("_", " ");
   const listOf = (payload, key) => Array.isArray(payload?.[key]) ? payload[key] : [];
+  const loanUI = createMfiLoansUI({
+    request,
+    escapeHtml,
+    currentUser: () => state.user,
+    announce,
+    onRender: renderPortalView,
+    money,
+    formattedDate,
+  });
 
   function brandMarkup() {
     const org = state.organization || {};
@@ -158,12 +170,13 @@ export function initMfiUI({ api, getCurrentUser, notify, escapeHtml }) {
     }
     const visibleTabs = isAdmin()
       ? MFI_TABS
-      : MFI_TABS.filter(([key]) => ["dashboard", "customers", "collateral"].includes(key));
+      : MFI_TABS.filter(([key]) => ["dashboard", "customers", "collateral", "loans"].includes(key));
     const title = {
       dashboard: "Operations at a glance",
       branches: "Branches",
       customers: "Customer records",
       collateral: "Collateral management",
+      loans: "Loan products and applications",
       officers: "Officers",
       settings: "Organization settings",
       reports: "Reports",
@@ -173,13 +186,14 @@ export function initMfiUI({ api, getCurrentUser, notify, escapeHtml }) {
       branches: "Maintain locations and the managers accountable for each one.",
       customers: "Find and maintain customer records, identity, and guarantor details.",
       collateral: "Register, score, review, and verify customer collateral.",
+      loans: "Manage loan products, applications, and approval decisions.",
       officers: "Keep staff access, roles, and branch assignments current.",
       settings: "Organization profile and operating defaults.",
       reports: "Reporting tools are planned for Phase 3C.",
     }[state.tab];
     return `
       <div class="mfi-page-intro">
-        <div><p class="mfi-eyebrow">Microfinance · Phase 3B</p><h1>${esc(title)}</h1><p>${esc(subline)}</p></div>
+        <div><p class="mfi-eyebrow">${state.tab === "loans" ? "Microfinance · Phase 3C-1" : "Microfinance · Phase 3B"}</p><h1>${esc(title)}</h1><p>${esc(subline)}</p></div>
       </div>
       <nav class="mfi-nav" aria-label="MFI workspace">
         ${visibleTabs.map(([key, label]) => `<button type="button" data-tab="${key}" aria-current="${state.tab === key ? "page" : "false"}">${esc(label)}</button>`).join("")}
@@ -193,6 +207,7 @@ export function initMfiUI({ api, getCurrentUser, notify, escapeHtml }) {
     if (state.tab === "branches") return branchView();
     if (state.tab === "customers") return customerView();
     if (state.tab === "collateral") return collateralView();
+    if (state.tab === "loans") return loanUI.render();
     if (state.tab === "officers") return officerView();
     if (state.tab === "settings") return settingsView();
     return `<section class="mfi-placeholder"><strong>Reports are coming in Phase 3C</strong><p>Phase 3A keeps this workspace focused on people, locations, and accountability.</p></section>`;
@@ -501,10 +516,11 @@ export function initMfiUI({ api, getCurrentUser, notify, escapeHtml }) {
     root.addEventListener("submit", handlePortalSubmit);
     root.addEventListener("change", handlePortalChange);
     root.addEventListener("input", handlePortalInput);
+    loanUI.bind(root);
   }
 
   async function activateTab(tab) {
-    const allowed = isAdmin() ? MFI_TABS.map(([key]) => key) : ["dashboard", "customers", "collateral"];
+    const allowed = isAdmin() ? MFI_TABS.map(([key]) => key) : ["dashboard", "customers", "collateral", "loans"];
     if (!allowed.includes(tab)) return;
     state.tab = tab;
     state.listError = null;
@@ -516,6 +532,7 @@ export function initMfiUI({ api, getCurrentUser, notify, escapeHtml }) {
     if (tab === "branches") await loadBranches();
     if (tab === "customers") await loadCustomers();
     if (tab === "collateral") await loadCollateral();
+    if (tab === "loans") await loanUI.load();
     if (tab === "officers") await loadOfficers();
     if (tab === "settings") await loadSettings();
     renderPortalView();
@@ -1438,6 +1455,7 @@ export function initMfiUI({ api, getCurrentUser, notify, escapeHtml }) {
 
   async function setUser(user) {
     state.user = user || (typeof getCurrentUser === "function" ? getCurrentUser() : null);
+    loanUI.reset();
     state.tab = "dashboard";
     state.organization = null;
     state.stats = null;
@@ -1477,9 +1495,12 @@ export function initMfiUI({ api, getCurrentUser, notify, escapeHtml }) {
   }
 
   function commandContent() {
-    if (state.commandLoading) return `<div class="mfi-page-intro"><div><p class="mfi-eyebrow">APSHULE · MFI OPERATIONS</p><h1>Microfinance organizations</h1><p>Organizations, branch reach, and customer records across the platform.</p></div></div><div class="mfi-metrics">${Array.from({ length: 4 }, () => '<div class="mfi-metric"><span>Loading</span><strong>—</strong></div>').join("")}</div><section class="mfi-panel">${skeletonRows(4)}</section>`;
+    if (state.commandLoading) return `<div class="mfi-page-intro"><div><p class="mfi-eyebrow">APSHULE · MFI OPERATIONS</p><h1>Microfinance organizations</h1><p>Organizations, branch reach, and customer records across the platform.</p></div></div><div class="mfi-metrics">${Array.from({ length: 10 }, () => '<div class="mfi-metric"><span>Loading</span><strong>—</strong></div>').join("")}</div><section class="mfi-panel">${skeletonRows(4)}</section>`;
     if (state.commandError) return `<div class="mfi-page-intro"><div><p class="mfi-eyebrow">APSHULE · MFI OPERATIONS</p><h1>Microfinance organizations</h1><p>Platform-wide MFI organization directory.</p></div></div><section class="mfi-panel"><div class="mfi-state mfi-error-state"><div class="mfi-state-symbol">!</div><strong>Command Center data unavailable</strong><p>${esc(errorMessage(state.commandError))}</p><button type="button" class="mfi-btn mfi-btn--quiet" data-command-retry>Try again</button></div></section>`;
     const stats = state.commandStats || {};
+    const metricValue = (key) => key === "loan_pipeline_value"
+      ? money(value(stats, key, 0))
+      : esc(value(stats, key, 0));
     const metrics = [
       ["Organizations", "organizations"],
       ["Branches", "branches"],
@@ -1487,7 +1508,11 @@ export function initMfiUI({ api, getCurrentUser, notify, escapeHtml }) {
       ["Customers", "customers"],
       ["Active customers", "active_customers"],
       ["Collateral records", "collateral"],
-    ].map(([label, key]) => `<div class="mfi-metric"><span>${esc(label)}</span><strong>${esc(value(stats, key, 0))}</strong></div>`).join("");
+      ["Loan applications", "loan_applications"],
+      ["Approved applications", "loan_approved"],
+      ["Rejected applications", "loan_rejected"],
+      ["Loan pipeline value", "loan_pipeline_value"],
+    ].map(([label, key]) => `<div class="mfi-metric"><span>${esc(label)}</span><strong>${metricValue(key)}</strong></div>`).join("");
     const orgRows = state.organizations.length ? state.organizations.map((org) => `<tr>
       <td><div class="mfi-brand-preview"><div class="mfi-brand-mark" style="background:${esc(safeColor(org.brand_color))}">${safeImage(org.logo_base64) ? `<img src="${esc(safeImage(org.logo_base64))}" alt="">` : "A."}</div><div class="mfi-primary-cell"><strong>${text(org, "name")}</strong><span>${text(org, "city")}${org.district ? `, ${text(org, "district")}` : ""}</span></div></div></td>
       <td>${text(org, "registration_number")}</td><td>${text(org, "admin_name")}</td><td>${text(org, "admin_email")}</td><td>${esc(value(org, "branch_count", 0))}</td><td>${esc(value(org, "customer_count", 0))}</td><td>${esc(value(org, "collateral_count", 0))}</td>

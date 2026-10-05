@@ -24,6 +24,7 @@ import retoolingRoutes from "./routes/retooling.js";
 import earningsRoutes from "./routes/earnings.js";
 import mfiRoutes from "./routes/mfi.js";
 import mfiCollateralRoutes from "./routes/mfi-collateral.js";
+import mfiLoansRoutes from "./routes/mfi-loans.js";
 import documentRoutes from "./routes/documents.js";
 import type { AppEnv } from "./types.js";
 
@@ -137,6 +138,7 @@ app.route("/api", retoolingRoutes);
 app.route("/api", earningsRoutes);
 app.route("/api", mfiRoutes);
 app.route("/api", mfiCollateralRoutes);
+app.route("/api", mfiLoansRoutes);
 app.route("/api/yopayments", paymentsRoutes);
 app.route("/api/superadmin/platform-settings", platformSettingsRoutes);
 app.route("/api/subscription-plans", subscriptionPlansRoutes);

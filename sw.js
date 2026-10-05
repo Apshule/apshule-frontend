@@ -11,6 +11,8 @@ const APP_SHELL_URLS = [
     "/account-profile-ui.js",
     "/retooling-ui.js",
     "/mfi-ui.js",
+    "/mfi-loans-ui.js",
+    "/mfi-loans-domain.mjs",
     "/mfi-ui.css"
 ];
 

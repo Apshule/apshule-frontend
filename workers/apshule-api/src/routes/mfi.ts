@@ -405,7 +405,34 @@ mfi.get("/mfi/stats", requireRole("superadmin", "mfi_admin"), async (c) => {
       COUNT(DISTINCT off.id) FILTER (WHERE off.active IS TRUE)::int AS officers,
       COUNT(DISTINCT customer.id)::int AS customers,
       COUNT(DISTINCT customer.id) FILTER (WHERE customer.status = 'active')::int AS active_customers,
-      COUNT(DISTINCT collateral.id)::int AS collateral
+      COUNT(DISTINCT collateral.id)::int AS collateral,
+      (
+        SELECT COUNT(*)::int
+        FROM mfi_loan_applications loan_app
+        JOIN mfi_organizations loan_org ON loan_org.id = loan_app.organization_id
+        WHERE ${organizationId === null} OR loan_org.id = ${organizationId}
+      ) AS loan_applications,
+      (
+        SELECT COUNT(*)::int
+        FROM mfi_loan_applications loan_app
+        JOIN mfi_organizations loan_org ON loan_org.id = loan_app.organization_id
+        WHERE (${organizationId === null} OR loan_org.id = ${organizationId})
+          AND loan_app.status = 'approved'
+      ) AS loan_approved,
+      (
+        SELECT COUNT(*)::int
+        FROM mfi_loan_applications loan_app
+        JOIN mfi_organizations loan_org ON loan_org.id = loan_app.organization_id
+        WHERE (${organizationId === null} OR loan_org.id = ${organizationId})
+          AND loan_app.status = 'rejected'
+      ) AS loan_rejected,
+      COALESCE((
+        SELECT SUM(loan_app.requested_amount)
+        FROM mfi_loan_applications loan_app
+        JOIN mfi_organizations loan_org ON loan_org.id = loan_app.organization_id
+        WHERE (${organizationId === null} OR loan_org.id = ${organizationId})
+          AND loan_app.status IN ('submitted', 'pending_director', 'changes_requested')
+      ), 0) AS loan_pipeline_value
     FROM mfi_organizations o
     LEFT JOIN mfi_branches b ON b.organization_id = o.id
     LEFT JOIN mfi_officers off ON off.organization_id = o.id
@@ -420,6 +447,10 @@ mfi.get("/mfi/stats", requireRole("superadmin", "mfi_admin"), async (c) => {
     customers: 0,
     active_customers: 0,
     collateral: 0,
+    loan_applications: 0,
+    loan_approved: 0,
+    loan_rejected: 0,
+    loan_pipeline_value: 0,
   } });
 });
 
