@@ -148,22 +148,54 @@ test("document reader uses Microsoft viewer, authenticated downloads, and viewer
     /^    async function openBookReader\(pdf\) \{[\s\S]*?^    \}/mu,
   )?.[0];
   assert.ok(reader, "openBookReader should exist in index.html");
-  const officeViewer = sourceFunction("appendMicrosoftOfficeViewer", "container, url, title");
+  const officeViewer = html.match(
+    /^    async function appendMicrosoftOfficeViewer\(container, url, title, readerId\) \{[\s\S]*?^    \}/mu,
+  )?.[0];
+  assert.ok(officeViewer, "appendMicrosoftOfficeViewer should exist in index.html");
   const fileActions = sourceFunction("appendReaderFileActions", "container, url, title");
   const viewerFallback = sourceFunction("renderViewerWithFallback", "container, url");
+  const safeReaderUrl = sourceFunction("safeReaderDocumentUrl", "value");
+  const viewerSource = sourceFunction("readerViewerSourceUrl", "viewerUrl");
   const blobFetcher = html.match(
     /^    async function fetchReaderDocumentBlob\(url\) \{[\s\S]*?^    \}/mu,
   )?.[0];
   assert.ok(blobFetcher, "fetchReaderDocumentBlob should exist in index.html");
+  const viewerSourceContext = vm.createContext({ URL });
+  vm.runInContext(
+    `${safeReaderUrl}\n${viewerSource}\nglobalThis.extractViewerSource = readerViewerSourceUrl;`,
+    viewerSourceContext,
+  );
+  const embeddedDocx = "https://files.example.com/lesson.docx";
+  assert.equal(
+    viewerSourceContext.extractViewerSource(
+      `https://docs.google.com/gview?url=${encodeURIComponent(embeddedDocx)}`,
+    ),
+    embeddedDocx,
+  );
+  assert.equal(
+    viewerSourceContext.extractViewerSource(
+      `https://view.officeapps.live.com/op/embed.aspx?src=${encodeURIComponent(embeddedDocx)}`,
+    ),
+    embeddedDocx,
+  );
+  assert.equal(viewerSourceContext.extractViewerSource("https://elearn.ncdc.go.ug/viewer/lesson"), null);
   assert.match(reader, /\/api\/detect-doc-kind/u);
-  assert.match(reader, /\/api\/doc-proxy/u);
+  assert.match(reader, /await appendMicrosoftOfficeViewer\(media/u);
   assert.match(reader, /appendReaderFileActions\(actions, directUrl/u);
+  assert.match(reader, /readerViewerSourceUrl\(directUrl\)/u);
   assert.match(officeViewer, /view\.officeapps\.live\.com\/op\/embed\.aspx/u);
+  assert.match(officeViewer, /\/api\/doc-proxy-link/u);
+  assert.match(officeViewer, /encodeURIComponent\(proxyUrl\)/u);
+  assert.match(officeViewer, /Preview unavailable for this file/u);
+  assert.match(officeViewer, /\}, 8000\)/u);
+  assert.match(officeViewer, /readerId !== activeBookReaderId/u);
+  assert.match(reader, /\['pdf', 'image', 'document', 'spreadsheet', 'presentation', 'video', 'audio', 'text'\]/u);
   assert.doesNotMatch(html, /docs\.google\.com\/gview/u);
   assert.match(fileActions, /link\.download = fileName/u);
   assert.match(fileActions, /Preparing your file/u);
   assert.match(fileActions, /Open original link/u);
   assert.match(blobFetcher, /\/api\/doc-proxy/u);
+  assert.match(blobFetcher, /&download=1/u);
   assert.match(viewerFallback, /This is an external viewer page\. It will open in a new tab\./u);
   assert.match(viewerFallback, /book-reader-open-page/u);
   assert.match(reader, /kind === 'pdf'/u);
@@ -177,8 +209,8 @@ test("document reader uses Microsoft viewer, authenticated downloads, and viewer
   assert.match(reader, /renderViewerWithFallback\(media, directUrl\)/u);
 });
 
-test("the service worker uses cache v7 and claims clients on activation", async () => {
+test("the service worker uses cache v8 and claims clients on activation", async () => {
   const sw = await readFile(new URL("../sw.js", import.meta.url), "utf8");
-  assert.match(sw, /const CACHE_NAME = "apshule-cache-v7"/u);
+  assert.match(sw, /const CACHE_NAME = "apshule-cache-v8"/u);
   assert.match(sw, /await self\.clients\.claim\(\)/u);
 });

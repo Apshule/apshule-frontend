@@ -2978,22 +2978,87 @@
         link.textContent = label;
         container.appendChild(link);
     }
-    function appendMicrosoftOfficeViewer(container, url, title) {
+    function readerViewerSourceUrl(viewerUrl) {
+        try {
+            const parsedViewerUrl = new URL(viewerUrl);
+            const hostname = parsedViewerUrl.hostname.toLowerCase().replace(/\.$/u, '');
+            let sourceParameter = '';
+            if (hostname === 'docs.google.com' || hostname.endsWith('.docs.google.com')) {
+                sourceParameter = 'url';
+            } else if (
+                hostname === 'view.officeapps.live.com' ||
+                hostname.endsWith('.view.officeapps.live.com')
+            ) {
+                sourceParameter = 'src';
+            }
+            if (!sourceParameter) return null;
+            const sourceUrl = safeReaderDocumentUrl(parsedViewerUrl.searchParams.get(sourceParameter));
+            if (!sourceUrl) return null;
+            const sourcePath = new URL(sourceUrl).pathname.toLowerCase();
+            if (!/\.(?:pdf|jpe?g|png|gif|webp|bmp|svg|docx?|odt|rtf|xlsx?|ods|csv|pptx?|odp|mp4|webm|mov|avi|mkv|mp3|wav|m4a|ogg|txt|md)$/u.test(sourcePath)) {
+                return null;
+            }
+            return sourceUrl;
+        } catch (_) {
+            return null;
+        }
+    }
+    async function appendMicrosoftOfficeViewer(container, url, title, readerId) {
         const note = document.createElement('p');
         note.className = 'book-reader-viewer-fallback';
         note.textContent = 'If the preview does not load on your phone, download the file or open the original link below.';
         container.appendChild(note);
 
+        const previewLink = await api('/api/doc-proxy-link', {
+            method: 'POST',
+            body: { url }
+        });
+        if (readerId !== activeBookReaderId) return;
+        const proxyUrl = safeReaderDocumentUrl(previewLink?.url);
+        if (!proxyUrl || new URL(proxyUrl).origin !== new URL(API_BASE).origin) {
+            throw new Error('Could not prepare a secure Office preview link.');
+        }
+
         const viewer = document.createElement('div');
         viewer.className = 'book-reader-office-viewer';
         const iframe = document.createElement('iframe');
         iframe.title = `${title} viewer`;
-        iframe.src = `https://view.officeapps.live.com/op/embed.aspx?src=${encodeURIComponent(url)}`;
+        iframe.src = `https://view.officeapps.live.com/op/embed.aspx?src=${encodeURIComponent(proxyUrl)}`;
         iframe.referrerPolicy = 'no-referrer';
         iframe.loading = 'lazy';
         iframe.allowFullscreen = true;
         iframe.className = 'book-reader-office-iframe';
+        const fallback = document.createElement('div');
+        fallback.className = 'book-reader-viewer-fallback';
+        fallback.hidden = true;
+        const fallbackMessage = document.createElement('p');
+        fallbackMessage.textContent = 'Preview unavailable for this file. Use Download file below or open the original link.';
+        fallback.appendChild(fallbackMessage);
+        appendReaderDirectLink(fallback, url, 'Open original file');
+        let fallbackShown = false;
+        let fallbackTimer = window.setTimeout(() => {
+            if (readerId !== activeBookReaderId || !iframe.isConnected) return;
+            fallbackShown = true;
+            iframe.hidden = true;
+            fallback.hidden = false;
+        }, 8000);
+        iframe.addEventListener('load', () => {
+            window.clearTimeout(fallbackTimer);
+            if (fallbackShown && readerId === activeBookReaderId) {
+                iframe.hidden = false;
+                fallback.hidden = true;
+                fallbackShown = false;
+            }
+        }, { once: true });
+        iframe.addEventListener('error', () => {
+            window.clearTimeout(fallbackTimer);
+            if (readerId !== activeBookReaderId || !iframe.isConnected) return;
+            fallbackShown = true;
+            iframe.hidden = true;
+            fallback.hidden = false;
+        }, { once: true });
         viewer.appendChild(iframe);
+        viewer.appendChild(fallback);
         container.appendChild(viewer);
     }
     function renderViewerWithFallback(container, url) {
@@ -3098,7 +3163,7 @@
         container.hidden = false;
     }
     async function fetchReaderDocumentBlob(url) {
-        const proxyUrl = `${API_BASE}/api/doc-proxy?url=${encodeURIComponent(url)}`;
+        const proxyUrl = `${API_BASE}/api/doc-proxy?url=${encodeURIComponent(url)}&download=1`;
         const response = await fetch(proxyUrl, {
             headers: AUTH_TOKEN ? { Authorization: `Bearer ${AUTH_TOKEN}` } : {}
         });
@@ -3172,14 +3237,19 @@
             if (kind === 'viewer') {
                 loading.hidden = true;
                 media.hidden = false;
+                const viewerSourceUrl = readerViewerSourceUrl(directUrl);
+                if (viewerSourceUrl) {
+                    appendReaderFileActions(actions, viewerSourceUrl, pdf.title || kindInfo.label);
+                }
                 renderViewerWithFallback(media, directUrl);
                 return;
             }
 
             if (['document', 'spreadsheet', 'presentation'].includes(kind)) {
-                loading.hidden = true;
                 media.hidden = false;
-                appendMicrosoftOfficeViewer(media, directUrl, pdf.title || kindInfo.label);
+                await appendMicrosoftOfficeViewer(media, directUrl, pdf.title || kindInfo.label, readerId);
+                if (readerId !== activeBookReaderId) return;
+                loading.hidden = true;
                 return;
             }
 

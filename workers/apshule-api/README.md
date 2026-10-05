@@ -111,9 +111,19 @@ All JSON responses use the shape shown below unless a route returns a plain-text
 | PUT | `/api/settings/brand` | Superadmin | Replace brand settings with a JSON object |
 | GET | `/api/settings/about` | Public | Get about settings |
 | PUT | `/api/settings/about` | Superadmin | Replace about settings with a JSON object |
+| POST | `/api/doc-proxy-link` | Signed in | Create a one-hour encrypted preview URL for a supported Office document |
+| GET | `/api/doc-proxy?url=...` | Signed in | Fetch a validated direct document URL through the proxy |
+| GET | `/api/doc-proxy?public=1&token=...` | Temporary capability | Fetch a document through a short-lived link issued by `/api/doc-proxy-link` |
+| GET | `/api/pdf-proxy?url=...` | Signed in | Compatibility alias for the authenticated document proxy |
 | POST | `/api/yopayments/initiate` | Signed in | Create a UGX payment and initiate Yo deposit |
 | POST | `/api/yopayments/status` | Owner or superadmin | Check a payment by `reference` |
 | POST | `/api/yopayments/ipn` | Public callback | Acknowledge with plain-text `OK` after checking provider status server-side |
+
+### Document reader and download behavior
+
+The document reader proxies supported direct-file URLs instead of sending user-only file links to a third-party viewer. To embed an Office document, the signed-in app requests `/api/doc-proxy-link`; the Worker returns an encrypted URL that the Microsoft viewer can fetch without a user JWT. The link expires after one hour. Anyone who obtains it can read that document until it expires, so do not log or publish the generated URL. If the iframe has not loaded after eight seconds, the reader shows a fallback with the original-file link and download action.
+
+Downloads use the authenticated `/api/doc-proxy?url=...&download=1` route. The proxy supplies a safe attachment filename and caches the fetched bytes for one hour. When an external Google or Microsoft viewer URL contains a `url` or `src` parameter with a recognized direct-file URL, the reader can offer a download action for that file. Custom viewer pages that do not expose a direct-file URL cannot be downloaded through the reader; add the original file URL to the curriculum record instead.
 
 Mutations to UNEB items, CA records, projects, curriculum links, and teacher retooling progress write their actor, `sector='education'`, action, target, request IP, and limited metadata to `audit_log` in the same database statement.
 
