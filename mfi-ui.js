@@ -2,6 +2,7 @@ const MFI_TABS = [
   ["dashboard", "Dashboard"],
   ["branches", "Branches"],
   ["customers", "Customers"],
+  ["collateral", "Collateral"],
   ["officers", "Officers"],
   ["settings", "Settings"],
   ["reports", "Reports"],
@@ -13,6 +14,7 @@ const OFFICER_ROLES = [
   ["loan_director", "Loan director"],
 ];
 const IMAGE_LIMIT = 150 * 1024;
+const COLLATERAL_IMAGE_LIMIT = 200 * 1024;
 const EMPTY = "—";
 
 export function initMfiUI({ api, getCurrentUser, notify, escapeHtml }) {
@@ -24,6 +26,16 @@ export function initMfiUI({ api, getCurrentUser, notify, escapeHtml }) {
     customers: [],
     branches: [],
     officers: [],
+    collateralRecords: [],
+    collateralSummary: null,
+    collateralTypes: [],
+    collateralCustomers: [],
+    valuers: [],
+    legalOfficers: [],
+    collateralFilters: { customer_id: "", status: "", type_id: "" },
+    collateralDetail: null,
+    collateralDetailId: null,
+    settingsSubtab: "profile",
     search: "",
     branchFilter: "",
     customer: null,
@@ -144,11 +156,14 @@ export function initMfiUI({ api, getCurrentUser, notify, escapeHtml }) {
     if (!isAdmin() && !STAFF_ROLES.has(role())) {
       return `<section class="mfi-panel"><div class="mfi-state"><div class="mfi-state-symbol">MFI</div><strong>MFI workspace unavailable</strong><p>This workspace is for MFI administrators and staff accounts.</p></div></section>`;
     }
-    const visibleTabs = isAdmin() ? MFI_TABS : MFI_TABS.filter(([key]) => ["dashboard", "customers"].includes(key));
+    const visibleTabs = isAdmin()
+      ? MFI_TABS
+      : MFI_TABS.filter(([key]) => ["dashboard", "customers", "collateral"].includes(key));
     const title = {
       dashboard: "Operations at a glance",
       branches: "Branches",
       customers: "Customer records",
+      collateral: "Collateral management",
       officers: "Officers",
       settings: "Organization settings",
       reports: "Reports",
@@ -157,13 +172,14 @@ export function initMfiUI({ api, getCurrentUser, notify, escapeHtml }) {
       dashboard: "A clear view of your organization’s day-to-day activity.",
       branches: "Maintain locations and the managers accountable for each one.",
       customers: "Find and maintain customer records, identity, and guarantor details.",
+      collateral: "Register, score, review, and verify customer collateral.",
       officers: "Keep staff access, roles, and branch assignments current.",
       settings: "Organization profile and operating defaults.",
       reports: "Reporting tools are planned for Phase 3C.",
     }[state.tab];
     return `
       <div class="mfi-page-intro">
-        <div><p class="mfi-eyebrow">Microfinance · Phase 3A</p><h1>${esc(title)}</h1><p>${esc(subline)}</p></div>
+        <div><p class="mfi-eyebrow">Microfinance · Phase 3B</p><h1>${esc(title)}</h1><p>${esc(subline)}</p></div>
       </div>
       <nav class="mfi-nav" aria-label="MFI workspace">
         ${visibleTabs.map(([key, label]) => `<button type="button" data-tab="${key}" aria-current="${state.tab === key ? "page" : "false"}">${esc(label)}</button>`).join("")}
@@ -176,6 +192,7 @@ export function initMfiUI({ api, getCurrentUser, notify, escapeHtml }) {
     if (state.tab === "dashboard") return dashboardView();
     if (state.tab === "branches") return branchView();
     if (state.tab === "customers") return customerView();
+    if (state.tab === "collateral") return collateralView();
     if (state.tab === "officers") return officerView();
     if (state.tab === "settings") return settingsView();
     return `<section class="mfi-placeholder"><strong>Reports are coming in Phase 3C</strong><p>Phase 3A keeps this workspace focused on people, locations, and accountability.</p></section>`;
@@ -267,6 +284,108 @@ export function initMfiUI({ api, getCurrentUser, notify, escapeHtml }) {
     </section>`;
   }
 
+  const COLLATERAL_STATUSES = [
+    ["draft", "Draft"], ["pending_review", "Pending review"], ["approved", "Approved"],
+    ["rejected", "Rejected"], ["awaiting_valuation", "Awaiting valuation"],
+    ["valued", "Valued"], ["awaiting_legal", "Awaiting legal"],
+    ["legal_cleared", "Legal cleared"], ["legal_issue", "Legal issue"],
+  ];
+  const statusLabel = (status) => COLLATERAL_STATUSES.find(([key]) => key === status)?.[1] || String(status || "Unknown").replaceAll("_", " ");
+
+  function collateralView() {
+    if (state.listLoading) return `<section class="mfi-panel">${skeletonRows(5)}</section>`;
+    if (state.listError) return `<section class="mfi-panel">${errorState(state.listError, "collateral")}</section>`;
+    if (state.collateralDetailId) return collateralDetailView();
+    const summary = state.collateralSummary || {};
+    const metrics = [
+      ["Total collateral", value(summary, "total_collateral", 0)],
+      ["Total value", money(value(summary, "total_value", 0))],
+      ["Pending review", value(summary, "pending_review", 0)],
+      ["Approved", value(summary, "approved", 0)],
+    ];
+    const rows = state.collateralRecords.length ? state.collateralRecords.map((record) => `<tr>
+      <td class="mfi-primary-cell"><strong>${text(record, "title")}</strong><span>${text(record, "collateral_type_name", "Type not set")}</span></td>
+      <td>${esc(`${value(record, "customer_first_name", "")} ${value(record, "customer_last_name", "")}`.trim() || "Customer")}</td>
+      <td>${money(record.estimated_value, record.currency || "UGX")}</td>
+      <td><span class="mfi-score-pill">${esc(record.score ?? "—")}</span></td>
+      <td><span class="mfi-status ${["rejected", "legal_issue"].includes(record.status) ? "mfi-status--inactive" : record.status === "pending_review" ? "mfi-status--attention" : ""}">${esc(statusLabel(record.status))}</span></td>
+      <td><button type="button" class="mfi-btn mfi-btn--quiet mfi-btn--small" data-action="collateral-detail" data-id="${esc(record.id)}">View record</button></td>
+    </tr>`).join("") : `<tr><td colspan="6">${emptyState("No collateral records yet", "Register customer assets to begin review and verification.", "Add collateral", "add-collateral")}</td></tr>`;
+    return `<section class="mfi-metrics">${metrics.map(([label, amount]) => `<div class="mfi-metric"><span class="mfi-metric-label">${esc(label)}</span><strong class="mfi-metric-value">${esc(amount)}</strong></div>`).join("")}</section>
+      <section class="mfi-panel">
+        <div class="mfi-section-head"><div><h2>Collateral register</h2><p>Scored assets, review status, valuation, and legal verification.</p></div><button type="button" class="mfi-btn" data-action="add-collateral">＋ Add collateral</button></div>
+        <form class="mfi-toolbar" data-form="collateral-filter">
+          <select class="mfi-control mfi-select-compact" name="customer_id" aria-label="Filter by customer"><option value="">All customers</option>${state.collateralCustomers.map((customer) => `<option value="${esc(customer.id)}" ${state.collateralFilters.customer_id === customer.id ? "selected" : ""}>${esc(`${customer.first_name} ${customer.last_name}`)}</option>`).join("")}</select>
+          <select class="mfi-control mfi-select-compact" name="status" aria-label="Filter by status"><option value="">All statuses</option>${COLLATERAL_STATUSES.map(([key, label]) => `<option value="${key}" ${state.collateralFilters.status === key ? "selected" : ""}>${esc(label)}</option>`).join("")}</select>
+          <select class="mfi-control mfi-select-compact" name="type_id" aria-label="Filter by collateral type"><option value="">All types</option>${state.collateralTypes.map((type) => `<option value="${esc(type.id)}" ${state.collateralFilters.type_id === type.id ? "selected" : ""}>${text(type, "name")}</option>`).join("")}</select>
+          <button type="submit" class="mfi-btn mfi-btn--quiet">Filter</button>
+        </form>
+        <div class="mfi-table-wrap"><table class="mfi-table"><thead><tr><th>Title / Type</th><th>Customer</th><th>Value</th><th>Score</th><th>Status</th><th>Record</th></tr></thead><tbody>${rows}</tbody></table></div>
+      </section>`;
+  }
+
+  function collateralDetailView() {
+    const record = state.collateralDetail;
+    if (state.collateralDetailLoading) return `<section class="mfi-panel">${skeletonRows(5)}</section>`;
+    if (state.collateralDetailError) return `<section class="mfi-panel">${errorState(state.collateralDetailError, "collateral-detail")}</section>`;
+    if (!record) return `<section class="mfi-panel">${emptyState("Collateral record unavailable", "This record may have been removed.")}</section>`;
+    const photos = Array.isArray(record.photos) ? record.photos : [];
+    const docs = Array.isArray(record.documents) ? record.documents : [];
+    const score = record.score_breakdown && typeof record.score_breakdown === "object" ? record.score_breakdown : {};
+    const components = [
+      ["Type", score.type], ["Value tier", score.value],
+      ["Condition", score.condition], ["Documents", score.documents],
+    ].filter(([, item]) => item);
+    const timeline = state.collateralTimeline?.length ? state.collateralTimeline.map((item) => {
+      const metadata = item.metadata && typeof item.metadata === "object" ? item.metadata : {};
+      const note = metadata.notes || metadata.reason || metadata.valuation_notes || "";
+      const statusText = metadata.status_to ? ` · ${statusLabel(metadata.status_to)}` : "";
+      return `<li class="mfi-timeline-item"><span class="mfi-timeline-dot"></span><div><strong>${esc(actionLabel(item.action))}${esc(statusText)}</strong><p>${esc(note || item.actor_name || "Activity recorded")}</p><time>${formattedDate(item.created_at)}</time></div></li>`;
+    }).join("") : `<li class="mfi-timeline-empty">No recorded activity yet.</li>`;
+    const requiredValuation = record.requires_valuation !== false;
+    const requiredLegal = record.requires_legal === true;
+    let actions = "";
+    if (record.status === "draft") actions = `<button class="mfi-btn" data-collateral-action="submit" data-id="${esc(record.id)}">Submit for review</button>`;
+    if (record.status === "rejected" && (isAdmin() || role() === "loan_manager")) actions = `<button class="mfi-btn" data-action="edit-collateral" data-id="${esc(record.id)}">Edit and resubmit</button>`;
+    if (record.status === "pending_review" && (isAdmin() || role() === "loan_manager")) actions = `<button class="mfi-btn" data-collateral-action="approve" data-id="${esc(record.id)}">Approve</button><button class="mfi-btn mfi-btn--danger" data-collateral-action="reject" data-id="${esc(record.id)}">Reject</button>`;
+    if (record.status === "approved" && requiredValuation) actions = `<button class="mfi-btn" data-collateral-action="assign-valuer" data-id="${esc(record.id)}">Assign valuer</button>`;
+    if (record.status === "approved" && !requiredValuation && requiredLegal) actions = `<button class="mfi-btn" data-collateral-action="assign-legal" data-id="${esc(record.id)}">Assign legal officer</button>`;
+    if (record.status === "approved" && !requiredValuation && !requiredLegal) actions = `<span class="mfi-status">Workflow complete</span>`;
+    if (record.status === "awaiting_valuation") actions = `<button class="mfi-btn" data-collateral-action="record-valuation" data-id="${esc(record.id)}">Record valuation</button>`;
+    if (record.status === "valued" && requiredLegal) actions = `<button class="mfi-btn" data-collateral-action="assign-legal" data-id="${esc(record.id)}">Assign legal officer</button>`;
+    if (record.status === "valued" && !requiredLegal && (isAdmin() || role() === "loan_manager")) actions = `<button class="mfi-btn" data-collateral-action="complete" data-id="${esc(record.id)}">Complete</button>`;
+    if (record.status === "awaiting_legal") actions = `<button class="mfi-btn" data-collateral-action="record-legal" data-id="${esc(record.id)}">Record legal outcome</button>`;
+    if (record.status === "legal_cleared" && (isAdmin() || role() === "loan_manager")) actions = `<button class="mfi-btn" data-collateral-action="complete" data-id="${esc(record.id)}">Complete</button>`;
+    const valuation = record.valuation_report && typeof record.valuation_report === "object" ? record.valuation_report : null;
+    return `<section class="mfi-panel mfi-collateral-detail">
+      <div class="mfi-section-head"><div><button type="button" class="mfi-link-button" data-action="collateral-back">← Back to collateral</button><h2>${text(record, "title")}</h2><p>${text(record, "collateral_type_name")} · ${esc(`${value(record, "customer_first_name", "")} ${value(record, "customer_last_name", "")}`.trim())}</p></div>
+        <div class="mfi-action-row">${record.status === "draft" || record.status === "rejected" ? `<button type="button" class="mfi-btn mfi-btn--quiet" data-action="edit-collateral" data-id="${esc(record.id)}">Edit</button>` : ""}${isAdmin() ? `<button type="button" class="mfi-btn mfi-btn--danger mfi-btn--small" data-action="delete-collateral" data-id="${esc(record.id)}">Delete</button>` : ""}</div>
+      </div>
+      <div class="mfi-collateral-status-line"><span class="mfi-status ${["rejected", "legal_issue"].includes(record.status) ? "mfi-status--inactive" : record.status === "pending_review" ? "mfi-status--attention" : ""}">${esc(statusLabel(record.status))}</span><span>Created ${formattedDate(record.created_at)}</span></div>
+      <div class="mfi-collateral-detail-grid">
+        <article class="mfi-subpanel"><h3>Collateral details</h3><div class="mfi-info-grid">
+          ${[
+            ["Estimated value", money(record.estimated_value, record.currency || "UGX")],
+            ["Condition", value(record, "condition")], ["Location", value(record, "location")],
+            ["Branch", value(record, "branch_name")], ["Valuer", value(record, "valuer_name")],
+            ["Legal officer", value(record, "legal_officer_name")], ["Legal outcome", value(record, "legal_status")],
+          ].map(([label, content]) => `<div class="mfi-info-item"><span>${esc(label)}</span><strong>${content === EMPTY ? EMPTY : esc(content || EMPTY)}</strong></div>`).join("")}
+        </div>${record.description ? `<p class="mfi-collateral-description">${text(record, "description")}</p>` : ""}</article>
+        <article class="mfi-subpanel mfi-score-card"><div class="mfi-section-head"><div><h3>Collateral score</h3><p>Weighted risk and evidence score</p></div><strong class="mfi-score-large">${esc(record.score ?? "—")}<small>/100</small></strong></div>
+          ${components.map(([label, item]) => `<div class="mfi-score-row"><span>${esc(label)} · ${Math.round(Number(item.weight) * 100)}%</span><strong>${esc(item.score)} <small>+${Number(item.weighted).toFixed(1)}</small></strong></div>`).join("")}
+        </article>
+      </div>
+      ${photos.length ? `<article class="mfi-subpanel"><h3>Photos</h3><div class="mfi-photo-gallery">${photos.map((photo) => safeImage(photo)).filter(Boolean).map((photo) => `<img src="${esc(photo)}" alt="Collateral photo">`).join("")}</div></article>` : ""}
+      <article class="mfi-subpanel"><h3>Documents</h3>${docs.length ? `<ul class="mfi-document-list">${docs.map((doc) => {
+        const label = typeof doc === "string" ? doc : doc?.name || doc?.title || doc?.url || "Supporting document";
+        const url = typeof doc === "object" && doc ? doc.url || doc.href : "";
+        return `<li>${url && /^https?:\/\//i.test(String(url)) ? `<a href="${esc(url)}" target="_blank" rel="noopener noreferrer">${esc(label)}</a>` : esc(label)}</li>`;
+      }).join("")}</ul>` : `<p class="mfi-muted-copy">No supporting documents attached.</p>`}${valuation ? `<div class="mfi-valuation-note"><strong>Valuation report</strong><span>${money(valuation.amount, record.currency || "UGX")} · ${formattedDate(valuation.valuation_date)}</span><p>${esc(valuation.notes || "No valuation notes.")}</p></div>` : ""}</article>
+      <article class="mfi-subpanel"><h3>Workflow history and notes</h3><ol class="mfi-timeline">${timeline}</ol></article>
+      <div class="mfi-action-row mfi-collateral-actions">${actions}</div>
+    </section>`;
+  }
+
   function officerView() {
     if (state.listLoading) return `<section class="mfi-panel">${skeletonRows()}</section>`;
     if (state.listError) return `<section class="mfi-panel">${errorState(state.listError, "officers")}</section>`;
@@ -283,6 +402,23 @@ export function initMfiUI({ api, getCurrentUser, notify, escapeHtml }) {
   }
 
   function settingsView() {
+    const tabs = [
+      ["profile", "Organization profile"],
+      ["collateral-types", "Collateral types"],
+      ["valuers", "Valuers"],
+      ["legal-officers", "Legal officers"],
+    ];
+    const content = state.settingsSubtab === "profile"
+      ? settingsProfileView()
+      : state.settingsSubtab === "collateral-types"
+        ? collateralTypeSettingsView()
+        : registrySettingsView(state.settingsSubtab);
+    return `<nav class="mfi-subtabs mfi-settings-tabs" role="tablist" aria-label="Organization settings">
+      ${tabs.map(([key, label]) => `<button type="button" data-settings-tab="${key}" aria-selected="${state.settingsSubtab === key ? "true" : "false"}">${esc(label)}</button>`).join("")}
+    </nav>${content}`;
+  }
+
+  function settingsProfileView() {
     if (state.listLoading) return `<section class="mfi-panel">${skeletonRows(4)}</section>`;
     if (state.listError) return `<section class="mfi-panel">${errorState(state.listError, "settings")}</section>`;
     const settings = state.settings || {};
@@ -315,6 +451,32 @@ export function initMfiUI({ api, getCurrentUser, notify, escapeHtml }) {
     </form>`;
   }
 
+  function collateralTypeSettingsView() {
+    const rows = state.collateralTypes.length ? state.collateralTypes.map((type) => `<tr>
+      <td class="mfi-primary-cell"><strong>${text(type, "name")}</strong><span>${text(type, "code")}</span></td>
+      <td>${text(type, "category")}</td><td>${esc(type.base_score ?? 50)}</td>
+      <td>${type.requires_valuation ? "Required" : "No"}</td><td>${type.requires_legal ? "Required" : "No"}</td>
+      <td><div class="mfi-row-actions"><button type="button" class="mfi-icon-btn" data-action="edit-collateral-type" data-id="${esc(type.id)}">Edit</button><button type="button" class="mfi-icon-btn" data-action="delete-collateral-type" data-id="${esc(type.id)}" aria-label="Deactivate ${text(type, "name")}">×</button></div></td>
+    </tr>`).join("") : `<tr><td colspan="6">${emptyState("No collateral types", "Seed the standard collateral catalog or add a custom type.")}</td></tr>`;
+    return `<section class="mfi-panel"><div class="mfi-section-head"><div><h2>Collateral types</h2><p>Organization-specific score baselines and verification requirements.</p></div><div class="mfi-action-row"><button type="button" class="mfi-btn mfi-btn--quiet" data-action="seed-collateral-types">Seed defaults</button><button type="button" class="mfi-btn" data-action="add-collateral-type">＋ Add type</button></div></div>
+      <div class="mfi-table-wrap"><table class="mfi-table"><thead><tr><th>Type</th><th>Category</th><th>Base score</th><th>Valuation</th><th>Legal</th><th>Actions</th></tr></thead><tbody>${rows}</tbody></table></div>
+    </section>`;
+  }
+
+  function registrySettingsView(tab) {
+    const valuersTab = tab === "valuers";
+    const records = valuersTab ? state.valuers : state.legalOfficers;
+    const label = valuersTab ? "valuer" : "legal officer";
+    const rows = records.length ? records.map((item) => `<tr>
+      <td class="mfi-primary-cell"><strong>${text(item, "full_name")}</strong><span>${text(item, "email")}</span></td>
+      <td>${text(item, "phone")}</td><td>${text(item, valuersTab ? "license_number" : "law_firm")}</td>
+      <td><div class="mfi-row-actions"><button type="button" class="mfi-icon-btn" data-action="edit-registry" data-kind="${valuersTab ? "valuer" : "legal-officer"}" data-id="${esc(item.id)}">Edit</button><button type="button" class="mfi-icon-btn" data-action="delete-registry" data-kind="${valuersTab ? "valuer" : "legal-officer"}" data-id="${esc(item.id)}" aria-label="Deactivate ${text(item, "full_name")}">×</button></div></td>
+    </tr>`).join("") : `<tr><td colspan="4">${emptyState(`No ${label}s added`, `Add approved external ${label} contacts for verification assignments.`)}</td></tr>`;
+    return `<section class="mfi-panel"><div class="mfi-section-head"><div><h2>${valuersTab ? "External valuers" : "External legal officers"}</h2><p>Maintain organization contacts available during collateral verification.</p></div><button type="button" class="mfi-btn" data-action="add-registry" data-kind="${valuersTab ? "valuer" : "legal-officer"}">＋ Add ${label}</button></div>
+      <div class="mfi-table-wrap"><table class="mfi-table"><thead><tr><th>Name / Email</th><th>Phone</th><th>${valuersTab ? "License" : "Law firm"}</th><th>Actions</th></tr></thead><tbody>${rows}</tbody></table></div>
+    </section>`;
+  }
+
   function field(label, name, current = "", type = "text", required = false, extraClass = "", extra = "") {
     const id = `mfi-${name.replaceAll("_", "-")}`;
     return `<div class="mfi-field ${extraClass}"><label for="${esc(id)}">${esc(label)}${required ? " *" : ""}</label><input id="${esc(id)}" class="mfi-control" name="${esc(name)}" type="${esc(type)}" value="${esc(current ?? "")}" ${required ? "required" : ""} ${extra}></div>`;
@@ -342,17 +504,18 @@ export function initMfiUI({ api, getCurrentUser, notify, escapeHtml }) {
   }
 
   async function activateTab(tab) {
-    const allowed = isAdmin() ? MFI_TABS.map(([key]) => key) : ["dashboard", "customers"];
+    const allowed = isAdmin() ? MFI_TABS.map(([key]) => key) : ["dashboard", "customers", "collateral"];
     if (!allowed.includes(tab)) return;
     state.tab = tab;
     state.listError = null;
-    state.listLoading = ["branches", "customers", "officers", "settings"].includes(tab);
+    state.listLoading = ["branches", "customers", "collateral", "officers", "settings"].includes(tab);
     state.dashboardError = null;
     state.dashboardLoading = tab === "dashboard" && isAdmin();
     renderPortalView();
     if (tab === "dashboard" && isAdmin()) await loadDashboard();
     if (tab === "branches") await loadBranches();
     if (tab === "customers") await loadCustomers();
+    if (tab === "collateral") await loadCollateral();
     if (tab === "officers") await loadOfficers();
     if (tab === "settings") await loadSettings();
     renderPortalView();
@@ -417,6 +580,62 @@ export function initMfiUI({ api, getCurrentUser, notify, escapeHtml }) {
     }
   }
 
+  async function loadCollateral() {
+    state.listLoading = true;
+    state.listError = null;
+    renderPortalView();
+    try {
+      const params = new URLSearchParams();
+      Object.entries(state.collateralFilters).forEach(([key, current]) => {
+        if (current) params.set(key, current);
+      });
+      const query = params.toString();
+      const [listPayload, summaryPayload, typePayload, customerPayload] = await Promise.all([
+        request(`/api/mfi/collateral${query ? `?${query}` : ""}`),
+        request("/api/mfi/collateral/summary"),
+        request("/api/mfi/collateral-types"),
+        request("/api/mfi/customers"),
+      ]);
+      state.collateralRecords = listOf(listPayload, "collateral");
+      state.collateralSummary = summaryPayload?.summary || {};
+      state.collateralTypes = listOf(typePayload, "types");
+      state.collateralCustomers = listOf(customerPayload, "customers");
+      if (isAdmin()) {
+        const [valuerPayload, legalPayload] = await Promise.all([
+          request("/api/mfi/valuers"),
+          request("/api/mfi/legal-officers"),
+        ]);
+        state.valuers = listOf(valuerPayload, "valuers");
+        state.legalOfficers = listOf(legalPayload, "legal-officers");
+      } else {
+        state.valuers = [];
+        state.legalOfficers = [];
+      }
+    } catch (error) {
+      state.listError = error;
+    } finally {
+      state.listLoading = false;
+      renderPortalView();
+    }
+  }
+
+  async function loadCollateralDetail(id) {
+    state.collateralDetailId = id;
+    state.collateralDetailLoading = true;
+    state.collateralDetailError = null;
+    renderPortalView();
+    try {
+      const payload = await request(`/api/mfi/collateral/${encodeURIComponent(id)}`);
+      state.collateralDetail = payload?.collateral || null;
+      state.collateralTimeline = listOf(payload, "timeline");
+    } catch (error) {
+      state.collateralDetailError = error;
+    } finally {
+      state.collateralDetailLoading = false;
+      renderPortalView();
+    }
+  }
+
   async function loadBranchesForCustomerFilter() {
     try { state.branches = listOf(await request("/api/mfi/branches"), "branches"); }
     catch (_) { state.branches = []; }
@@ -443,11 +662,17 @@ export function initMfiUI({ api, getCurrentUser, notify, escapeHtml }) {
     state.listError = null;
     renderPortalView();
     try {
-      const [settingsPayload, orgPayload] = await Promise.all([
+      const [settingsPayload, orgPayload, typePayload, valuerPayload, legalPayload] = await Promise.all([
         request("/api/mfi/settings"),
         request("/api/mfi/organizations"),
+        request("/api/mfi/collateral-types"),
+        request("/api/mfi/valuers"),
+        request("/api/mfi/legal-officers"),
       ]);
       state.settings = settingsPayload?.settings || {};
+      state.collateralTypes = listOf(typePayload, "types");
+      state.valuers = listOf(valuerPayload, "valuers");
+      state.legalOfficers = listOf(legalPayload, "legal-officers");
       state.organization = listOf(orgPayload, "organizations")[0] || {
         id: state.settings.organization_id,
         name: state.settings.organization_name,
@@ -486,7 +711,20 @@ export function initMfiUI({ api, getCurrentUser, notify, escapeHtml }) {
         renderCustomerDetails(state.customer?.id, state.detailTab);
         return;
       }
+      if (target.dataset.retry === "collateral-detail") {
+        loadCollateralDetail(state.collateralDetailId);
+        return;
+      }
       activateTab(target.dataset.retry);
+      return;
+    }
+    if (target.dataset.settingsTab) {
+      state.settingsSubtab = target.dataset.settingsTab;
+      renderPortalView();
+      return;
+    }
+    if (target.dataset.collateralAction) {
+      handleCollateralAction(target.dataset.collateralAction, target.dataset.id);
       return;
     }
     if (target.dataset.detailTab) {
@@ -523,6 +761,29 @@ export function initMfiUI({ api, getCurrentUser, notify, escapeHtml }) {
       openGuarantorForm(state.customer?.id, guarantor);
     }
     if (action === "delete-guarantor") confirmDelete("guarantor", id, state.customer?.id);
+    if (action === "add-collateral") openCollateralForm();
+    if (action === "collateral-detail") loadCollateralDetail(id);
+    if (action === "collateral-back") {
+      state.collateralDetail = null;
+      state.collateralDetailId = null;
+      state.collateralTimeline = [];
+      renderPortalView();
+    }
+    if (action === "edit-collateral") {
+      const record = state.collateralRecords.find((row) => row.id === id) || state.collateralDetail;
+      if (record) openCollateralForm(record);
+    }
+    if (action === "delete-collateral") confirmDelete("collateral", id);
+    if (action === "seed-collateral-types") seedCollateralTypes();
+    if (action === "add-collateral-type") openCollateralTypeForm();
+    if (action === "edit-collateral-type") openCollateralTypeForm(state.collateralTypes.find((row) => row.id === id));
+    if (action === "delete-collateral-type") confirmDelete("collateral-type", id);
+    if (action === "add-registry") openRegistryForm(target.dataset.kind);
+    if (action === "edit-registry") {
+      const records = target.dataset.kind === "valuer" ? state.valuers : state.legalOfficers;
+      openRegistryForm(target.dataset.kind, records.find((row) => row.id === id));
+    }
+    if (action === "delete-registry") confirmDelete(target.dataset.kind, id);
   }
 
   async function handlePortalSubmit(event) {
@@ -538,6 +799,16 @@ export function initMfiUI({ api, getCurrentUser, notify, escapeHtml }) {
       await loadCustomers();
       return;
     }
+    if (type === "collateral-filter") {
+      const data = new FormData(form);
+      state.collateralFilters = {
+        customer_id: String(data.get("customer_id") || ""),
+        status: String(data.get("status") || ""),
+        type_id: String(data.get("type_id") || ""),
+      };
+      await loadCollateral();
+      return;
+    }
     setFormBusy(form, true);
     clearFormError(form);
     try {
@@ -546,6 +817,10 @@ export function initMfiUI({ api, getCurrentUser, notify, escapeHtml }) {
       else if (type === "customer") await submitCustomer(form);
       else if (type === "guarantor") await submitGuarantor(form);
       else if (type === "settings") await submitSettings(form);
+      else if (type === "collateral") await submitCollateral(form);
+      else if (type === "collateral-action") await submitCollateralAction(form);
+      else if (type === "collateral-type") await submitCollateralType(form);
+      else if (type === "valuer" || type === "legal-officer") await submitRegistry(form, type);
     } catch (error) {
       showFormError(form, errorMessage(error));
       announce(errorMessage(error), "error");
@@ -558,6 +833,19 @@ export function initMfiUI({ api, getCurrentUser, notify, escapeHtml }) {
     if (control.name === "branch_id" && control.closest('[data-form="customer-search"]')) {
       state.branchFilter = control.value;
       await loadCustomers();
+    }
+    if (
+      control.closest('[data-form="collateral-filter"]') &&
+      ["customer_id", "status", "type_id"].includes(control.name)
+    ) {
+      const form = control.closest("form");
+      const data = new FormData(form);
+      state.collateralFilters = {
+        customer_id: String(data.get("customer_id") || ""),
+        status: String(data.get("status") || ""),
+        type_id: String(data.get("type_id") || ""),
+      };
+      await loadCollateral();
     }
   }
 
@@ -769,6 +1057,190 @@ export function initMfiUI({ api, getCurrentUser, notify, escapeHtml }) {
     await renderCustomerDetails(customerId, "guarantors");
   }
 
+  function openCollateralForm(record = null) {
+    const editing = Boolean(record);
+    const customerItems = state.collateralCustomers.map((customer) => ({
+      value: customer.id,
+      label: `${customer.first_name} ${customer.last_name}${customer.phone ? ` · ${customer.phone}` : ""}`,
+    }));
+    const typeItems = state.collateralTypes.map((type) => ({
+      value: type.id, label: `${type.name} · base ${type.base_score}`,
+    }));
+    const conditionItems = ["excellent", "good", "fair", "poor"].map((value) => ({
+      value, label: value[0].toUpperCase() + value.slice(1),
+    }));
+    const existingDocs = Array.isArray(record?.documents)
+      ? record.documents.map((doc) => typeof doc === "string" ? doc : doc?.name || doc?.title || "").filter(Boolean).join("\n")
+      : "";
+    const body = `<form id="mfi-modal-form" class="mfi-modal-body" data-form="collateral" data-id="${esc(record?.id || "")}">
+      <div class="mfi-form-grid">
+        ${selectField("Customer", "customer_id", customerItems, record?.customer_id, true)}
+        ${selectField("Collateral type", "collateral_type_id", typeItems, record?.collateral_type_id, true)}
+        ${field("Collateral title", "title", record?.title || "", "text", true)}
+        ${field("Estimated value (UGX)", "estimated_value", record?.estimated_value ?? "", "number", true, "", 'min="0" step="0.01"')}
+        ${selectField("Condition", "condition", conditionItems, record?.condition || "good", true)}
+        ${field("Location", "location", record?.location || "")}
+        <div class="mfi-field mfi-span-2"><label for="mfi-collateral-description">Description</label><textarea id="mfi-collateral-description" name="description" class="mfi-control">${esc(record?.description || "")}</textarea></div>
+        <div class="mfi-field mfi-span-2"><label for="mfi-collateral-photos">Photos (each up to 200 KB)</label><input id="mfi-collateral-photos" class="mfi-control" type="file" name="photos_file" accept="image/jpeg,image/png,image/webp" multiple><small>JPEG, PNG, or WebP. New photos are added to any existing photos.</small></div>
+        <div class="mfi-field mfi-span-2"><label for="mfi-collateral-documents">Supporting documents</label><textarea id="mfi-collateral-documents" name="documents_text" class="mfi-control" placeholder="One document name or link per line">${esc(existingDocs)}</textarea><small>Enter document names or secure links, one per line.</small></div>
+      </div>
+    </form>`;
+    putModal(modalMarkup(editing ? "Edit collateral" : "Register collateral", "Record the asset and supporting evidence. Scoring updates automatically.", body, editing ? "Save changes" : "Create draft", true));
+  }
+
+  function openCollateralActionForm(action, id) {
+    const record = state.collateralDetail || state.collateralRecords.find((item) => item.id === id);
+    let title = "Update collateral workflow";
+    let description = "Enter the required workflow details.";
+    let body = "";
+    if (action === "approve" || action === "reject") {
+      title = action === "approve" ? "Approve collateral" : "Reject collateral";
+      description = action === "approve" ? "Confirm review approval and add optional notes." : "A rejection reason is required.";
+      body = `<div class="mfi-field"><label for="mfi-review-note">${action === "approve" ? "Review notes" : "Reason for rejection"}${action === "reject" ? " *" : ""}</label><textarea id="mfi-review-note" class="mfi-control" name="${action === "approve" ? "notes" : "reason"}" ${action === "reject" ? "required" : ""}></textarea></div>`;
+    } else if (action === "assign-valuer") {
+      title = "Assign a valuer";
+      description = "Choose a registered valuer or enter an external contact.";
+      body = `<div class="mfi-form-grid">${selectField("Registered valuer", "valuer_id", state.valuers.map((item) => ({ value: item.id, label: `${item.full_name}${item.license_number ? ` · ${item.license_number}` : ""}` })))}${field("Valuer name", "valuer_name", "", "text", !state.valuers.length)}${field("Valuer phone", "valuer_phone")}</div>`;
+    } else if (action === "record-valuation") {
+      title = "Record valuation";
+      description = "Enter the assessed market value and report notes.";
+      body = `<div class="mfi-form-grid">${field("Valuation amount (UGX)", "valuation_amount", record?.estimated_value ?? "", "number", true, "", 'min="0" step="0.01"')}${field("Valuation date", "valuation_date", new Date().toISOString().slice(0, 10), "date") }<div class="mfi-field mfi-span-2"><label for="mfi-valuation-notes">Valuation notes</label><textarea id="mfi-valuation-notes" name="valuation_notes" class="mfi-control"></textarea></div></div>`;
+    } else if (action === "assign-legal") {
+      title = "Assign legal review";
+      description = "Choose a registered legal officer or enter an external contact.";
+      body = `<div class="mfi-form-grid">${selectField("Registered legal officer", "legal_officer_id", state.legalOfficers.map((item) => ({ value: item.id, label: `${item.full_name}${item.law_firm ? ` · ${item.law_firm}` : ""}` })))}${field("Legal officer name", "legal_officer_name", "", "text", !state.legalOfficers.length)}</div>`;
+    } else if (action === "record-legal") {
+      title = "Record legal outcome";
+      description = "Record whether the collateral title is clear or has an issue.";
+      body = `${selectField("Legal outcome", "legal_status", [{ value: "clear", label: "Clear" }, { value: "disputed", label: "Disputed" }, { value: "encumbered", label: "Encumbered" }], "", true)}<div class="mfi-field"><label for="mfi-legal-notes">Notes</label><textarea id="mfi-legal-notes" name="notes" class="mfi-control"></textarea></div>`;
+    }
+    const form = `<form id="mfi-modal-form" class="mfi-modal-body" data-form="collateral-action" data-operation="${esc(action)}" data-id="${esc(id)}">${body}</form>`;
+    putModal(modalMarkup(title, description, form, "Save and continue", true));
+  }
+
+  function handleCollateralAction(action, id) {
+    if (!id) return;
+    if (action === "submit" || action === "complete") {
+      mutateCollateral(action, id, {}).catch((error) => announce(errorMessage(error), "error"));
+      return;
+    }
+    openCollateralActionForm(action, id);
+  }
+
+  async function mutateCollateral(action, id, body) {
+    const endpoint = {
+      submit: `/api/mfi/collateral/${encodeURIComponent(id)}/submit`,
+      approve: `/api/mfi/collateral/${encodeURIComponent(id)}/approve`,
+      reject: `/api/mfi/collateral/${encodeURIComponent(id)}/reject`,
+      "assign-valuer": `/api/mfi/collateral/${encodeURIComponent(id)}/assign-valuer`,
+      "record-valuation": `/api/mfi/collateral/${encodeURIComponent(id)}/record-valuation`,
+      "assign-legal": `/api/mfi/collateral/${encodeURIComponent(id)}/assign-legal`,
+      "record-legal": `/api/mfi/collateral/${encodeURIComponent(id)}/record-legal`,
+      complete: `/api/mfi/collateral/${encodeURIComponent(id)}/complete`,
+    }[action];
+    if (!endpoint) throw new Error("Unknown collateral workflow action.");
+    await request(endpoint, { method: "POST", body });
+    closeModal();
+    announce("Collateral workflow updated.");
+    await loadCollateral();
+    await loadCollateralDetail(id);
+  }
+
+  async function submitCollateral(form) {
+    const id = form.dataset.id;
+    const body = formBody(form);
+    body.estimated_value = Number(body.estimated_value);
+    body.documents = String(body.documents_text || "").split(/\r?\n/u).map((item) => item.trim()).filter(Boolean);
+    delete body.documents_text;
+    const current = id ? state.collateralDetail || state.collateralRecords.find((item) => item.id === id) : null;
+    const files = [...(form.querySelector('[name="photos_file"]')?.files || [])];
+    const existingPhotos = Array.isArray(current?.photos) ? current.photos : [];
+    if (existingPhotos.length + files.length > 10) {
+      throw new Error("A collateral record can contain at most 10 photos.");
+    }
+    const newPhotos = await Promise.all(files.map((file) => imageAsDataUrl(file, COLLATERAL_IMAGE_LIMIT)));
+    body.photos = [...existingPhotos, ...newPhotos];
+    await request(id ? `/api/mfi/collateral/${encodeURIComponent(id)}` : "/api/mfi/collateral", {
+      method: id ? "PATCH" : "POST", body,
+    });
+    closeModal();
+    announce(id ? "Collateral updated." : "Collateral draft created.");
+    await loadCollateral();
+  }
+
+  async function submitCollateralAction(form) {
+    const body = formBody(form);
+    if (body.valuation_amount !== undefined) body.valuation_amount = Number(body.valuation_amount);
+    if (body.valuer_id === "") delete body.valuer_id;
+    if (body.legal_officer_id === "") delete body.legal_officer_id;
+    if (body.valuation_date === "") delete body.valuation_date;
+    if (form.dataset.operation === "assign-valuer" && !body.valuer_id && !body.valuer_name?.trim()) {
+      throw new Error("Select a registered valuer or enter a valuer name.");
+    }
+    if (form.dataset.operation === "assign-legal" && !body.legal_officer_id && !body.legal_officer_name?.trim()) {
+      throw new Error("Select a registered legal officer or enter a name.");
+    }
+    await mutateCollateral(form.dataset.operation, form.dataset.id, body);
+  }
+
+  async function seedCollateralTypes() {
+    try {
+      const result = await request("/api/mfi/collateral-types/seed-defaults", { method: "POST", body: {} });
+      announce(`Added ${Number(result?.created || 0)} default collateral types.`);
+      await loadSettings();
+    } catch (error) {
+      announce(error.message || "Could not seed collateral types.", "error");
+    }
+  }
+
+  function openCollateralTypeForm(type = null) {
+    const editing = Boolean(type);
+    const body = `<form id="mfi-modal-form" class="mfi-modal-body" data-form="collateral-type" data-id="${esc(type?.id || "")}">
+      <div class="mfi-form-grid">${field("Code", "code", type?.code || "", "text", true)}${field("Name", "name", type?.name || "", "text", true)}${field("Category", "category", type?.category || "")}${field("Base score (0–100)", "base_score", type?.base_score ?? 50, "number", true, "", 'min="0" max="100" step="1')}
+        ${selectField("Valuation required", "requires_valuation", [{ value: "true", label: "Yes" }, { value: "false", label: "No" }], String(type?.requires_valuation !== false))}
+        ${selectField("Legal review required", "requires_legal", [{ value: "true", label: "Yes" }, { value: "false", label: "No" }], String(type?.requires_legal === true))}
+      </div></form>`;
+    putModal(modalMarkup(editing ? "Edit collateral type" : "Add collateral type", "Set the type's base score and required verification steps.", body, editing ? "Save type" : "Create type"));
+  }
+
+  async function submitCollateralType(form) {
+    const id = form.dataset.id;
+    const body = formBody(form);
+    body.base_score = Number(body.base_score);
+    body.requires_valuation = body.requires_valuation === "true";
+    body.requires_legal = body.requires_legal === "true";
+    await request(id ? `/api/mfi/collateral-types/${encodeURIComponent(id)}` : "/api/mfi/collateral-types", {
+      method: id ? "PATCH" : "POST", body,
+    });
+    announce(id ? "Collateral type updated." : "Collateral type created.");
+    closeModal();
+    await loadSettings();
+  }
+
+  function openRegistryForm(kind, record = null) {
+    const editing = Boolean(record);
+    const isValuer = kind === "valuer";
+    const body = `<form id="mfi-modal-form" class="mfi-modal-body" data-form="${isValuer ? "valuer" : "legal-officer"}" data-id="${esc(record?.id || "")}">
+      <div class="mfi-form-grid">${field("Full name", "full_name", record?.full_name || "", "text", true)}${field("Phone", "phone", record?.phone || "", "tel")}${field("Email", "email", record?.email || "", "email")}
+        ${field(isValuer ? "License number" : "License number", "license_number", record?.license_number || "")}
+        ${isValuer ? field("Address", "address", record?.address || "") : field("Law firm", "law_firm", record?.law_firm || "")}
+        ${isValuer ? `<div class="mfi-field mfi-span-2"><label for="mfi-specializations">Specializations</label><textarea id="mfi-specializations" name="specializations" class="mfi-control">${esc(Array.isArray(record?.specializations) ? record.specializations.join(", ") : "")}</textarea></div>` : ""}
+      </div></form>`;
+    putModal(modalMarkup(`${editing ? "Edit" : "Add"} ${isValuer ? "valuer" : "legal officer"}`, "Keep external verification contacts current.", body, editing ? "Save contact" : "Add contact"));
+  }
+
+  async function submitRegistry(form, kind) {
+    const id = form.dataset.id;
+    const body = formBody(form);
+    const path = kind === "valuer" ? "valuers" : "legal-officers";
+    await request(id ? `/api/mfi/${path}/${encodeURIComponent(id)}` : `/api/mfi/${path}`, {
+      method: id ? "PATCH" : "POST", body,
+    });
+    announce(id ? "Contact updated." : "Contact added.");
+    closeModal();
+    await loadSettings();
+  }
+
   async function submitSettings(form) {
     const body = formBody(form);
     const logo = form.querySelector('[name="logo_file"]')?.files?.[0];
@@ -801,15 +1273,15 @@ export function initMfiUI({ api, getCurrentUser, notify, escapeHtml }) {
     return body;
   }
 
-  async function imageAsDataUrl(file) {
+  async function imageAsDataUrl(file, limit = IMAGE_LIMIT) {
     if (!file) return "";
     if (!/^image\/(jpeg|png|webp)$/i.test(file.type)) throw new Error("Choose a JPEG, PNG, or WebP image.");
-    if (file.size <= IMAGE_LIMIT) return readAsDataUrl(file);
+    if (file.size <= limit) return readAsDataUrl(file);
     let bitmap;
     try {
       bitmap = await createImageBitmap(file);
     } catch (_) {
-      throw new Error("This image could not be compressed. Choose a JPEG, PNG, or WebP image under 150 KB.");
+      throw new Error(`This image could not be compressed. Choose a JPEG, PNG, or WebP image under ${Math.round(limit / 1024)} KB.`);
     }
     const canvas = document.createElement("canvas");
     let width = bitmap.width;
@@ -821,12 +1293,12 @@ export function initMfiUI({ api, getCurrentUser, notify, escapeHtml }) {
       const context = canvas.getContext("2d");
       context.drawImage(bitmap, 0, 0, width, height);
       output = canvas.toDataURL("image/jpeg", Math.max(.48, .88 - attempt * .055));
-      if (approxBase64Bytes(output) <= IMAGE_LIMIT) break;
+      if (approxBase64Bytes(output) <= limit) break;
       width = Math.max(160, Math.round(width * .82));
       height = Math.max(160, Math.round(height * .82));
     }
     bitmap.close?.();
-    if (approxBase64Bytes(output) > IMAGE_LIMIT) throw new Error("Image compression could not reach the 150 KB upload limit.");
+    if (approxBase64Bytes(output) > limit) throw new Error(`Image compression could not reach the ${Math.round(limit / 1024)} KB upload limit.`);
     return output;
   }
 
@@ -907,11 +1379,19 @@ export function initMfiUI({ api, getCurrentUser, notify, escapeHtml }) {
   }
 
   function confirmDelete(type, id, customerId = "") {
-    const labels = { branch: "branch", officer: "officer", customer: "customer record", guarantor: "guarantor" };
+    const labels = {
+      branch: "branch", officer: "officer", customer: "customer record", guarantor: "guarantor",
+      collateral: "collateral record", "collateral-type": "collateral type",
+      valuer: "valuer contact", "legal-officer": "legal officer contact",
+    };
     const label = labels[type] || "record";
+    const deactivates = ["officer", "collateral-type", "valuer", "legal-officer"].includes(type);
     state.pendingDelete = { type, id, customerId };
-    const body = `<div class="mfi-modal-body"><div class="mfi-state"><div class="mfi-state-symbol">!</div><strong>Confirm ${type === "officer" ? "deactivation" : "deletion"}</strong><p>${type === "officer" ? "This will deactivate the account and revoke its access." : `This will permanently delete this ${label}${type === "customer" ? " and its linked guarantors" : ""}. This action cannot be undone.`}</p></div></div>`;
-    putModal(`<div class="mfi-modal-backdrop" data-modal-backdrop><section class="mfi-modal" role="dialog" aria-modal="true"><header class="mfi-modal-head"><div><h2>${type === "officer" ? "Deactivate officer?" : "Delete this record?"}</h2><p>Review before continuing.</p></div><button type="button" class="mfi-close" data-close-modal>×</button></header>${body}<footer class="mfi-modal-foot"><button type="button" class="mfi-btn mfi-btn--quiet" data-confirm-cancel>Cancel</button><button type="button" class="mfi-btn mfi-btn--danger" data-confirm-yes>${type === "officer" ? "Deactivate" : "Delete"}</button></footer></section></div>`);
+    const warning = deactivates
+      ? "This record will be deactivated and will no longer be available for new assignments."
+      : `This will permanently delete this ${label}${type === "customer" ? " and its linked guarantors" : ""}. This action cannot be undone.`;
+    const verb = deactivates ? "Deactivate" : "Delete";
+    putModal(`<div class="mfi-modal-backdrop" data-modal-backdrop><section class="mfi-modal" role="dialog" aria-modal="true"><header class="mfi-modal-head"><div><h2>${verb} ${esc(label)}?</h2><p>Review before continuing.</p></div><button type="button" class="mfi-close" data-close-modal>×</button></header><div class="mfi-modal-body"><div class="mfi-state"><div class="mfi-state-symbol">!</div><strong>Confirm ${verb.toLowerCase()}</strong><p>${esc(warning)}</p></div></div><footer class="mfi-modal-foot"><button type="button" class="mfi-btn mfi-btn--quiet" data-confirm-cancel>Cancel</button><button type="button" class="mfi-btn mfi-btn--danger" data-confirm-yes>${verb}</button></footer></section></div>`);
   }
 
   async function performDelete(type, id, customerId) {
@@ -920,15 +1400,26 @@ export function initMfiUI({ api, getCurrentUser, notify, escapeHtml }) {
       officer: `/api/mfi/officers/${encodeURIComponent(id)}`,
       customer: `/api/mfi/customers/${encodeURIComponent(id)}`,
       guarantor: `/api/mfi/guarantors/${encodeURIComponent(id)}`,
+      collateral: `/api/mfi/collateral/${encodeURIComponent(id)}`,
+      "collateral-type": `/api/mfi/collateral-types/${encodeURIComponent(id)}`,
+      valuer: `/api/mfi/valuers/${encodeURIComponent(id)}`,
+      "legal-officer": `/api/mfi/legal-officers/${encodeURIComponent(id)}`,
     };
     try {
       await request(routes[type], { method: "DELETE" });
       closeModal();
-      announce(type === "officer" ? "Officer deactivated." : `${type[0].toUpperCase()}${type.slice(1)} deleted.`);
+      const deactivated = ["officer", "collateral-type", "valuer", "legal-officer"].includes(type);
+      announce(deactivated ? `${labels[type] || "Record"} deactivated.` : `${labels[type] || "Record"} deleted.`);
       if (type === "branch") await loadBranches();
       if (type === "officer") await loadOfficers();
       if (type === "customer") await loadCustomers();
       if (type === "guarantor") await renderCustomerDetails(customerId, "guarantors");
+      if (type === "collateral") {
+        state.collateralDetail = null;
+        state.collateralDetailId = null;
+        await loadCollateral();
+      }
+      if (["collateral-type", "valuer", "legal-officer"].includes(type)) await loadSettings();
     } catch (error) {
       announce(errorMessage(error), "error");
       state.pendingDelete = null;
@@ -954,7 +1445,20 @@ export function initMfiUI({ api, getCurrentUser, notify, escapeHtml }) {
     state.customers = [];
     state.branches = [];
     state.officers = [];
+    state.collateralRecords = [];
+    state.collateralSummary = null;
+    state.collateralTypes = [];
+    state.collateralCustomers = [];
+    state.valuers = [];
+    state.legalOfficers = [];
+    state.collateralDetail = null;
+    state.collateralDetailId = null;
+    state.collateralDetailLoading = false;
+    state.collateralDetailError = null;
+    state.collateralTimeline = [];
+    state.collateralFilters = { customer_id: "", status: "", type_id: "" };
     state.settings = null;
+    state.settingsSubtab = "profile";
     state.search = "";
     state.branchFilter = "";
     state.listError = null;
@@ -982,15 +1486,16 @@ export function initMfiUI({ api, getCurrentUser, notify, escapeHtml }) {
       ["Officers", "officers"],
       ["Customers", "customers"],
       ["Active customers", "active_customers"],
+      ["Collateral records", "collateral"],
     ].map(([label, key]) => `<div class="mfi-metric"><span>${esc(label)}</span><strong>${esc(value(stats, key, 0))}</strong></div>`).join("");
     const orgRows = state.organizations.length ? state.organizations.map((org) => `<tr>
       <td><div class="mfi-brand-preview"><div class="mfi-brand-mark" style="background:${esc(safeColor(org.brand_color))}">${safeImage(org.logo_base64) ? `<img src="${esc(safeImage(org.logo_base64))}" alt="">` : "A."}</div><div class="mfi-primary-cell"><strong>${text(org, "name")}</strong><span>${text(org, "city")}${org.district ? `, ${text(org, "district")}` : ""}</span></div></div></td>
-      <td>${text(org, "registration_number")}</td><td>${text(org, "admin_name")}</td><td>${text(org, "admin_email")}</td><td>${esc(value(org, "branch_count", 0))}</td><td>${esc(value(org, "customer_count", 0))}</td>
-    </tr>`).join("") : `<tr><td colspan="6"><div class="mfi-state"><div class="mfi-state-symbol">·</div><strong>No MFI organizations yet</strong><p>Create the first organization to start platform operations.</p></div></td></tr>`;
+      <td>${text(org, "registration_number")}</td><td>${text(org, "admin_name")}</td><td>${text(org, "admin_email")}</td><td>${esc(value(org, "branch_count", 0))}</td><td>${esc(value(org, "customer_count", 0))}</td><td>${esc(value(org, "collateral_count", 0))}</td>
+     </tr>`).join("") : `<tr><td colspan="7"><div class="mfi-state"><div class="mfi-state-symbol">·</div><strong>No MFI organizations yet</strong><p>Create the first organization to start platform operations.</p></div></td></tr>`;
     return `<div class="mfi-page-intro"><div><p class="mfi-eyebrow">APSHULE · MFI OPERATIONS</p><h1>Microfinance organizations</h1><p>Organization coverage and customer records across the platform.</p></div><button type="button" class="mfi-btn" data-command-add>＋ Add organization</button></div>
       <div class="mfi-metrics">${metrics}</div>
       ${state.commandFormOpen ? commandOrganizationForm() : ""}
-      <section class="mfi-panel"><div class="mfi-section-head"><div><h2>Organization directory</h2><p>${state.organizations.length} organizations · live platform records</p></div></div><div class="mfi-table-wrap"><table class="mfi-table"><thead><tr><th>Organization</th><th>Registration</th><th>Administrator</th><th>Login email</th><th>Branches</th><th>Customers</th></tr></thead><tbody>${orgRows}</tbody></table></div></section>`;
+       <section class="mfi-panel"><div class="mfi-section-head"><div><h2>Organization directory</h2><p>${state.organizations.length} organizations · live platform records</p></div></div><div class="mfi-table-wrap"><table class="mfi-table"><thead><tr><th>Organization</th><th>Registration</th><th>Administrator</th><th>Login email</th><th>Branches</th><th>Customers</th><th>Collateral</th></tr></thead><tbody>${orgRows}</tbody></table></div></section>`;
   }
 
   function commandOrganizationForm() {

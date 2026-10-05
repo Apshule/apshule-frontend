@@ -207,7 +207,9 @@ mfi.get("/mfi/organizations", requireRole("superadmin", "mfi_admin"), async (c) 
       (SELECT COUNT(*)::int FROM mfi_branches b
         WHERE b.organization_id = o.id AND b.active IS TRUE) AS branch_count,
       (SELECT COUNT(*)::int FROM mfi_customers c
-        WHERE c.organization_id = o.id) AS customer_count
+        WHERE c.organization_id = o.id) AS customer_count,
+      (SELECT COUNT(*)::int FROM mfi_collateral collateral
+        WHERE collateral.organization_id = o.id) AS collateral_count
     FROM mfi_organizations o
     LEFT JOIN users admin ON admin.id = o.created_by
     WHERE ${user.role === "superadmin"} OR o.created_by = ${user.id}
@@ -263,6 +265,28 @@ mfi.post("/mfi/organizations", requireRealSuperAdmin(), async (c) => {
       new_settings AS (
         INSERT INTO mfi_settings (organization_id)
         SELECT id FROM new_organization
+        RETURNING id
+      ),
+      default_collateral_types AS (
+        INSERT INTO mfi_collateral_types (
+          organization_id, code, name, category, base_score,
+          requires_valuation, requires_legal, active
+        )
+        SELECT organization.id, seed.code, seed.name, seed.category,
+          seed.base_score, seed.requires_valuation, seed.requires_legal, TRUE
+        FROM new_organization organization
+        CROSS JOIN (VALUES
+          ('LAND', 'Land', 'Immovable', 80, TRUE, TRUE),
+          ('BUILDING', 'Building', 'Immovable', 85, TRUE, TRUE),
+          ('VEHICLE', 'Vehicle', 'Movable', 65, TRUE, TRUE),
+          ('MOTORCYCLE', 'Motorcycle/Boda', 'Movable', 60, TRUE, FALSE),
+          ('LIVESTOCK', 'Livestock', 'Livestock', 55, TRUE, FALSE),
+          ('CROPS', 'Crops', 'Agriculture', 45, TRUE, FALSE),
+          ('HOUSEHOLD', 'Household Items', 'Movable', 35, FALSE, FALSE),
+          ('SALARY', 'Salary Assignment', 'Income', 70, FALSE, TRUE),
+          ('SAVINGS', 'Savings/Shares', 'Financial', 75, FALSE, FALSE),
+          ('GUARANTOR', 'Personal Guarantee', 'Person', 50, FALSE, TRUE)
+        ) AS seed(code, name, category, base_score, requires_valuation, requires_legal)
         RETURNING id
       ),
       local_audit AS (
@@ -380,11 +404,13 @@ mfi.get("/mfi/stats", requireRole("superadmin", "mfi_admin"), async (c) => {
       COUNT(DISTINCT b.id)::int AS branches,
       COUNT(DISTINCT off.id) FILTER (WHERE off.active IS TRUE)::int AS officers,
       COUNT(DISTINCT customer.id)::int AS customers,
-      COUNT(DISTINCT customer.id) FILTER (WHERE customer.status = 'active')::int AS active_customers
+      COUNT(DISTINCT customer.id) FILTER (WHERE customer.status = 'active')::int AS active_customers,
+      COUNT(DISTINCT collateral.id)::int AS collateral
     FROM mfi_organizations o
     LEFT JOIN mfi_branches b ON b.organization_id = o.id
     LEFT JOIN mfi_officers off ON off.organization_id = o.id
     LEFT JOIN mfi_customers customer ON customer.organization_id = o.id
+    LEFT JOIN mfi_collateral collateral ON collateral.organization_id = o.id
     WHERE ${organizationId === null} OR o.id = ${organizationId}
   `;
   return c.json({ stats: rows[0] ?? {
@@ -393,6 +419,7 @@ mfi.get("/mfi/stats", requireRole("superadmin", "mfi_admin"), async (c) => {
     officers: 0,
     customers: 0,
     active_customers: 0,
+    collateral: 0,
   } });
 });
 

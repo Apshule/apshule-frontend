@@ -1,3 +1,4 @@
+// Preserve offline snapshots; activation deletes every other apshule-cache-* namespace.
 const CACHE_NAME = "apshule-cache-v8";
 const APP_SHELL_URLS = [
     "/",
