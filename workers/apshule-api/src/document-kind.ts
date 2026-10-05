@@ -1,0 +1,287 @@
+export const DOCUMENT_KINDS = [
+  "pdf",
+  "image",
+  "document",
+  "spreadsheet",
+  "presentation",
+  "video",
+  "audio",
+  "text",
+  "viewer",
+  "other",
+] as const;
+
+export type DocumentKind = (typeof DOCUMENT_KINDS)[number];
+
+const EXTENSION_KIND: Record<string, DocumentKind> = {
+  pdf: "pdf",
+  jpg: "image",
+  jpeg: "image",
+  png: "image",
+  gif: "image",
+  webp: "image",
+  bmp: "image",
+  svg: "image",
+  doc: "document",
+  docx: "document",
+  odt: "document",
+  rtf: "document",
+  xls: "spreadsheet",
+  xlsx: "spreadsheet",
+  ods: "spreadsheet",
+  csv: "spreadsheet",
+  ppt: "presentation",
+  pptx: "presentation",
+  odp: "presentation",
+  mp4: "video",
+  webm: "video",
+  mov: "video",
+  avi: "video",
+  mkv: "video",
+  mp3: "audio",
+  wav: "audio",
+  m4a: "audio",
+  ogg: "audio",
+  txt: "text",
+  md: "text",
+};
+
+const EXTENSION_MIME_TYPE: Record<string, string> = {
+  pdf: "application/pdf",
+  jpg: "image/jpeg",
+  jpeg: "image/jpeg",
+  png: "image/png",
+  gif: "image/gif",
+  webp: "image/webp",
+  bmp: "image/bmp",
+  svg: "image/svg+xml",
+  doc: "application/msword",
+  docx: "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+  odt: "application/vnd.oasis.opendocument.text",
+  rtf: "application/rtf",
+  xls: "application/vnd.ms-excel",
+  xlsx: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+  ods: "application/vnd.oasis.opendocument.spreadsheet",
+  csv: "text/csv; charset=utf-8",
+  ppt: "application/vnd.ms-powerpoint",
+  pptx: "application/vnd.openxmlformats-officedocument.presentationml.presentation",
+  odp: "application/vnd.oasis.opendocument.presentation",
+  mp4: "video/mp4",
+  webm: "video/webm",
+  mov: "video/quicktime",
+  avi: "video/x-msvideo",
+  mkv: "video/x-matroska",
+  mp3: "audio/mpeg",
+  wav: "audio/wav",
+  m4a: "audio/mp4",
+  ogg: "audio/ogg",
+  txt: "text/plain; charset=utf-8",
+  md: "text/markdown; charset=utf-8",
+};
+
+export class DocumentProxyError extends Error {
+  public readonly status: number;
+
+  constructor(status: number, message: string) {
+    super(message);
+    this.status = status;
+    this.name = "DocumentProxyError";
+  }
+}
+
+export function parseHttpUrl(value: string): URL {
+  if (typeof value !== "string" || !value.trim() || value.length > 2048) {
+    throw new DocumentProxyError(400, "url must be an HTTP or HTTPS URL no longer than 2048 characters.");
+  }
+
+  let parsed: URL;
+  try {
+    parsed = new URL(value.trim());
+  } catch {
+    throw new DocumentProxyError(400, "url must be a valid HTTP or HTTPS URL.");
+  }
+
+  if (
+    (parsed.protocol !== "https:" && parsed.protocol !== "http:") ||
+    !parsed.hostname ||
+    parsed.username ||
+    parsed.password
+  ) {
+    throw new DocumentProxyError(400, "url must be a public HTTP or HTTPS URL without embedded credentials.");
+  }
+  return parsed;
+}
+
+export function validateDocumentProxyUrl(value: string): URL {
+  const parsed = parseHttpUrl(value);
+  const hostname = parsed.hostname.toLowerCase().replace(/\.$/u, "");
+  const expectedPort = parsed.protocol === "https:" ? "443" : "80";
+  const isIpLiteral = hostname.includes(":") || /^\d{1,3}(?:\.\d{1,3}){3}$/u.test(hostname);
+  const isLocalName =
+    hostname === "localhost" ||
+    /\.(?:localhost|local|internal|home|lan|test|invalid|example)$/u.test(hostname);
+
+  if (
+    isIpLiteral ||
+    isLocalName ||
+    !hostname.includes(".") ||
+    (parsed.port && parsed.port !== expectedPort)
+  ) {
+    throw new DocumentProxyError(400, "url must point to a public website on the standard HTTP or HTTPS port.");
+  }
+  return parsed;
+}
+
+export function detectDocKind(value: string | null | undefined): DocumentKind | null {
+  if (typeof value !== "string" || !value.trim()) return null;
+
+  let parsed: URL;
+  try {
+    parsed = new URL(value.trim());
+  } catch {
+    return "other";
+  }
+
+  const hostname = parsed.hostname.toLowerCase();
+  const pathname = parsed.pathname.toLowerCase();
+  if (
+    hostname === "elearn.ncdc.go.ug" &&
+    /\/viewer(?:\/|$)/u.test(pathname)
+  ) {
+    return "viewer";
+  }
+
+  let decodedPathname = pathname;
+  try {
+    decodedPathname = decodeURIComponent(pathname);
+  } catch {
+    // A malformed escape does not prevent safe extension matching.
+  }
+  const extension = decodedPathname.match(/\.([a-z0-9]+)$/u)?.[1];
+  return extension ? EXTENSION_KIND[extension] ?? "other" : "other";
+}
+
+function isHtmlContentType(contentType: string | null): boolean {
+  const mediaType = contentType?.split(";", 1)[0]?.trim().toLowerCase();
+  return mediaType === "text/html" || mediaType === "application/xhtml+xml";
+}
+
+function isHtmlDocumentPrefix(prefix: string): boolean {
+  const normalized = prefix.replace(/^\uFEFF/u, "").trimStart().toLowerCase();
+  return /^(?:<!doctype\s+html\b|<html\b|<head\b|<script\b)/u.test(normalized);
+}
+
+function fileExtension(url: URL): string | null {
+  let pathname = url.pathname;
+  try {
+    pathname = decodeURIComponent(pathname);
+  } catch {
+    // Keep the URL parser's encoded path and fall back to the declared MIME type.
+  }
+  return pathname.toLowerCase().match(/\.([a-z0-9]+)$/u)?.[1] ?? null;
+}
+
+export async function fetchDocumentBytes(
+  value: string,
+  fetcher: (input: string, init?: RequestInit) => Promise<Response> = fetch,
+): Promise<{ body: Uint8Array; contentType: string }> {
+  let currentUrl = validateDocumentProxyUrl(value);
+  let upstream: Response | null = null;
+
+  for (let redirectCount = 0; redirectCount <= 3; redirectCount += 1) {
+    upstream = await fetcher(currentUrl.toString(), {
+      headers: {
+        "User-Agent": "Mozilla/5.0 (compatible; APSHULE-ELibrary/1.0)",
+        Accept: "*/*",
+      },
+      redirect: "manual",
+    });
+
+    if (![301, 302, 303, 307, 308].includes(upstream.status)) break;
+    const location = upstream.headers.get("Location");
+    await upstream.body?.cancel();
+    if (!location || redirectCount === 3) {
+      throw new DocumentProxyError(502, "The document host redirected too many times.");
+    }
+
+    const nextUrl = validateDocumentProxyUrl(new URL(location, currentUrl).toString());
+    if (currentUrl.protocol === "https:" && nextUrl.protocol !== "https:") {
+      throw new DocumentProxyError(502, "The document host redirected to an insecure URL.");
+    }
+    currentUrl = nextUrl;
+  }
+
+  if (!upstream) {
+    throw new DocumentProxyError(502, "The document host did not return a response.");
+  }
+  if (!upstream.ok) {
+    await upstream.body?.cancel();
+    throw new DocumentProxyError(502, `The document host returned HTTP ${upstream.status}.`);
+  }
+
+  const upstreamType = upstream.headers.get("Content-Type");
+  if (isHtmlContentType(upstreamType)) {
+    await upstream.body?.cancel();
+    throw new DocumentProxyError(415, "This is a viewer page, use direct file link");
+  }
+
+  const declaredLength = Number(upstream.headers.get("Content-Length"));
+  const maxBytes = 20 * 1024 * 1024;
+  if (Number.isFinite(declaredLength) && declaredLength > maxBytes) {
+    await upstream.body?.cancel();
+    throw new DocumentProxyError(413, "Files larger than 20 MB cannot be opened here.");
+  }
+  if (!upstream.body) {
+    throw new DocumentProxyError(502, "The document host returned an empty response.");
+  }
+
+  const reader = upstream.body.getReader();
+  const chunks: Uint8Array[] = [];
+  let totalBytes = 0;
+  let htmlPrefix = "";
+
+  try {
+    while (true) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      totalBytes += value.byteLength;
+      if (totalBytes > maxBytes) {
+        await reader.cancel();
+        throw new DocumentProxyError(413, "Files larger than 20 MB cannot be opened here.");
+      }
+
+      if (htmlPrefix.length < 512) {
+        htmlPrefix += new TextDecoder().decode(value.slice(0, 512 - htmlPrefix.length));
+        if (isHtmlDocumentPrefix(htmlPrefix)) {
+          await reader.cancel();
+          throw new DocumentProxyError(415, "This is a viewer page, use direct file link");
+        }
+      }
+      chunks.push(value);
+    }
+  } catch (error) {
+    if (error instanceof DocumentProxyError) throw error;
+    throw new DocumentProxyError(502, "The document could not be read from its host.");
+  } finally {
+    reader.releaseLock();
+  }
+
+  const body = new Uint8Array(totalBytes);
+  let offset = 0;
+  for (const chunk of chunks) {
+    body.set(chunk, offset);
+    offset += chunk.byteLength;
+  }
+
+  const extension = fileExtension(currentUrl);
+  const declaredType = upstreamType?.trim();
+  const isGenericType =
+    !declaredType ||
+    /^(?:application|binary)\/octet-stream(?:\s*;|$)/iu.test(declaredType);
+  return {
+    body,
+    contentType: isGenericType
+      ? EXTENSION_MIME_TYPE[extension ?? ""] ?? "application/octet-stream"
+      : declaredType,
+  };
+}

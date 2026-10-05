@@ -23,6 +23,7 @@ import bulkImportRoutes from "./routes/bulk-import.js";
 import retoolingRoutes from "./routes/retooling.js";
 import earningsRoutes from "./routes/earnings.js";
 import mfiRoutes from "./routes/mfi.js";
+import documentRoutes from "./routes/documents.js";
 import type { AppEnv } from "./types.js";
 
 const app = new Hono<AppEnv>();
@@ -98,7 +99,8 @@ app.use(
   cors({
     origin: "*",
     allowMethods: ["GET", "POST", "PATCH", "PUT", "DELETE", "OPTIONS"],
-    allowHeaders: ["Content-Type", "Authorization", "Idempotency-Key"],
+    allowHeaders: ["Content-Type", "Authorization", "Idempotency-Key", "Range"],
+    exposeHeaders: ["Content-Length", "Content-Type"],
   }),
 );
 app.use(
@@ -106,7 +108,8 @@ app.use(
   cors({
     origin: "*",
     allowMethods: ["GET", "POST", "PATCH", "PUT", "DELETE", "OPTIONS"],
-    allowHeaders: ["Content-Type", "Authorization", "Idempotency-Key"],
+    allowHeaders: ["Content-Type", "Authorization", "Idempotency-Key", "Range"],
+    exposeHeaders: ["Content-Length", "Content-Type"],
   }),
 );
 
@@ -120,6 +123,7 @@ app.route("/api/schools", schoolsRoutes);
 app.route("/api/school", schoolBrandingRoutes);
 app.route("/api/events", eventsRoutes);
 app.route("/api", contentRoutes);
+app.route("/api", documentRoutes);
 app.route("/api/settings", settingsRoutes);
 app.route("/api", platformRoutes);
 app.route("/api", impersonationRoutes);

@@ -496,13 +496,25 @@
         .book-reader-topbar { min-height:58px; display:flex; align-items:center; gap:12px; padding:10px 14px; background:#292733; }
         .book-reader-topbar button, .book-reader-controls button { border:0; border-radius:9px; background:#413e4b; color:#fff; cursor:pointer; font:inherit; }
         .book-reader-close { flex:none; padding:9px 11px; font-size:13px !important; font-weight:700 !important; }
-        .book-reader-title { flex:1; overflow:hidden; font-size:14px; font-weight:700; text-align:center; text-overflow:ellipsis; white-space:nowrap; }
+        .book-reader-title-wrap { flex:1; min-width:0; display:flex; align-items:center; justify-content:center; gap:8px; overflow:hidden; }
+        .book-reader-title-icon { flex:none; font-size:18px; }
+        .book-reader-title { overflow:hidden; font-size:14px; font-weight:700; text-align:center; text-overflow:ellipsis; white-space:nowrap; }
         .book-reader-night { width:40px; height:40px; flex:none; font-size:17px !important; }
         .book-reader-center { flex:1; min-height:0; display:flex; align-items:center; justify-content:center; padding:12px; overflow:hidden; }
         .book-reader-content { width:100%; height:100%; display:flex; flex-direction:column; align-items:center; justify-content:center; }
         .book-reader-loading, .book-reader-error { max-width:440px; padding:22px; border-radius:15px; background:#292733; color:#eee; text-align:center; line-height:1.5; }
         .book-reader-error button { display:block; margin:14px auto 0; padding:10px 18px; border:0; border-radius:9px; background:#ff8c42; color:#fff; font-weight:700; cursor:pointer; }
+        .book-reader-error a, .book-reader-media a { color:#ffd0a8; text-decoration:underline; overflow-wrap:anywhere; }
         .book-flipbook { width:min(100%,1000px); height:min(100%,760px); }
+        .book-reader-media { width:min(100%,1200px); height:100%; min-height:0; display:flex; flex-direction:column; align-items:center; justify-content:center; gap:12px; overflow:auto; }
+        .book-reader-media[hidden], .book-reader-controls[hidden] { display:none !important; }
+        .book-reader-media iframe { width:100%; height:100%; min-height:0; border:0; border-radius:8px; background:#fff; }
+        .book-reader-media img { max-width:100%; max-height:100%; object-fit:contain; touch-action:pan-x pan-y pinch-zoom; }
+        .book-reader-media video { width:100%; max-height:100%; background:#000; }
+        .book-reader-media audio { width:min(100%,620px); }
+        .book-reader-media pre { width:100%; height:100%; margin:0; padding:16px; overflow:auto; border-radius:10px; background:#292733; color:#fff; white-space:pre-wrap; overflow-wrap:anywhere; }
+        .book-reader-viewer-fallback { flex:none; margin:0; padding:8px 12px; border-radius:9px; background:#292733; color:#eee; text-align:center; line-height:1.5; }
+        .book-reader-filename { color:#d7d4df; font-size:12px; overflow-wrap:anywhere; }
         .book-reader.night-mode .book-flipbook { filter:invert(1) hue-rotate(180deg); }
         .book-reader-controls { min-height:58px; display:flex; align-items:center; justify-content:center; gap:16px; padding:9px 12px; background:#292733; }
         .book-reader-controls button { min-width:92px; padding:10px 12px; font-size:13px; font-weight:700; }
@@ -1236,12 +1248,11 @@
                                 <div class="cc-ncdc-field"><label for="ncdcCurriculumClassLevel">Class level</label><input id="ncdcCurriculumClassLevel" type="text" maxlength="80"></div>
                                 <div class="cc-ncdc-field"><label for="ncdcCurriculumTopic">Topic</label><input id="ncdcCurriculumTopic" type="text" maxlength="240"></div>
                                 <div class="cc-ncdc-field"><label for="ncdcCurriculumSyllabusRef">Syllabus reference</label><input id="ncdcCurriculumSyllabusRef" type="text" maxlength="300"></div>
-                                <div class="cc-ncdc-field"><label for="ncdcCurriculumSyllabusUrl">Syllabus URL (optional)</label><input id="ncdcCurriculumSyllabusUrl" type="text" maxlength="499" placeholder="https://ncdc.go.ug/..."></div>
-                                <div class="cc-ncdc-field cc-ncdc-field--wide"><small>Prefer direct .pdf links; viewer links may require login.</small></div>
+                                <div class="cc-ncdc-field"><label for="ncdcCurriculumSyllabusUrl">Syllabus document URL (optional)</label><input id="ncdcCurriculumSyllabusUrl" type="url" maxlength="499" placeholder="https://..."><small>Accepts PDF, images, Word/ODT, spreadsheets, presentations, video, audio, text, and other links. For NCDC materials, use direct file links.</small></div>
                                 <div class="cc-ncdc-field"><label for="ncdcCurriculumLearnerPage">Learner book page</label><input id="ncdcCurriculumLearnerPage" type="text" maxlength="120"></div>
-                                <div class="cc-ncdc-field"><label for="ncdcCurriculumLearnerUrl">Learner Book URL (optional)</label><input id="ncdcCurriculumLearnerUrl" type="text" maxlength="499" placeholder="https://..."></div>
+                                <div class="cc-ncdc-field"><label for="ncdcCurriculumLearnerUrl">Learner book document URL (optional)</label><input id="ncdcCurriculumLearnerUrl" type="url" maxlength="499" placeholder="https://..."><small>Accepts PDF, images, Word/ODT, spreadsheets, presentations, video, audio, text, and other links. For NCDC materials, use direct file links.</small></div>
                                 <div class="cc-ncdc-field"><label for="ncdcCurriculumTeacherPage">Teacher guide page</label><input id="ncdcCurriculumTeacherPage" type="text" maxlength="120"></div>
-                                <div class="cc-ncdc-field"><label for="ncdcCurriculumTeacherUrl">Teacher Guide URL (optional)</label><input id="ncdcCurriculumTeacherUrl" type="text" maxlength="499" placeholder="https://..."></div>
+                                <div class="cc-ncdc-field"><label for="ncdcCurriculumTeacherUrl">Teacher guide document URL (optional)</label><input id="ncdcCurriculumTeacherUrl" type="url" maxlength="499" placeholder="https://..."><small>Accepts PDF, images, Word/ODT, spreadsheets, presentations, video, audio, text, and other links. For NCDC materials, use direct file links.</small></div>
                                 <div class="cc-ncdc-field cc-ncdc-field--wide"><label for="ncdcCurriculumSummary">Summary text</label><textarea id="ncdcCurriculumSummary" maxlength="6000"></textarea></div>
                                 <div class="cc-ncdc-field cc-ncdc-field--wide"><label for="ncdcCurriculumActivity">Activity suggestion</label><textarea id="ncdcCurriculumActivity" maxlength="6000"></textarea></div>
                             </div>
@@ -1552,7 +1563,7 @@
             <div id="subjectsSection" style="display:none;"><button id="backToClasses" class="back-btn"><i class="fas fa-arrow-left"></i> Back to Classes</button><div class="section-title">📖 Available Subjects</div><div id="subjectsGrid" class="subjects-grid"></div></div>
             <div class="welcome-card"><div class="welcome-title">Welcome to APSHULE</div><div class="welcome-subtitle">Let's Learn With Ease From Anywhere at Anytime</div></div>
             <div class="announcements-section"><div class="announcements-header"><i class="fas fa-bullhorn"></i> <span>📢 UPCOMING SEMINARS & EVENTS</span><i class="fas fa-volume-up"></i></div><div class="announcements-ticker"><div class="ticker-wrap"><div class="ticker" id="eventsTicker"></div></div></div></div>
-            <div class="materials-folder"><button type="button" class="elibrary-launch-card" id="elibraryLaunchButton" aria-label="Open Learning Materials PDF library"><span class="elibrary-launch-icon"><i class="fas fa-book-open" aria-hidden="true"></i></span><span class="elibrary-launch-copy"><strong>Learning Materials (PDFs)</strong><small>Browse class books and study materials</small></span><i class="fas fa-chevron-right elibrary-launch-arrow" aria-hidden="true"></i></button></div>
+            <div class="materials-folder"><button type="button" class="elibrary-launch-card" id="elibraryLaunchButton" aria-label="Open Learning Materials E-Library"><span class="elibrary-launch-icon"><i class="fas fa-book-open" aria-hidden="true"></i></span><span class="elibrary-launch-copy"><strong>Learning Materials</strong><small>Browse class books and study materials</small></span><i class="fas fa-chevron-right elibrary-launch-arrow" aria-hidden="true"></i></button></div>
             <div class="payment-plans-section">
                 <div class="payment-plans-title">🎯 Subscription Plans</div>
                 <p id="subscriptionPlanStatus" role="status" aria-live="polite" style="min-height:1.2em;text-align:center;color:#716d7d;font-size:12px">Loading subscription plans…</p>
@@ -1731,7 +1742,7 @@
                     <div id="eventsAdminList"></div>
                 </div>
                 <div class="admin-section" id="addSubjectSection" style="display:none;"><h4>➕ Add New Subject</h4><div class="add-subject-form"><input type="text" id="newSubjectName" placeholder="Subject name"><select id="newSubjectLevel"><option value="primary">Primary</option><option value="secondary">Secondary</option></select><input type="text" id="newSubjectVideo" placeholder="YouTube URL or Video ID"><button id="addNewSubjectBtn" class="admin-toggle">➕ Add Subject</button></div></div>
-                <div class="admin-section" id="pdfManagementSection" style="display:none;"><h4>📄 Manage PDFs</h4><div class="add-pdf-form"><input type="text" id="pdfTitle" placeholder="PDF Title"><select id="pdfClassLevel" aria-label="Assign PDF to a class"><option value="">Select class (optional)</option><option value="unassigned">General / Unassigned</option><option value="Baby">Baby Class</option><option value="Middle">Middle Class</option><option value="Top">Top Class</option><option value="Primary 1">Primary 1</option><option value="Primary 2">Primary 2</option><option value="Primary 3">Primary 3</option><option value="Primary 4">Primary 4</option><option value="Primary 5">Primary 5</option><option value="Primary 6">Primary 6</option><option value="Primary 7">Primary 7</option><option value="Senior 1">Senior 1</option><option value="Senior 2">Senior 2</option><option value="Senior 3">Senior 3</option><option value="Senior 4">Senior 4</option><option value="Senior 5">Senior 5</option><option value="Senior 6">Senior 6</option></select><input type="url" id="pdfUrl" placeholder="PDF URL"><button id="addPdfBtn" class="admin-toggle">➕ Add PDF</button></div><div id="pdfAdminList"></div></div>
+                <div class="admin-section" id="pdfManagementSection" style="display:none;"><h4>📄 Manage Documents</h4><div class="add-pdf-form"><input type="text" id="pdfTitle" placeholder="Document title"><select id="pdfClassLevel" aria-label="Assign document to a class"><option value="">Select class (optional)</option><option value="unassigned">General / Unassigned</option><option value="Baby">Baby Class</option><option value="Middle">Middle Class</option><option value="Top">Top Class</option><option value="Primary 1">Primary 1</option><option value="Primary 2">Primary 2</option><option value="Primary 3">Primary 3</option><option value="Primary 4">Primary 4</option><option value="Primary 5">Primary 5</option><option value="Primary 6">Primary 6</option><option value="Primary 7">Primary 7</option><option value="Senior 1">Senior 1</option><option value="Senior 2">Senior 2</option><option value="Senior 3">Senior 3</option><option value="Senior 4">Senior 4</option><option value="Senior 5">Senior 5</option><option value="Senior 6">Senior 6</option></select><input type="url" id="pdfUrl" placeholder="Document URL"><small>Accepts PDF, Word, Excel, PowerPoint, ODT, images, video, audio, text, and other links.</small><button id="addPdfBtn" class="admin-toggle">➕ Add document</button></div><div id="pdfAdminList"></div></div>
             </div>
         </div>
         <div id="myListPage" class="page"><div class="section-title">❤️ My Saved Lessons</div><div id="myListContainer" style="background:white; border-radius:20px; padding:20px; text-align:center; color:#999;">Coming soon – save your favourite lessons!</div></div>
@@ -1829,7 +1840,7 @@
         <button type="button" class="elibrary-search-toggle" id="elibrarySearchToggle" aria-label="Search library" aria-expanded="false"><i class="fas fa-search" aria-hidden="true"></i></button>
     </header>
     <div class="elibrary-search-wrap" id="elibrarySearchWrap">
-        <input type="search" id="elibrarySearchInput" placeholder="Search books or classes" aria-label="Search books or classes">
+        <input type="search" id="elibrarySearchInput" placeholder="Search documents or classes" aria-label="Search documents or classes">
     </div>
     <main class="elibrary-body">
         <div class="elibrary-body-inner">
@@ -1847,10 +1858,10 @@
         <div id="elibraryPDFItems" class="elibrary-pdf-items"></div>
     </section>
 </div>
-<div id="bookReader" class="book-reader" role="dialog" aria-modal="true" aria-hidden="true" aria-label="PDF book reader">
+<div id="bookReader" class="book-reader" role="dialog" aria-modal="true" aria-hidden="true" aria-label="Document reader">
     <header class="book-reader-topbar">
         <button type="button" class="book-reader-close" id="closeBookReader">✕ Close</button>
-        <div class="book-reader-title" id="bookReaderTitle">PDF Reader</div>
+        <div class="book-reader-title-wrap"><span class="book-reader-title-icon" id="bookReaderDocIcon" aria-hidden="true">📄</span><div class="book-reader-title" id="bookReaderTitle">Document Reader</div></div>
         <button type="button" class="book-reader-night" id="bookReaderNightToggle" aria-label="Toggle night mode" aria-pressed="false">🌙</button>
     </header>
     <div class="book-reader-center">
@@ -1858,9 +1869,10 @@
             <div class="book-reader-loading" id="bookReaderLoading">Preparing your book…</div>
             <div class="book-reader-error" id="bookReaderError" hidden></div>
             <div class="book-flipbook" id="bookFlipbook" hidden></div>
+            <div class="book-reader-media" id="bookReaderMedia" hidden></div>
         </div>
     </div>
-    <footer class="book-reader-controls">
+    <footer class="book-reader-controls" id="bookReaderControls" hidden>
         <button type="button" id="bookReaderPrev" disabled>◀ Prev</button>
         <div class="book-reader-page-count" id="bookReaderPageCount" aria-live="polite">Page 0 of 0</div>
         <button type="button" id="bookReaderNext" disabled>Next ▶</button>
@@ -2773,15 +2785,19 @@
     function renderELibraryShelves() {
         const container = document.getElementById('elibraryShelves');
         if (!container) return;
+        if (!pdfMaterials.length) {
+            container.innerHTML = '<div class="elibrary-empty">No documents yet.</div>';
+            return;
+        }
         const shelves = elibraryShelves.map(shelf => {
             const books = shelf.classes.map(book => {
                 const count = pdfMaterials.filter(pdf => getPdfClassLevel(pdf) === book.value).length;
-                return `<button type="button" class="library-book" data-library-class="${escapeHtml(book.value)}" style="--book-color:${book.color}" aria-label="Open ${escapeHtml(book.label)} materials"><i class="fas ${book.icon}" aria-hidden="true"></i><strong>${escapeHtml(book.label)}</strong><small>${count} ${count === 1 ? 'book' : 'books'}</small></button>`;
+                return `<button type="button" class="library-book" data-library-class="${escapeHtml(book.value)}" style="--book-color:${book.color}" aria-label="Open ${escapeHtml(book.label)} materials"><span aria-hidden="true">📄</span><strong>${escapeHtml(book.label)}</strong><small>${count} ${count === 1 ? 'document' : 'documents'}</small></button>`;
             }).join('');
             return `<section class="library-shelf"><h3>${escapeHtml(shelf.title)}</h3><div class="library-books">${books}</div></section>`;
         }).join('');
         const generalCount = pdfMaterials.filter(pdf => getPdfClassLevel(pdf) === 'unassigned').length;
-        const general = `<section class="library-shelf"><h3>📖 General / Unassigned</h3><div class="library-books"><button type="button" class="library-book" data-library-class="unassigned" style="--book-color:#d97938" aria-label="Open General or Unassigned materials"><i class="fas fa-book-open" aria-hidden="true"></i><strong>General</strong><small>${generalCount} ${generalCount === 1 ? 'book' : 'books'}</small></button></div></section>`;
+        const general = `<section class="library-shelf"><h3>📖 General / Unassigned</h3><div class="library-books"><button type="button" class="library-book" data-library-class="unassigned" style="--book-color:#d97938" aria-label="Open General or Unassigned materials"><span aria-hidden="true">📄</span><strong>General</strong><small>${generalCount} ${generalCount === 1 ? 'document' : 'documents'}</small></button></div></section>`;
         container.innerHTML = shelves + general;
     }
     function renderELibrarySearchResults() {
@@ -2803,21 +2819,21 @@
         shelves.hidden = true;
         results.hidden = false;
         if (!matches.length) {
-            results.innerHTML = '<div class="elibrary-empty">No books match your search.</div>';
+            results.innerHTML = '<div class="elibrary-empty">No documents match your search.</div>';
             return;
         }
-        results.innerHTML = matches.map(pdf => `<button type="button" class="elibrary-search-result" data-library-pdf-id="${escapeHtml(pdf.id)}"><i class="fas fa-file-pdf" aria-hidden="true"></i><span><strong>${escapeHtml(pdf.title)}</strong><small>${escapeHtml(getPdfClassLabel(getPdfClassLevel(pdf)))}</small></span><i class="fas fa-chevron-right" aria-hidden="true"></i></button>`).join('');
+        results.innerHTML = matches.map(pdf => `<button type="button" class="elibrary-search-result" data-library-pdf-id="${escapeHtml(pdf.id)}"><span class="elibrary-document-icon" aria-hidden="true">📄</span><span><strong>${escapeHtml(pdf.title)}</strong><small>${escapeHtml(getPdfClassLabel(getPdfClassLevel(pdf)))}</small></span><i class="fas fa-chevron-right" aria-hidden="true"></i></button>`).join('');
     }
     function renderELibraryPDFItems() {
         const container = document.getElementById('elibraryPDFItems');
         if (!container) return;
         if (!currentLibraryPdfs.length) {
-            container.innerHTML = '<div class="elibrary-empty">No materials yet for this class.</div>';
+            container.innerHTML = '<div class="elibrary-empty">No documents yet.</div>';
             return;
         }
         container.innerHTML = currentLibraryPdfs.map(pdf => {
             const color = /^#[0-9a-f]{6}$/iu.test(pdf.cover_color || '') ? pdf.cover_color : '#FF8C42';
-            return `<button type="button" class="elibrary-pdf-row" data-library-pdf-id="${escapeHtml(pdf.id)}"><span class="elibrary-pdf-cover" style="background:${color}"><i class="fas fa-file-pdf" aria-hidden="true"></i></span><span>${escapeHtml(pdf.title)}</span><i class="fas fa-chevron-right" aria-hidden="true"></i></button>`;
+            return `<button type="button" class="elibrary-pdf-row" data-library-pdf-id="${escapeHtml(pdf.id)}"><span class="elibrary-pdf-cover" style="background:${color}" aria-hidden="true">📄</span><span>${escapeHtml(pdf.title)}</span><i class="fas fa-chevron-right" aria-hidden="true"></i></button>`;
         }).join('');
     }
     async function openELibraryScreen() {
@@ -2905,6 +2921,78 @@
         document.getElementById('bookReaderPrev').disabled = !count || index <= 0;
         document.getElementById('bookReaderNext').disabled = !count || index >= count - 1;
     }
+    const documentReaderKinds = {
+        pdf: { icon: '📕', label: 'PDF' },
+        image: { icon: '🖼️', label: 'Image' },
+        document: { icon: '📄', label: 'Document' },
+        spreadsheet: { icon: '📊', label: 'Spreadsheet' },
+        presentation: { icon: '🖥️', label: 'Presentation' },
+        video: { icon: '🎬', label: 'Video' },
+        audio: { icon: '🎧', label: 'Audio' },
+        text: { icon: '📝', label: 'Text' },
+        viewer: { icon: '🌐', label: 'NCDC viewer' },
+        other: { icon: '📄', label: 'Document' }
+    };
+    let activeReaderObjectUrl = null;
+    function safeReaderDocumentUrl(value) {
+        if (typeof value !== 'string') return null;
+        try {
+            const parsed = new URL(value.trim());
+            if (!['http:', 'https:'].includes(parsed.protocol) || !parsed.hostname || parsed.username || parsed.password) return null;
+            return parsed.toString();
+        } catch (_) {
+            return null;
+        }
+    }
+    function appendReaderDirectLink(container, url, label = 'Open direct file link') {
+        const safeUrl = safeReaderDocumentUrl(url);
+        if (!safeUrl) return;
+        const link = document.createElement('a');
+        link.href = safeUrl;
+        link.target = '_blank';
+        link.rel = 'noopener noreferrer';
+        link.referrerPolicy = 'no-referrer';
+        link.textContent = label;
+        container.appendChild(link);
+    }
+    function appendGoogleDocsViewer(container, url, title) {
+        const iframe = document.createElement('iframe');
+        iframe.title = `${title} viewer`;
+        iframe.src = `https://docs.google.com/gview?embedded=1&url=${encodeURIComponent(url)}`;
+        iframe.referrerPolicy = 'no-referrer';
+        iframe.allowFullscreen = true;
+        container.appendChild(iframe);
+        const fallback = document.createElement('p');
+        fallback.className = 'book-reader-viewer-fallback';
+        fallback.append('If the preview does not load, ');
+        appendReaderDirectLink(fallback, url, 'open the original link');
+        container.appendChild(fallback);
+    }
+    async function fetchReaderDocumentBlob(url) {
+        const proxyUrl = `${API_BASE}/api/doc-proxy?url=${encodeURIComponent(url)}`;
+        const response = await fetch(proxyUrl, {
+            headers: AUTH_TOKEN ? { Authorization: `Bearer ${AUTH_TOKEN}` } : {}
+        });
+        if (!response.ok) {
+            const payload = await response.json().catch(() => ({}));
+            throw new Error(payload.error || `Could not load document (HTTP ${response.status}).`);
+        }
+        return response.blob();
+    }
+    function showReaderError(error, url) {
+        const panel = document.getElementById('bookReaderError');
+        panel.replaceChildren();
+        const message = document.createElement('p');
+        message.textContent = error?.message || 'Could not load this document.';
+        panel.appendChild(message);
+        appendReaderDirectLink(panel, url);
+        const retry = document.createElement('button');
+        retry.type = 'button';
+        retry.id = 'retryBookReader';
+        retry.textContent = 'Retry';
+        panel.appendChild(retry);
+        panel.hidden = false;
+    }
     async function openBookReader(pdf) {
         closeBookReader();
         const readerId = ++activeBookReaderId;
@@ -2913,74 +3001,169 @@
         const loading = document.getElementById('bookReaderLoading');
         const errorPanel = document.getElementById('bookReaderError');
         const flipbook = document.getElementById('bookFlipbook');
+        const media = document.getElementById('bookReaderMedia');
+        const controls = document.getElementById('bookReaderControls');
+        const directUrl = safeReaderDocumentUrl(pdf?.url);
         reader.classList.add('show');
         reader.setAttribute('aria-hidden', 'false');
         reader.classList.remove('night-mode');
         document.body.classList.add('reader-open');
-        document.getElementById('bookReaderTitle').textContent = pdf.title || 'PDF Reader';
+        document.getElementById('bookReaderTitle').textContent = pdf.title || 'Document Reader';
+        document.getElementById('bookReaderDocIcon').textContent = documentReaderKinds.other.icon;
         document.getElementById('bookReaderNightToggle').textContent = '🌙';
         document.getElementById('bookReaderNightToggle').setAttribute('aria-pressed', 'false');
+        document.getElementById('bookReaderNightToggle').hidden = true;
         loading.hidden = false;
         errorPanel.hidden = true;
-        errorPanel.innerHTML = '';
+        errorPanel.replaceChildren();
         flipbook.hidden = true;
         flipbook.innerHTML = '';
+        media.hidden = true;
+        media.replaceChildren();
+        controls.hidden = true;
         updateBookReaderPages();
         try {
-            if (!window.pdfjsLib) throw new Error('PDF.js did not load.');
-            if (!window.St?.PageFlip) throw new Error('The page-flip library did not load.');
-            window.pdfjsLib.GlobalWorkerOptions.workerSrc =
-                'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
-            const loadingTask = window.pdfjsLib.getDocument({ url: pdf.url });
-            activePdfLoadingTask = loadingTask;
-            const documentProxy = await loadingTask.promise;
-            if (readerId !== activeBookReaderId) return;
-            activePdfDocument = documentProxy;
-            if (!documentProxy.numPages) throw new Error('The selected PDF contains no pages.');
-            const images = [];
-            for (let pageNumber = 1; pageNumber <= documentProxy.numPages; pageNumber += 1) {
-                if (readerId !== activeBookReaderId) return;
-                const page = await documentProxy.getPage(pageNumber);
-                const baseViewport = page.getViewport({ scale: 1 });
-                const scale = Math.min(1.5, 1000 / baseViewport.width);
-                const viewport = page.getViewport({ scale });
-                const canvas = document.createElement('canvas');
-                canvas.width = Math.ceil(viewport.width);
-                canvas.height = Math.ceil(viewport.height);
-                const context = canvas.getContext('2d');
-                if (!context) throw new Error(`Could not create a canvas for page ${pageNumber}.`);
-                await page.render({ canvasContext: context, viewport }).promise;
-                images.push(canvas.toDataURL('image/jpeg', 0.88));
-                page.cleanup();
-                canvas.width = 0;
-                canvas.height = 0;
+            if (!directUrl) throw new Error('This document does not have a valid HTTP or HTTPS link.');
+            let kind = pdf?.doc_kind;
+            if (!Object.hasOwn(documentReaderKinds, kind)) {
+                const result = await api('/api/detect-doc-kind', { method: 'POST', body: { url: directUrl } });
+                kind = result?.kind;
             }
+            if (!Object.hasOwn(documentReaderKinds, kind)) throw new Error('The document type could not be detected.');
+            const kindInfo = documentReaderKinds[kind];
+            document.getElementById('bookReaderDocIcon').textContent = kindInfo.icon;
             if (readerId !== activeBookReaderId) return;
-            pageFlipInstance = new window.St.PageFlip(flipbook, {
-                width: 400,
-                height: 600,
-                size: 'stretch',
-                showCover: true,
-                mobileScrollSupport: true,
-                usePortrait: true,
-                autoSize: true,
-                minWidth: 280,
-                maxWidth: 1000,
-                minHeight: 420,
-                maxHeight: 1500
-            });
+
+            if (kind === 'viewer') {
+                loading.hidden = true;
+                media.hidden = false;
+                const notice = document.createElement('p');
+                notice.className = 'book-reader-viewer-fallback';
+                notice.textContent = 'This is a viewer page, use direct file link';
+                media.appendChild(notice);
+                appendReaderDirectLink(media, directUrl);
+                return;
+            }
+
+            if (['document', 'spreadsheet', 'presentation'].includes(kind)) {
+                loading.hidden = true;
+                media.hidden = false;
+                appendGoogleDocsViewer(media, directUrl, pdf.title || kindInfo.label);
+                return;
+            }
+
+            if (kind === 'other') {
+                loading.hidden = true;
+                media.hidden = false;
+                const notice = document.createElement('p');
+                notice.className = 'book-reader-viewer-fallback';
+                notice.textContent = 'A preview is not available for this link. Open the original link below.';
+                media.appendChild(notice);
+                appendReaderDirectLink(media, directUrl);
+                return;
+            }
+
+            if (kind === 'pdf') {
+                if (!window.pdfjsLib) throw new Error('PDF.js did not load.');
+                if (!window.St?.PageFlip) throw new Error('The page-flip library did not load.');
+                window.pdfjsLib.GlobalWorkerOptions.workerSrc =
+                    'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
+                const loadingTask = window.pdfjsLib.getDocument({
+                    url: `${API_BASE}/api/doc-proxy?url=${encodeURIComponent(directUrl)}`,
+                    httpHeaders: AUTH_TOKEN ? { Authorization: `Bearer ${AUTH_TOKEN}` } : {},
+                    disableRange: true,
+                    disableStream: true
+                });
+                activePdfLoadingTask = loadingTask;
+                const documentProxy = await loadingTask.promise;
+                if (readerId !== activeBookReaderId) return;
+                activePdfDocument = documentProxy;
+                if (!documentProxy.numPages) throw new Error('The selected PDF contains no pages.');
+                const images = [];
+                for (let pageNumber = 1; pageNumber <= documentProxy.numPages; pageNumber += 1) {
+                    if (readerId !== activeBookReaderId) return;
+                    const page = await documentProxy.getPage(pageNumber);
+                    const baseViewport = page.getViewport({ scale: 1 });
+                    const scale = Math.min(1.5, 1000 / baseViewport.width);
+                    const viewport = page.getViewport({ scale });
+                    const canvas = document.createElement('canvas');
+                    canvas.width = Math.ceil(viewport.width);
+                    canvas.height = Math.ceil(viewport.height);
+                    const context = canvas.getContext('2d');
+                    if (!context) throw new Error(`Could not create a canvas for page ${pageNumber}.`);
+                    await page.render({ canvasContext: context, viewport }).promise;
+                    images.push(canvas.toDataURL('image/jpeg', 0.88));
+                    page.cleanup();
+                    canvas.width = 0;
+                    canvas.height = 0;
+                }
+                if (readerId !== activeBookReaderId) return;
+                pageFlipInstance = new window.St.PageFlip(flipbook, {
+                    width: 400,
+                    height: 600,
+                    size: 'stretch',
+                    showCover: true,
+                    mobileScrollSupport: true,
+                    usePortrait: true,
+                    autoSize: true,
+                    minWidth: 280,
+                    maxWidth: 1000,
+                    minHeight: 420,
+                    maxHeight: 1500
+                });
+                loading.hidden = true;
+                flipbook.hidden = false;
+                controls.hidden = false;
+                document.getElementById('bookReaderNightToggle').hidden = false;
+                pageFlipInstance.loadFromImages(images);
+                pageFlipInstance.on('flip', updateBookReaderPages);
+                updateBookReaderPages();
+                return;
+            }
+
+            const blob = await fetchReaderDocumentBlob(directUrl);
+            if (readerId !== activeBookReaderId) return;
+            activeReaderObjectUrl = URL.createObjectURL(blob);
             loading.hidden = true;
-            flipbook.hidden = false;
-            pageFlipInstance.loadFromImages(images);
-            pageFlipInstance.on('flip', updateBookReaderPages);
-            updateBookReaderPages();
+            media.hidden = false;
+            if (kind === 'image') {
+                const image = document.createElement('img');
+                image.src = activeReaderObjectUrl;
+                image.alt = pdf.title || 'Document image';
+                media.appendChild(image);
+            } else if (kind === 'video' || kind === 'audio') {
+                const fileName = document.createElement('div');
+                fileName.className = 'book-reader-filename';
+                const encodedName = new URL(directUrl).pathname.split('/').pop() || '';
+                try {
+                    fileName.textContent = decodeURIComponent(encodedName) || pdf.title || kindInfo.label;
+                } catch (_) {
+                    fileName.textContent = encodedName || pdf.title || kindInfo.label;
+                }
+                media.appendChild(fileName);
+                const player = document.createElement(kind);
+                player.src = activeReaderObjectUrl;
+                player.controls = true;
+                player.preload = 'metadata';
+                if (kind === 'video') {
+                    player.playsInline = true;
+                    player.muted = true;
+                }
+                media.appendChild(player);
+            } else if (kind === 'text') {
+                const text = await blob.text();
+                if (readerId !== activeBookReaderId) return;
+                const pre = document.createElement('pre');
+                pre.textContent = text;
+                media.appendChild(pre);
+            }
         } catch (error) {
             if (readerId !== activeBookReaderId) return;
-            console.error('Could not load PDF in the book reader:', error);
+            console.error('Could not load document in the reader:', error);
             loading.hidden = true;
             flipbook.hidden = true;
-            errorPanel.hidden = false;
-            errorPanel.innerHTML = 'Could not load PDF. Retry? <button type="button" id="retryBookReader">Retry</button>';
+            media.hidden = true;
+            showReaderError(error, directUrl);
         }
     }
     function closeBookReader() {
@@ -2993,6 +3176,10 @@
         activePdfLoadingTask = null;
         activePdfDocument = null;
         if (loadingTask?.destroy) Promise.resolve().then(() => loadingTask.destroy()).catch(() => {});
+        if (activeReaderObjectUrl) {
+            URL.revokeObjectURL(activeReaderObjectUrl);
+            activeReaderObjectUrl = null;
+        }
         const reader = document.getElementById('bookReader');
         if (reader) {
             reader.classList.remove('show', 'night-mode');
@@ -3004,9 +3191,17 @@
             flipbook.hidden = true;
             flipbook.innerHTML = '';
         }
+        const media = document.getElementById('bookReaderMedia');
+        if (media) {
+            media.hidden = true;
+            media.replaceChildren();
+        }
+        const controls = document.getElementById('bookReaderControls');
+        if (controls) controls.hidden = true;
+        document.getElementById('bookReaderNightToggle').hidden = true;
         document.getElementById('bookReaderLoading').hidden = true;
         document.getElementById('bookReaderError').hidden = true;
-        document.getElementById('bookReaderError').innerHTML = '';
+        document.getElementById('bookReaderError').replaceChildren();
         document.getElementById('bookReaderPageCount').textContent = 'Page 0 of 0';
         document.getElementById('bookReaderPrev').disabled = true;
         document.getElementById('bookReaderNext').disabled = true;
@@ -3015,7 +3210,7 @@
     function renderPdfAdmin() {
         const c = document.getElementById('pdfAdminList');
         if (!c) return;
-        if (!pdfMaterials.length) { c.innerHTML = '<div>No PDFs</div>'; return; }
+        if (!pdfMaterials.length) { c.innerHTML = '<div>No documents yet.</div>'; return; }
         const classOptions = [{ value: 'unassigned', label: 'General / Unassigned' }, ...elibraryShelves.flatMap(shelf => shelf.classes.map(item => ({ value: item.value, label: item.label })))];
         c.innerHTML = pdfMaterials.map(p => {
             const selectedClass = getPdfClassLevel(p);
@@ -3024,7 +3219,7 @@
             return `<div class="pdf-item pdf-admin-row"><a href="${escapeHtml(safeUrl)}" target="_blank" rel="noopener noreferrer">📄 ${escapeHtml(p.title)}</a><span class="pdf-class-badge">${escapeHtml(getPdfClassLabel(selectedClass))}</span><button type="button" class="edit-pdf-class" data-id="${escapeHtml(p.id)}">Edit</button><select class="pdf-class-edit hidden" data-id="${escapeHtml(p.id)}" aria-label="Assign ${escapeHtml(p.title)} to a class">${options}</select><button type="button" class="save-pdf-class hidden" data-id="${escapeHtml(p.id)}">Save</button><button type="button" class="cancel-pdf-class hidden" data-id="${escapeHtml(p.id)}">Cancel</button><button type="button" class="delete-pdf" data-id="${escapeHtml(p.id)}">Delete</button></div>`;
         }).join('');
         document.querySelectorAll('.delete-pdf').forEach(btn => btn.addEventListener('click', async () => {
-            try { await api('/api/pdfs/' + btn.getAttribute('data-id'), { method: 'DELETE' }); showNotification("PDF deleted"); refreshAllData(); } catch(e) { showNotification(e.message, "error"); }
+            try { await api('/api/pdfs/' + btn.getAttribute('data-id'), { method: 'DELETE' }); showNotification("Document deleted"); refreshAllData(); } catch(e) { showNotification(e.message, "error"); }
         }));
         document.querySelectorAll('.edit-pdf-class').forEach(btn => btn.addEventListener('click', () => {
             const row = btn.closest('.pdf-admin-row');
@@ -3047,7 +3242,7 @@
             const classLevel = row.querySelector('.pdf-class-edit').value;
             try {
                 await api('/api/pdfs/' + btn.getAttribute('data-id'), { method: 'PATCH', body: { class_level: classLevel } });
-                showNotification('PDF class updated');
+                showNotification('Document class updated');
                 await refreshAllData();
             } catch (error) {
                 showNotification(error.message, 'error');
@@ -4644,7 +4839,7 @@
         const href = escapeHtml(url);
         const dataField = escapeHtml(field);
         return `<div class="teacher-curriculum-resource-link">
-            <a class="teacher-primary teacher-primary-link" href="${href}" target="_blank" rel="noopener noreferrer" data-curriculum-open="${dataField}">${escapeHtml(label)}</a>
+            <a class="teacher-primary teacher-primary-link" href="${href}" target="_blank" rel="noopener noreferrer" data-curriculum-open="${dataField}" data-curriculum-reader>${escapeHtml(label)}</a>
             <p class="teacher-curriculum-link-fallback">If the book doesn't open, copy this link: <a href="${href}" target="_blank" rel="noopener noreferrer" data-curriculum-open="${dataField}">${href}</a></p>
         </div>`;
     }
@@ -4938,17 +5133,31 @@
             if (button) void openTeacherCurriculumLink(button.dataset.teacherCurriculum);
         });
         document.getElementById("teacherCurriculumDetail")?.addEventListener("click", event => {
-            const openLink = event.target.closest("[data-curriculum-open]");
+            const openLink = event.target instanceof Element ? event.target.closest("[data-curriculum-open]") : null;
             if (openLink) {
                 const urlField = {
                     syllabus_url: "syllabus_url",
                     learner_book_url: "learner_book_url",
                     teacher_guide_url: "teacher_guide_url"
                 }[openLink.dataset.curriculumOpen];
+                const link = teacherDashboardState.selectedCurriculumLink;
                 const url = urlField
-                    ? teacherCurriculumHttpsUrl(teacherDashboardState.selectedCurriculumLink?.[urlField])
+                    ? teacherCurriculumHttpsUrl(link?.[urlField])
                     : null;
                 if (url) console.log("[linker] opening", url);
+                if (url && openLink.hasAttribute("data-curriculum-reader")) {
+                    event.preventDefault();
+                    const kindField = {
+                        syllabus_url: "syllabus_kind",
+                        learner_book_url: "learner_book_kind",
+                        teacher_guide_url: "teacher_guide_kind"
+                    }[urlField];
+                    void openBookReader({
+                        url,
+                        title: `${teacherCurriculumTopicTitle(link)} — ${openLink.textContent.trim()}`,
+                        doc_kind: kindField ? link?.[kindField] : null
+                    });
+                }
                 return;
             }
             if (event.target.closest("[data-curriculum-results-back]")) {
@@ -5863,7 +6072,7 @@
             const url = document.getElementById('pdfUrl').value.trim();
             if (!title || !url) { showNotification("Fill both", "error"); return; }
             const classLevel = document.getElementById('pdfClassLevel').value;
-            try { await api('/api/pdfs', { method: 'POST', body: { title, url, class_level: classLevel } }); showNotification("PDF added"); ['pdfTitle','pdfUrl'].forEach(id => document.getElementById(id).value = ''); document.getElementById('pdfClassLevel').value = ''; refreshAllData(); } catch(e) { showNotification(e.message, "error"); }
+            try { await api('/api/pdfs', { method: 'POST', body: { title, url, class_level: classLevel } }); showNotification("Document added"); ['pdfTitle','pdfUrl'].forEach(id => document.getElementById(id).value = ''); document.getElementById('pdfClassLevel').value = ''; refreshAllData(); } catch(e) { showNotification(e.message, "error"); }
         });
         document.getElementById('addNewSubjectBtn')?.addEventListener('click', async () => {
             const newName = document.getElementById('newSubjectName').value.trim();

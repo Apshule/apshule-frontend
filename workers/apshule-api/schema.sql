@@ -125,12 +125,14 @@ CREATE TABLE IF NOT EXISTS pdfs (
   id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
   title TEXT NOT NULL,
   url TEXT NOT NULL,
+  doc_kind TEXT,
   created_at TIMESTAMPTZ DEFAULT NOW()
 );
 ALTER TABLE pdfs
   ADD COLUMN IF NOT EXISTS class_level VARCHAR(30) DEFAULT 'unassigned',
   ADD COLUMN IF NOT EXISTS cover_color VARCHAR(20) DEFAULT '#FF8C42',
-  ADD COLUMN IF NOT EXISTS display_order INT DEFAULT 0;
+  ADD COLUMN IF NOT EXISTS display_order INT DEFAULT 0,
+  ADD COLUMN IF NOT EXISTS doc_kind TEXT;
 UPDATE pdfs SET class_level = 'unassigned' WHERE class_level IS NULL;
 CREATE INDEX IF NOT EXISTS idx_pdfs_class ON pdfs(class_level);
 
@@ -422,8 +424,14 @@ CREATE TABLE IF NOT EXISTS curriculum_links (
   class_level TEXT,
   topic TEXT,
   syllabus_ref TEXT,
+  syllabus_url TEXT,
   learner_book_page TEXT,
+  learner_book_url TEXT,
   teacher_guide_page TEXT,
+  teacher_guide_url TEXT,
+  syllabus_kind TEXT,
+  learner_book_kind TEXT,
+  teacher_guide_kind TEXT,
   summary_text TEXT,
   activity_suggestion TEXT,
   created_at TIMESTAMPTZ DEFAULT NOW()

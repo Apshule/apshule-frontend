@@ -2,6 +2,7 @@ import { Hono } from "hono";
 import { ApiError, getDb } from "../db.js";
 import { authMiddleware, requireRole } from "../auth.js";
 import { readJson, requiredString } from "../http.js";
+import { detectDocKind } from "../document-kind.js";
 import {
   optionalBodyHttpsUrl,
   optionalBodyText,
@@ -231,8 +232,9 @@ foundationRoutes.get(
           )
       `,
       sql`
-      SELECT id, subject, class_level, topic, syllabus_ref, learner_book_page,
-             teacher_guide_page, summary_text, activity_suggestion, created_at,
+       SELECT id, subject, class_level, topic, syllabus_ref, learner_book_page,
+              teacher_guide_page, syllabus_kind, learner_book_kind, teacher_guide_kind,
+              summary_text, activity_suggestion, created_at,
              ((NULLIF(BTRIM(syllabus_url), '') IS NOT NULL)::int +
               (NULLIF(BTRIM(learner_book_url), '') IS NOT NULL)::int +
               (NULLIF(BTRIM(teacher_guide_url), '') IS NOT NULL)::int) AS url_count
@@ -268,6 +270,7 @@ foundationRoutes.get(
       response.links = await sql`
         SELECT id, subject, class_level, topic, syllabus_ref, learner_book_page,
                teacher_guide_page, syllabus_url, learner_book_url, teacher_guide_url,
+               syllabus_kind, learner_book_kind, teacher_guide_kind,
                summary_text, activity_suggestion, created_at,
                ((NULLIF(BTRIM(syllabus_url), '') IS NOT NULL)::int +
                 (NULLIF(BTRIM(learner_book_url), '') IS NOT NULL)::int +
@@ -322,8 +325,9 @@ foundationRoutes.get(
     const id = routeUuid(c.req.param("id"));
     const sql = getDb(c.env);
     const rows = await sql`
-      SELECT id, subject, class_level, topic, syllabus_ref, learner_book_page,
-             teacher_guide_page, syllabus_url, learner_book_url, teacher_guide_url,
+       SELECT id, subject, class_level, topic, syllabus_ref, learner_book_page,
+              teacher_guide_page, syllabus_url, learner_book_url, teacher_guide_url,
+              syllabus_kind, learner_book_kind, teacher_guide_kind,
              summary_text, activity_suggestion, created_at
       FROM curriculum_links
       WHERE id = ${id}
@@ -380,6 +384,7 @@ foundationRoutes.get(
     const rows = await sql`
       SELECT link.id, link.subject, link.class_level, link.topic,
              link.syllabus_ref, link.learner_book_page, link.teacher_guide_page,
+              link.syllabus_kind, link.learner_book_kind, link.teacher_guide_kind,
              link.summary_text, link.activity_suggestion, link.created_at,
              favorite.created_at AS favorited_at
       FROM curriculum_favorites AS favorite
@@ -463,6 +468,7 @@ foundationRoutes.get(
     const rows = await sql`
       SELECT link.id, link.subject, link.class_level, link.topic,
              link.syllabus_ref, link.learner_book_page, link.teacher_guide_page,
+              link.syllabus_kind, link.learner_book_kind, link.teacher_guide_kind,
              link.summary_text, link.activity_suggestion, link.created_at,
              recent.viewed_at
       FROM curriculum_recent AS recent
@@ -491,6 +497,9 @@ foundationRoutes.post(
     const syllabusUrl = optionalBodyHttpsUrl(body, "syllabus_url") ?? null;
     const learnerBookUrl = optionalBodyHttpsUrl(body, "learner_book_url") ?? null;
     const teacherGuideUrl = optionalBodyHttpsUrl(body, "teacher_guide_url") ?? null;
+    const syllabusKind = detectDocKind(syllabusUrl);
+    const learnerBookKind = detectDocKind(learnerBookUrl);
+    const teacherGuideKind = detectDocKind(teacherGuideUrl);
     const summaryText = optionalBodyText(body, "summary_text", 6000) ?? null;
     const activitySuggestion = optionalBodyText(body, "activity_suggestion", 6000) ?? null;
     const user = c.get("user");
@@ -501,15 +510,18 @@ foundationRoutes.post(
         INSERT INTO curriculum_links (
           subject, class_level, topic, syllabus_ref, learner_book_page,
           teacher_guide_page, syllabus_url, learner_book_url, teacher_guide_url,
+          syllabus_kind, learner_book_kind, teacher_guide_kind,
           summary_text, activity_suggestion
         )
         VALUES (
           ${subject}, ${classLevel}, ${topic}, ${syllabusRef}, ${learnerBookPage},
           ${teacherGuidePage}, ${syllabusUrl}, ${learnerBookUrl}, ${teacherGuideUrl},
+          ${syllabusKind}, ${learnerBookKind}, ${teacherGuideKind},
           ${summaryText}, ${activitySuggestion}
         )
         RETURNING id, subject, class_level, topic, syllabus_ref, learner_book_page,
                   teacher_guide_page, syllabus_url, learner_book_url, teacher_guide_url,
+                  syllabus_kind, learner_book_kind, teacher_guide_kind,
                   summary_text, activity_suggestion, created_at
       ), audit AS (
         INSERT INTO audit_log (actor_id, sector, action, target_table, target_id, metadata, ip)
@@ -553,6 +565,15 @@ foundationRoutes.patch(
     if (!fields.some((field) => has[field])) {
       throw new ApiError(400, "VALIDATION_ERROR", "Provide at least one curriculum link field to update.");
     }
+    const syllabusUrl = has.syllabus_url
+      ? optionalBodyHttpsUrl(body, "syllabus_url")
+      : null;
+    const learnerBookUrl = has.learner_book_url
+      ? optionalBodyHttpsUrl(body, "learner_book_url")
+      : null;
+    const teacherGuideUrl = has.teacher_guide_url
+      ? optionalBodyHttpsUrl(body, "teacher_guide_url")
+      : null;
     const values = {
       subject: has.subject ? optionalBodyText(body, "subject", 120) : null,
       class_level: has.class_level ? optionalBodyText(body, "class_level", 80) : null,
@@ -564,13 +585,12 @@ foundationRoutes.patch(
       teacher_guide_page: has.teacher_guide_page
         ? optionalBodyText(body, "teacher_guide_page", 120)
         : null,
-      syllabus_url: has.syllabus_url ? optionalBodyHttpsUrl(body, "syllabus_url") : null,
-      learner_book_url: has.learner_book_url
-        ? optionalBodyHttpsUrl(body, "learner_book_url")
-        : null,
-      teacher_guide_url: has.teacher_guide_url
-        ? optionalBodyHttpsUrl(body, "teacher_guide_url")
-        : null,
+      syllabus_url: syllabusUrl,
+      learner_book_url: learnerBookUrl,
+      teacher_guide_url: teacherGuideUrl,
+      syllabus_kind: has.syllabus_url ? detectDocKind(syllabusUrl) : null,
+      learner_book_kind: has.learner_book_url ? detectDocKind(learnerBookUrl) : null,
+      teacher_guide_kind: has.teacher_guide_url ? detectDocKind(teacherGuideUrl) : null,
       summary_text: has.summary_text ? optionalBodyText(body, "summary_text", 6000) : null,
       activity_suggestion: has.activity_suggestion
         ? optionalBodyText(body, "activity_suggestion", 6000)
@@ -591,11 +611,15 @@ foundationRoutes.patch(
             syllabus_url = CASE WHEN ${has.syllabus_url} THEN ${values.syllabus_url} ELSE syllabus_url END,
             learner_book_url = CASE WHEN ${has.learner_book_url} THEN ${values.learner_book_url} ELSE learner_book_url END,
             teacher_guide_url = CASE WHEN ${has.teacher_guide_url} THEN ${values.teacher_guide_url} ELSE teacher_guide_url END,
+            syllabus_kind = CASE WHEN ${has.syllabus_url} THEN ${values.syllabus_kind} ELSE syllabus_kind END,
+            learner_book_kind = CASE WHEN ${has.learner_book_url} THEN ${values.learner_book_kind} ELSE learner_book_kind END,
+            teacher_guide_kind = CASE WHEN ${has.teacher_guide_url} THEN ${values.teacher_guide_kind} ELSE teacher_guide_kind END,
             summary_text = CASE WHEN ${has.summary_text} THEN ${values.summary_text} ELSE summary_text END,
             activity_suggestion = CASE WHEN ${has.activity_suggestion} THEN ${values.activity_suggestion} ELSE activity_suggestion END
         WHERE id = ${id}
         RETURNING id, subject, class_level, topic, syllabus_ref, learner_book_page,
                   teacher_guide_page, syllabus_url, learner_book_url, teacher_guide_url,
+                  syllabus_kind, learner_book_kind, teacher_guide_kind,
                   summary_text, activity_suggestion, created_at
       ), audit AS (
         INSERT INTO audit_log (actor_id, sector, action, target_table, target_id, metadata, ip)

@@ -31,7 +31,7 @@ export async function resolve(specifier, context, nextResolve) {
     ) ||
     (
       specifier === "../db.js" &&
-      /\/src\/routes\/(payments|platform-settings|ncdc-foundation)\.ts$/u.test(
+      /\/src\/routes\/(payments|platform-settings|ncdc-foundation|documents)\.ts$/u.test(
         context.parentURL ?? "",
       )
     )
@@ -44,6 +44,24 @@ export async function resolve(specifier, context, nextResolve) {
   ) {
     return virtualModule(`
       export const authMiddleware = async (c, next) => next();
+    `);
+  }
+  if (
+    specifier === "../auth.js" &&
+    context.parentURL?.endsWith("/src/routes/documents.ts")
+  ) {
+    return virtualModule(`
+      export const authMiddleware = async (c, next) => {
+        if (c.req.header("authorization") !== "Bearer test-token") {
+          return c.json({ error: "Unauthorized" }, 401);
+        }
+        c.set("user", {
+          id: "00000000-0000-4000-8000-000000000123",
+          role: c.req.header("x-test-role") || "teacher",
+          sector: "education"
+        });
+        await next();
+      };
     `);
   }
   if (
@@ -106,6 +124,22 @@ export async function resolve(specifier, context, nextResolve) {
           throw new Error("Invalid string");
         }
         return value;
+      }
+    `);
+  }
+  if (
+    specifier === "../http.js" &&
+    context.parentURL?.endsWith("/src/routes/documents.ts")
+  ) {
+    return virtualModule(`
+      export async function readJson(c) { return c.req.json(); }
+      export function requiredString(body, key, options = {}) {
+        const value = body?.[key];
+        if (typeof value !== "string" || !value.trim() ||
+            value.length > (options.max ?? 1000)) {
+          throw new Error("Invalid string");
+        }
+        return value.trim();
       }
     `);
   }

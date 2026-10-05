@@ -2,6 +2,7 @@ import { Hono } from "hono";
 import { ApiError, getDb, isUniqueViolation } from "../db.js";
 import { authMiddleware, requireRealSuperAdmin, requireRole } from "../auth.js";
 import { optionalString, readJson, requiredString } from "../http.js";
+import { detectDocKind } from "../document-kind.js";
 import type { AppEnv } from "../types.js";
 
 const content = new Hono<AppEnv>();
@@ -38,7 +39,12 @@ function normalizePdfDisplayOrder(value: unknown): number {
 function validatePdfUrl(url: string): string {
   try {
     const parsedUrl = new URL(url);
-    if (parsedUrl.protocol !== "https:" && parsedUrl.protocol !== "http:") {
+    if (
+      (parsedUrl.protocol !== "https:" && parsedUrl.protocol !== "http:") ||
+      !parsedUrl.hostname ||
+      parsedUrl.username ||
+      parsedUrl.password
+    ) {
       throw new Error("unsupported protocol");
     }
   } catch {
@@ -55,13 +61,13 @@ content.get("/pdfs", async (c) => {
   }
   const rows = requestedClassLevel
     ? await sql`
-        SELECT id, title, url, class_level, cover_color, display_order, created_at
+        SELECT id, title, url, doc_kind, class_level, cover_color, display_order, created_at
         FROM pdfs
         WHERE class_level = ${requestedClassLevel}
         ORDER BY display_order ASC, created_at DESC
       `
     : await sql`
-        SELECT id, title, url, class_level, cover_color, display_order, created_at
+        SELECT id, title, url, doc_kind, class_level, cover_color, display_order, created_at
         FROM pdfs
         ORDER BY display_order ASC, created_at DESC
       `;
@@ -72,6 +78,7 @@ content.post("/pdfs", authMiddleware, requireRole("superadmin"), async (c) => {
   const body = await readJson(c);
   const title = requiredString(body, "title", { max: 200 });
   const url = validatePdfUrl(requiredString(body, "url", { max: 2048 }));
+  const docKind = detectDocKind(url);
   const classLevel = normalizePdfClassLevel(
     optionalString(body, "class_level", { max: 30, allowNull: true }),
   );
@@ -81,9 +88,9 @@ content.post("/pdfs", authMiddleware, requireRole("superadmin"), async (c) => {
   const displayOrder = normalizePdfDisplayOrder(body.display_order);
   const sql = getDb(c.env);
   const rows = await sql`
-    INSERT INTO pdfs (title, url, class_level, cover_color, display_order)
-    VALUES (${title}, ${url}, ${classLevel}, ${coverColor}, ${displayOrder})
-    RETURNING id, title, url, class_level, cover_color, display_order, created_at
+    INSERT INTO pdfs (title, url, doc_kind, class_level, cover_color, display_order)
+    VALUES (${title}, ${url}, ${docKind}, ${classLevel}, ${coverColor}, ${displayOrder})
+    RETURNING id, title, url, doc_kind, class_level, cover_color, display_order, created_at
   `;
   return c.json({ pdf: rows[0] }, 201);
 });
@@ -102,6 +109,7 @@ content.patch("/pdfs/:id", authMiddleware, requireRole("superadmin"), async (c) 
   const hasDisplayOrder = "display_order" in body;
   const title = hasTitle ? requiredString(body, "title", { max: 200 }) : null;
   const url = hasUrl ? validatePdfUrl(requiredString(body, "url", { max: 2048 })) : null;
+  const docKind = hasUrl ? detectDocKind(url) : null;
   const classLevel = hasClassLevel
     ? normalizePdfClassLevel(optionalString(body, "class_level", { max: 30, allowNull: true }))
     : null;
@@ -114,21 +122,22 @@ content.patch("/pdfs/:id", authMiddleware, requireRole("superadmin"), async (c) 
     UPDATE pdfs
     SET title = CASE WHEN ${hasTitle} THEN ${title} ELSE title END,
         url = CASE WHEN ${hasUrl} THEN ${url} ELSE url END,
+        doc_kind = CASE WHEN ${hasUrl} THEN ${docKind} ELSE doc_kind END,
         class_level = CASE WHEN ${hasClassLevel} THEN ${classLevel} ELSE class_level END,
         cover_color = CASE WHEN ${hasCoverColor} THEN ${coverColor} ELSE cover_color END,
         display_order = CASE WHEN ${hasDisplayOrder} THEN ${displayOrder} ELSE display_order END
     WHERE id = ${c.req.param("id")}
-    RETURNING id, title, url, class_level, cover_color, display_order, created_at
+    RETURNING id, title, url, doc_kind, class_level, cover_color, display_order, created_at
   `;
-  if (!rows[0]) throw new ApiError(404, "PDF_NOT_FOUND", "PDF was not found.");
+  if (!rows[0]) throw new ApiError(404, "PDF_NOT_FOUND", "Document was not found.");
   return c.json({ pdf: rows[0] });
 });
 
 content.delete("/pdfs/:id", authMiddleware, requireRole("superadmin"), async (c) => {
   const sql = getDb(c.env);
   const rows = await sql`DELETE FROM pdfs WHERE id = ${c.req.param("id")} RETURNING id`;
-  if (!rows[0]) throw new ApiError(404, "PDF_NOT_FOUND", "PDF was not found.");
-  return c.json({ message: "PDF deleted.", id: (rows[0] as { id: string }).id });
+  if (!rows[0]) throw new ApiError(404, "PDF_NOT_FOUND", "Document was not found.");
+  return c.json({ message: "Document deleted.", id: (rows[0] as { id: string }).id });
 });
 
 content.get("/video-mappings", async (c) => {

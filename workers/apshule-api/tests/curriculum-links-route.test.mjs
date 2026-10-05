@@ -54,6 +54,9 @@ test("GET curriculum-link detail returns the teacher-facing fields and stored bo
     syllabus_url: syllabusUrl,
     learner_book_url: learnerBookUrl,
     teacher_guide_url: null,
+    syllabus_kind: "pdf",
+    learner_book_kind: "viewer",
+    teacher_guide_kind: null,
     summary_text: "A summary for this curriculum topic.",
     activity_suggestion: "Compare examples from local production.",
     created_at: "2026-10-05T00:00:00.000Z",
@@ -66,7 +69,7 @@ test("GET curriculum-link detail returns the teacher-facing fields and stored bo
   assert.deepEqual(body.link, link);
   assert.match(
     statements[0].text,
-    /SELECT id, subject, class_level, topic, syllabus_ref, learner_book_page,\s+teacher_guide_page, syllabus_url, learner_book_url, teacher_guide_url,\s+summary_text, activity_suggestion, created_at/u,
+    /SELECT id, subject, class_level, topic, syllabus_ref, learner_book_page,\s+teacher_guide_page, syllabus_url, learner_book_url, teacher_guide_url,\s+syllabus_kind, learner_book_kind, teacher_guide_kind,\s+summary_text, activity_suggestion, created_at/u,
   );
 });
 
@@ -93,6 +96,9 @@ test("POST and PATCH accept valid HTTPS URLs and return them", async () => {
   assert.ok(createDb.statements[0].values.includes(syllabusUrl));
   assert.ok(createDb.statements[0].values.includes(learnerBookUrl));
   assert.ok(createDb.statements[0].values.includes(maxLengthUrl));
+  assert.ok(createDb.statements[0].values.includes("pdf"));
+  assert.ok(createDb.statements[0].values.includes("viewer"));
+  assert.ok(createDb.statements[0].values.includes("other"));
 
   const updateDb = makeEnv(() => [returnedLink]);
   const updateResponse = await app.request(
@@ -107,6 +113,7 @@ test("POST and PATCH accept valid HTTPS URLs and return them", async () => {
   assert.equal(updateResponse.status, 200);
   assert.deepEqual((await updateResponse.json()).link, returnedLink);
   assert.match(updateDb.statements[0].text, /syllabus_url = CASE/u);
+  assert.match(updateDb.statements[0].text, /syllabus_kind = CASE/u);
   assert.ok(updateDb.statements[0].values.includes(syllabusUrl));
   assert.ok(updateDb.statements[0].values.includes(learnerBookUrl));
   assert.ok(updateDb.statements[0].values.includes(maxLengthUrl));
@@ -143,6 +150,9 @@ test("Teacher curriculum-list responses do not include URL values", async () => 
         syllabus_ref: "Agriculture A-level, Unit 4",
         learner_book_page: "20",
         teacher_guide_page: "16",
+         syllabus_kind: "pdf",
+         learner_book_kind: "viewer",
+         teacher_guide_kind: null,
         summary_text: "A summary for this curriculum topic.",
         activity_suggestion: "Compare examples from local production.",
         created_at: "2026-10-05T00:00:00.000Z",
@@ -167,7 +177,7 @@ test("Teacher curriculum-list responses do not include URL values", async () => 
   assert.equal(body.results[0].url_count, 2);
   assert.match(
     queries[1],
-    /SELECT id, subject, class_level, topic, syllabus_ref, learner_book_page,\s+teacher_guide_page, summary_text, activity_suggestion, created_at,/u,
+    /SELECT id, subject, class_level, topic, syllabus_ref, learner_book_page,\s+teacher_guide_page, syllabus_kind, learner_book_kind, teacher_guide_kind,\s+summary_text, activity_suggestion, created_at,/u,
   );
   assert.equal(JSON.stringify(body).includes(syllabusUrl), false);
   assert.equal(JSON.stringify(body).includes(learnerBookUrl), false);

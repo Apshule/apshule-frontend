@@ -95,7 +95,7 @@ test("missing and insecure curriculum URLs ask the teacher to contact an admin",
   }
 });
 
-test("all curriculum resource tabs use anchors and the click handler only logs opens", () => {
+test("Curriculum Linker opens documents in the reader and keeps direct-link fallbacks", () => {
   const rendererStart = html.indexOf("function renderTeacherCurriculumDetail()");
   const rendererEnd = html.indexOf(
     "\n    async function toggleTeacherCurriculumFavorite",
@@ -134,12 +134,40 @@ test("all curriculum resource tabs use anchors and the click handler only logs o
   ]);
   assert.deepEqual(handledFields, renderedFields);
   assert.match(handler, /if \(url\) console\.log\("\[linker\] opening", url\)/u);
-  assert.doesNotMatch(handler, /window\.open|window\.location|preventDefault/u);
+  assert.match(handler, /openLink\.hasAttribute\("data-curriculum-reader"\)/u);
+  assert.match(handler, /event\.preventDefault\(\)/u);
+  assert.match(handler, /openBookReader\(\{/u);
+  assert.doesNotMatch(handler, /window\.open|window\.location/u);
+  assert.match(resourceLink, /data-curriculum-reader/u);
+  assert.match(resourceLink, /If the book doesn't open, copy this link:/u);
   assert.match(renderer, /teacherCurriculumTopicTitle\(link\)/u);
 });
 
-test("the service worker uses cache v5 and claims clients on activation", async () => {
+test("document reader uses authenticated routes and renders supported document kinds", () => {
+  const reader = html.match(
+    /^    async function openBookReader\(pdf\) \{[\s\S]*?^    \}/mu,
+  )?.[0];
+  assert.ok(reader, "openBookReader should exist in index.html");
+  const googleViewer = sourceFunction(
+    "appendGoogleDocsViewer",
+    "container, url, title",
+  );
+  assert.match(reader, /\/api\/detect-doc-kind/u);
+  assert.match(reader, /\/api\/doc-proxy/u);
+  assert.match(googleViewer, /docs\.google\.com\/gview/u);
+  assert.match(reader, /kind === 'pdf'/u);
+  assert.match(reader, /kind === 'image'/u);
+  assert.match(reader, /\['document', 'spreadsheet', 'presentation'\]\.includes\(kind\)/u);
+  assert.match(reader, /kind === 'video' \|\| kind === 'audio'/u);
+  assert.match(reader, /kind === 'other'/u);
+  assert.match(reader, /A preview is not available for this link/u);
+  assert.match(reader, /kind === 'text'/u);
+  assert.match(reader, /kind === 'viewer'/u);
+  assert.match(reader, /This is a viewer page, use direct file link/u);
+});
+
+test("the service worker uses cache v6 and claims clients on activation", async () => {
   const sw = await readFile(new URL("../sw.js", import.meta.url), "utf8");
-  assert.match(sw, /const CACHE_NAME = "apshule-cache-v5"/u);
+  assert.match(sw, /const CACHE_NAME = "apshule-cache-v6"/u);
   assert.match(sw, /await self\.clients\.claim\(\)/u);
 });
