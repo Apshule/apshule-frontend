@@ -5985,6 +5985,13 @@
             document.getElementById('loginError').style.display = 'none';
             const email = document.getElementById('loginEmail').value.trim();
             const password = document.getElementById('loginPassword').value;
+            const loginError = document.getElementById('loginError');
+            if (!email || !password) {
+                loginError.className = 'error-message';
+                loginError.style.display = 'block';
+                loginError.innerText = email ? 'Please enter password' : 'Please enter email';
+                return;
+            }
             try {
                 const data = await api('/api/auth/login', { method: 'POST', body: { email, password }, auth: false });
                 AUTH_TOKEN = data.token; localStorage.setItem('apshule_token', AUTH_TOKEN);

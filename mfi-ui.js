@@ -309,7 +309,7 @@ export function initMfiUI({ api, getCurrentUser, notify, escapeHtml }) {
         ${field("Default term (months)", "default_term_months", settings.default_term_months ?? "12", "number", true, "", 'step="1" min="1"')}
         <div class="mfi-field"><label for="mfi-frequency">Default repayment frequency</label><select id="mfi-frequency" class="mfi-control" name="default_repayment_frequency">${["weekly", "biweekly", "monthly", "quarterly"].map((frequency) => `<option value="${frequency}" ${(settings.default_repayment_frequency || "monthly") === frequency ? "selected" : ""}>${esc(frequency[0].toUpperCase() + frequency.slice(1))}</option>`).join("")}</select></div>
         ${field("Late fee (%)", "late_fee_percent", settings.late_fee_percent ?? "2", "number", true, "", 'step="0.01" min="0"')}
-        ${field("Grace period (days)", "grace_period_days", settings.grace_period_days ?? "7", "number", true, "", 'step="1" min="0")}
+        ${field("Grace period (days)", "grace_period_days", settings.grace_period_days ?? "7", "number", true, "", 'step="1" min="0"')}
       </div>
       <div class="mfi-action-row" style="justify-content:flex-start;margin-top:20px"><button type="submit" class="mfi-btn">Save settings</button></div>
     </form>`;
