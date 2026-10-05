@@ -1232,6 +1232,7 @@
                                 <div class="cc-ncdc-field"><label for="ncdcCurriculumTopic">Topic</label><input id="ncdcCurriculumTopic" type="text" maxlength="240"></div>
                                 <div class="cc-ncdc-field"><label for="ncdcCurriculumSyllabusRef">Syllabus reference</label><input id="ncdcCurriculumSyllabusRef" type="text" maxlength="300"></div>
                                 <div class="cc-ncdc-field"><label for="ncdcCurriculumSyllabusUrl">Syllabus URL (optional)</label><input id="ncdcCurriculumSyllabusUrl" type="text" maxlength="499" placeholder="https://ncdc.go.ug/..."></div>
+                                <div class="cc-ncdc-field cc-ncdc-field--wide"><small>Prefer direct .pdf links; viewer links may require login.</small></div>
                                 <div class="cc-ncdc-field"><label for="ncdcCurriculumLearnerPage">Learner book page</label><input id="ncdcCurriculumLearnerPage" type="text" maxlength="120"></div>
                                 <div class="cc-ncdc-field"><label for="ncdcCurriculumLearnerUrl">Learner Book URL (optional)</label><input id="ncdcCurriculumLearnerUrl" type="text" maxlength="499" placeholder="https://..."></div>
                                 <div class="cc-ncdc-field"><label for="ncdcCurriculumTeacherPage">Teacher guide page</label><input id="ncdcCurriculumTeacherPage" type="text" maxlength="120"></div>
@@ -4612,6 +4613,18 @@
         renderTeacherCurriculumRecent();
     }
 
+    function teacherCurriculumHttpsUrl(value) {
+        if (typeof value !== "string") return null;
+        const url = value.trim();
+        if (!/^https:\/\//iu.test(url)) return null;
+        try {
+            const parsed = new URL(url);
+            return parsed.protocol === "https:" && parsed.hostname ? url : null;
+        } catch (_) {
+            return null;
+        }
+    }
+
     function renderTeacherCurriculumDetail() {
         const link = teacherDashboardState.selectedCurriculumLink;
         if (!link) return;
@@ -4621,30 +4634,29 @@
             { id: "learner-book", label: "Learner Book" },
             { id: "teacher-guide", label: "Teacher Guide" }
         ];
-        const openButton = (field, label) => link[field]
+        const openButton = (field, label, title) => teacherCurriculumHttpsUrl(link[field])
             ? `<button type="button" class="teacher-primary" data-curriculum-open="${field}">${label}</button>`
-            : "";
-        const unavailable = label => `<div class="teacher-curriculum-detail-copy"><strong>${label}</strong><br>Not available</div>`;
+            : `<div class="teacher-curriculum-detail-copy"><strong>${title}</strong><br>Not linked yet</div>`;
         let content = "";
         if (teacherDashboardState.curriculumTab === "syllabus") {
             const reference = link.syllabus_ref
                 ? `<div class="teacher-curriculum-detail-copy"><strong>Syllabus reference</strong><br>${escapeHtml(link.syllabus_ref)}</div>`
                 : "";
-            content = `${reference || (!link.syllabus_url ? unavailable("Syllabus") : "")}
-                ${openButton("syllabus_url", "📖 Open Syllabus")}`;
+            content = `${reference}
+                ${openButton("syllabus_url", "📖 Open Syllabus", "Syllabus")}`;
         } else if (teacherDashboardState.curriculumTab === "learner-book") {
             const page = link.learner_book_page
                 ? `<div class="teacher-curriculum-detail-copy"><strong>📄 Learner Book</strong><br>Page ${escapeHtml(link.learner_book_page)}</div>`
                 : "";
-            content = `${page || (!link.learner_book_url ? unavailable("Learner Book") : "")}
-                ${openButton("learner_book_url", "📗 Open Learner Book")}
+            content = `${page}
+                ${openButton("learner_book_url", "📗 Open Learner Book", "Learner Book")}
                 <div class="teacher-curriculum-detail-copy"><strong>Summary</strong><br>${escapeHtml(link.summary_text || "Not provided")}</div>`;
         } else {
             const page = link.teacher_guide_page
                 ? `<div class="teacher-curriculum-detail-copy"><strong>📄 Teacher Guide</strong><br>Page ${escapeHtml(link.teacher_guide_page)}</div>`
                 : "";
-            content = `${page || (!link.teacher_guide_url ? unavailable("Teacher Guide") : "")}
-                ${openButton("teacher_guide_url", "📕 Open Teacher Guide")}
+            content = `${page}
+                ${openButton("teacher_guide_url", "📕 Open Teacher Guide", "Teacher Guide")}
                 <div class="teacher-curriculum-detail-copy"><strong>Activity suggestion</strong><br>${escapeHtml(link.activity_suggestion || "Not provided")}</div>`;
         }
         const isFavorite = teacherDashboardState.curriculumFavorites.some(item => item.id === link.id);
@@ -4908,13 +4920,21 @@
             const openButton = event.target.closest("[data-curriculum-open]");
             if (openButton) {
                 const urlField = {
-                    syllabus: "syllabus_url",
-                    "learner-book": "learner_book_url",
-                    "teacher-guide": "teacher_guide_url"
+                    syllabus_url: "syllabus_url",
+                    learner_book_url: "learner_book_url",
+                    teacher_guide_url: "teacher_guide_url"
                 }[openButton.dataset.curriculumOpen];
-                const url = teacherDashboardState.selectedCurriculumLink?.[urlField];
-                if (typeof url === "string" && url.startsWith("https://")) {
-                    window.open(url, "_blank", "noopener,noreferrer");
+                const url = urlField
+                    ? teacherCurriculumHttpsUrl(teacherDashboardState.selectedCurriculumLink?.[urlField])
+                    : null;
+                if (!url) return;
+                console.log("[linker] opening", url);
+                try {
+                    const openedWindow = window.open(url, "_blank");
+                    if (openedWindow) openedWindow.opener = null;
+                    else window.location.href = url;
+                } catch (_) {
+                    window.location.href = url;
                 }
                 return;
             }

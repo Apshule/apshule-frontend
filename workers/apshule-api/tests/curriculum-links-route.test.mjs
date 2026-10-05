@@ -42,13 +42,21 @@ function jsonRequest(method, body, role = "superadmin") {
   };
 }
 
-test("GET curriculum-link detail returns the stored book URLs", async () => {
+test("GET curriculum-link detail returns the teacher-facing fields and stored book URLs", async () => {
   const link = {
     id: linkId,
+    subject: "Agriculture",
+    class_level: "S5",
     topic: "A' level construct, production, activity",
+    syllabus_ref: "Agriculture A-level, Unit 4",
+    learner_book_page: "20",
+    teacher_guide_page: "16",
     syllabus_url: syllabusUrl,
     learner_book_url: learnerBookUrl,
     teacher_guide_url: null,
+    summary_text: "A summary for this curriculum topic.",
+    activity_suggestion: "Compare examples from local production.",
+    created_at: "2026-10-05T00:00:00.000Z",
   };
   const { env, statements } = makeEnv(() => [link]);
   const response = await app.request(`/curriculum-links/${linkId}`, {}, env);
@@ -56,7 +64,10 @@ test("GET curriculum-link detail returns the stored book URLs", async () => {
 
   assert.equal(response.status, 200);
   assert.deepEqual(body.link, link);
-  assert.match(statements[0].text, /syllabus_url, learner_book_url, teacher_guide_url/u);
+  assert.match(
+    statements[0].text,
+    /SELECT id, subject, class_level, topic, syllabus_ref, learner_book_page,\s+teacher_guide_page, syllabus_url, learner_book_url, teacher_guide_url,\s+summary_text, activity_suggestion, created_at/u,
+  );
 });
 
 test("POST and PATCH accept valid HTTPS URLs and return them", async () => {
@@ -126,7 +137,15 @@ test("Teacher curriculum-list responses do not include URL values", async () => 
       if (text.includes("COUNT(*)::int AS total")) return [{ total: 1 }];
       return [{
         id: linkId,
+        subject: "Agriculture",
+        class_level: "S5",
         topic: "A' level construct, production, activity",
+        syllabus_ref: "Agriculture A-level, Unit 4",
+        learner_book_page: "20",
+        teacher_guide_page: "16",
+        summary_text: "A summary for this curriculum topic.",
+        activity_suggestion: "Compare examples from local production.",
+        created_at: "2026-10-05T00:00:00.000Z",
         url_count: 2,
       }];
     },
@@ -139,7 +158,17 @@ test("Teacher curriculum-list responses do not include URL values", async () => 
   const body = await response.json();
 
   assert.equal(response.status, 200);
+  assert.equal(body.results[0].topic, "A' level construct, production, activity");
+  assert.equal(body.results[0].syllabus_ref, "Agriculture A-level, Unit 4");
+  assert.equal(body.results[0].learner_book_page, "20");
+  assert.equal(body.results[0].teacher_guide_page, "16");
+  assert.equal(body.results[0].summary_text, "A summary for this curriculum topic.");
+  assert.equal(body.results[0].activity_suggestion, "Compare examples from local production.");
   assert.equal(body.results[0].url_count, 2);
+  assert.match(
+    queries[1],
+    /SELECT id, subject, class_level, topic, syllabus_ref, learner_book_page,\s+teacher_guide_page, summary_text, activity_suggestion, created_at,/u,
+  );
   assert.equal(JSON.stringify(body).includes(syllabusUrl), false);
   assert.equal(JSON.stringify(body).includes(learnerBookUrl), false);
   assert.equal(queries.length, 2);
