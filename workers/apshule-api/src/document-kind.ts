@@ -115,6 +115,14 @@ export function parseHttpUrl(value: string): URL {
 export function validateDocumentProxyUrl(value: string): URL {
   const parsed = parseHttpUrl(value);
   const hostname = parsed.hostname.toLowerCase().replace(/\.$/u, "");
+  if (
+    hostname === "docs.google.com" ||
+    hostname.endsWith(".docs.google.com") ||
+    hostname === "view.officeapps.live.com" ||
+    hostname.endsWith(".view.officeapps.live.com")
+  ) {
+    throw new DocumentProxyError(400, "Nested viewers not allowed");
+  }
   const expectedPort = parsed.protocol === "https:" ? "443" : "80";
   const isIpLiteral = hostname.includes(":") || /^\d{1,3}(?:\.\d{1,3}){3}$/u.test(hostname);
   const isLocalName =
@@ -142,11 +150,19 @@ export function detectDocKind(value: string | null | undefined): DocumentKind | 
     return "other";
   }
 
-  const hostname = parsed.hostname.toLowerCase();
+  const hostname = parsed.hostname.toLowerCase().replace(/\.$/u, "");
   const pathname = parsed.pathname.toLowerCase();
   if (
     hostname === "elearn.ncdc.go.ug" &&
     /\/viewer(?:\/|$)/u.test(pathname)
+  ) {
+    return "viewer";
+  }
+  if (
+    hostname === "docs.google.com" ||
+    hostname.endsWith(".docs.google.com") ||
+    hostname === "view.officeapps.live.com" ||
+    hostname.endsWith(".view.officeapps.live.com")
   ) {
     return "viewer";
   }

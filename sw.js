@@ -1,4 +1,4 @@
-const CACHE_NAME = "apshule-cache-v6";
+const CACHE_NAME = "apshule-cache-v7";
 const APP_SHELL_URLS = [
     "/",
     "/index.html",

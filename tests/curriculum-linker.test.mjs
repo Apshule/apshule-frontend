@@ -143,18 +143,29 @@ test("Curriculum Linker opens documents in the reader and keeps direct-link fall
   assert.match(renderer, /teacherCurriculumTopicTitle\(link\)/u);
 });
 
-test("document reader uses authenticated routes and renders supported document kinds", () => {
+test("document reader uses Microsoft viewer, authenticated downloads, and viewer fallbacks", () => {
   const reader = html.match(
     /^    async function openBookReader\(pdf\) \{[\s\S]*?^    \}/mu,
   )?.[0];
   assert.ok(reader, "openBookReader should exist in index.html");
-  const googleViewer = sourceFunction(
-    "appendGoogleDocsViewer",
-    "container, url, title",
-  );
+  const officeViewer = sourceFunction("appendMicrosoftOfficeViewer", "container, url, title");
+  const fileActions = sourceFunction("appendReaderFileActions", "container, url, title");
+  const viewerFallback = sourceFunction("renderViewerWithFallback", "container, url");
+  const blobFetcher = html.match(
+    /^    async function fetchReaderDocumentBlob\(url\) \{[\s\S]*?^    \}/mu,
+  )?.[0];
+  assert.ok(blobFetcher, "fetchReaderDocumentBlob should exist in index.html");
   assert.match(reader, /\/api\/detect-doc-kind/u);
   assert.match(reader, /\/api\/doc-proxy/u);
-  assert.match(googleViewer, /docs\.google\.com\/gview/u);
+  assert.match(reader, /appendReaderFileActions\(actions, directUrl/u);
+  assert.match(officeViewer, /view\.officeapps\.live\.com\/op\/embed\.aspx/u);
+  assert.doesNotMatch(html, /docs\.google\.com\/gview/u);
+  assert.match(fileActions, /link\.download = fileName/u);
+  assert.match(fileActions, /Preparing your file/u);
+  assert.match(fileActions, /Open original link/u);
+  assert.match(blobFetcher, /\/api\/doc-proxy/u);
+  assert.match(viewerFallback, /This is an external viewer page\. It will open in a new tab\./u);
+  assert.match(viewerFallback, /book-reader-open-page/u);
   assert.match(reader, /kind === 'pdf'/u);
   assert.match(reader, /kind === 'image'/u);
   assert.match(reader, /\['document', 'spreadsheet', 'presentation'\]\.includes\(kind\)/u);
@@ -163,11 +174,11 @@ test("document reader uses authenticated routes and renders supported document k
   assert.match(reader, /A preview is not available for this link/u);
   assert.match(reader, /kind === 'text'/u);
   assert.match(reader, /kind === 'viewer'/u);
-  assert.match(reader, /This is a viewer page, use direct file link/u);
+  assert.match(reader, /renderViewerWithFallback\(media, directUrl\)/u);
 });
 
-test("the service worker uses cache v6 and claims clients on activation", async () => {
+test("the service worker uses cache v7 and claims clients on activation", async () => {
   const sw = await readFile(new URL("../sw.js", import.meta.url), "utf8");
-  assert.match(sw, /const CACHE_NAME = "apshule-cache-v6"/u);
+  assert.match(sw, /const CACHE_NAME = "apshule-cache-v7"/u);
   assert.match(sw, /await self\.clients\.claim\(\)/u);
 });

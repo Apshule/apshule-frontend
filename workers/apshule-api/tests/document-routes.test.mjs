@@ -111,3 +111,29 @@ test("doc-proxy returns the exact viewer-page error and rejects private IP URLs"
     globalThis.fetch = originalFetch;
   }
 });
+
+test("doc-proxy rejects nested Google Docs and Microsoft Office viewers before fetching", async () => {
+  const originalFetch = globalThis.fetch;
+  let fetchCalled = false;
+  globalThis.fetch = async () => {
+    fetchCalled = true;
+    return new Response("unexpected");
+  };
+  try {
+    for (const url of [
+      "https://docs.google.com/gview?embedded=1&url=https%3A%2F%2Ffiles.example.com%2Flesson.docx",
+      "https://view.officeapps.live.com/op/embed.aspx?src=https%3A%2F%2Ffiles.example.com%2Flesson.docx",
+    ]) {
+      const response = await app.request(
+        `/doc-proxy?url=${encodeURIComponent(url)}`,
+        { headers: authHeaders },
+      );
+      assert.equal(response.status, 400);
+      const payload = await response.json();
+      assert.equal(payload.error, "Nested viewers not allowed");
+    }
+    assert.equal(fetchCalled, false);
+  } finally {
+    globalThis.fetch = originalFetch;
+  }
+});

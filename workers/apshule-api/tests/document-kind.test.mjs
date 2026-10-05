@@ -18,6 +18,8 @@ test("detectDocKind classifies supported file extensions and viewer pages", () =
     ["https://files.example.com/lesson.m4a", "audio"],
     ["https://files.example.com/lesson.md", "text"],
     ["https://elearn.ncdc.go.ug/viewer/agriculture-s5", "viewer"],
+    ["https://docs.google.com/gview?url=https%3A%2F%2Ffiles.example.com%2Flesson.docx", "viewer"],
+    ["https://view.officeapps.live.com/op/embed.aspx?src=https%3A%2F%2Ffiles.example.com%2Flesson.docx", "viewer"],
     ["https://files.example.com/share/lesson", "other"],
   ];
 
@@ -41,6 +43,21 @@ test("document proxy URL validation rejects local, credentialed, and nonstandard
     "file:///book.pdf",
   ]) {
     assert.throws(() => validateDocumentProxyUrl(url), DocumentProxyError, url);
+  }
+});
+
+test("document proxy URL validation blocks Google and Microsoft viewer hosts", () => {
+  for (const url of [
+    "https://docs.google.com/gview?embedded=1&url=https%3A%2F%2Ffiles.example.com%2Flesson.docx",
+    "https://view.officeapps.live.com/op/embed.aspx?src=https%3A%2F%2Ffiles.example.com%2Flesson.docx",
+  ]) {
+    assert.throws(
+      () => validateDocumentProxyUrl(url),
+      (error) => error instanceof DocumentProxyError &&
+        error.status === 400 &&
+        error.message === "Nested viewers not allowed",
+      url,
+    );
   }
 });
 

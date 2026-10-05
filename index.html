@@ -509,17 +509,38 @@
         .book-reader-media { width:min(100%,1200px); height:100%; min-height:0; display:flex; flex-direction:column; align-items:center; justify-content:center; gap:12px; overflow:auto; }
         .book-reader-media[hidden], .book-reader-controls[hidden] { display:none !important; }
         .book-reader-media iframe { width:100%; height:100%; min-height:0; border:0; border-radius:8px; background:#fff; }
+        .book-reader-office-viewer { align-self:stretch; flex:1 1 auto; min-height:260px; width:min(100%,1200px); display:flex; }
+        .book-reader-office-iframe { flex:1 1 auto; min-height:260px !important; }
         .book-reader-media img { max-width:100%; max-height:100%; object-fit:contain; touch-action:pan-x pan-y pinch-zoom; }
         .book-reader-media video { width:100%; max-height:100%; background:#000; }
         .book-reader-media audio { width:min(100%,620px); }
         .book-reader-media pre { width:100%; height:100%; margin:0; padding:16px; overflow:auto; border-radius:10px; background:#292733; color:#fff; white-space:pre-wrap; overflow-wrap:anywhere; }
         .book-reader-viewer-fallback { flex:none; margin:0; padding:8px 12px; border-radius:9px; background:#292733; color:#eee; text-align:center; line-height:1.5; }
+        .book-reader-actions { flex:none; display:flex; align-items:center; justify-content:center; flex-wrap:wrap; gap:9px; width:100%; padding:10px 12px; border-top:1px solid #494652; background:#292733; }
+        .book-reader-actions[hidden] { display:none !important; }
+        .book-reader-actions button, .book-reader-actions a { display:inline-flex; align-items:center; justify-content:center; min-height:42px; padding:10px 16px; border-radius:999px; font:inherit; font-weight:700; text-decoration:none; cursor:pointer; }
+        .book-reader-download { border:0; background:#ff8c42; color:#fff; }
+        .book-reader-original-link { border:1px solid #ff8c42; background:transparent; color:#ffd0a8 !important; }
+        .book-reader-download:disabled { opacity:.6; cursor:wait; }
+        .book-reader-download-status { flex-basis:100%; min-height:1em; color:#e6e3ec; font-size:12px; text-align:center; }
+        .book-reader-external-viewer-card { width:min(100%,520px); display:flex; flex-direction:column; align-items:center; gap:14px; padding:22px; border-radius:15px; background:#292733; text-align:center; }
+        .book-reader-external-viewer-card p { margin:0; color:#eee; line-height:1.5; }
+        .book-reader-open-page { display:inline-flex; align-items:center; justify-content:center; min-height:48px; padding:12px 22px; border-radius:999px; background:#ff8c42; color:#fff !important; font-weight:800; text-decoration:none !important; }
+        .book-reader-viewer-url { max-width:100%; margin:0; font-size:12px; overflow-wrap:anywhere; }
         .book-reader-filename { color:#d7d4df; font-size:12px; overflow-wrap:anywhere; }
         .book-reader.night-mode .book-flipbook { filter:invert(1) hue-rotate(180deg); }
         .book-reader-controls { min-height:58px; display:flex; align-items:center; justify-content:center; gap:16px; padding:9px 12px; background:#292733; }
         .book-reader-controls button { min-width:92px; padding:10px 12px; font-size:13px; font-weight:700; }
         .book-reader-controls button:disabled { opacity:.45; cursor:not-allowed; }
         .book-reader-page-count { min-width:104px; color:#e6e3ec; font-size:13px; text-align:center; }
+        @media (max-width:600px) {
+            .book-reader-topbar { gap:8px; padding:8px; }
+            .book-reader-close { padding:8px; font-size:12px !important; }
+            .book-reader-title { font-size:12px; }
+            .book-reader-center { padding:8px; }
+            .book-reader-actions { gap:8px; padding:8px; }
+            .book-reader-actions button, .book-reader-actions a { flex:1 1 140px; }
+        }
         body.library-open, body.reader-open { overflow:hidden; }
         #teacherDashboardSection[hidden], .teacher-dashboard[hidden], .teacher-screen[hidden],
         .teacher-record-editor[hidden], .teacher-project-detail[hidden],
@@ -1872,6 +1893,7 @@
             <div class="book-reader-media" id="bookReaderMedia" hidden></div>
         </div>
     </div>
+    <footer class="book-reader-actions" id="bookReaderActions" hidden></footer>
     <footer class="book-reader-controls" id="bookReaderControls" hidden>
         <button type="button" id="bookReaderPrev" disabled>◀ Prev</button>
         <div class="book-reader-page-count" id="bookReaderPageCount" aria-live="polite">Page 0 of 0</div>
@@ -2944,7 +2966,7 @@
             return null;
         }
     }
-    function appendReaderDirectLink(container, url, label = 'Open direct file link') {
+    function appendReaderDirectLink(container, url, label = 'Open direct file link', className = '') {
         const safeUrl = safeReaderDocumentUrl(url);
         if (!safeUrl) return;
         const link = document.createElement('a');
@@ -2952,21 +2974,128 @@
         link.target = '_blank';
         link.rel = 'noopener noreferrer';
         link.referrerPolicy = 'no-referrer';
+        if (className) link.className = className;
         link.textContent = label;
         container.appendChild(link);
     }
-    function appendGoogleDocsViewer(container, url, title) {
+    function appendMicrosoftOfficeViewer(container, url, title) {
+        const note = document.createElement('p');
+        note.className = 'book-reader-viewer-fallback';
+        note.textContent = 'If the preview does not load on your phone, download the file or open the original link below.';
+        container.appendChild(note);
+
+        const viewer = document.createElement('div');
+        viewer.className = 'book-reader-office-viewer';
         const iframe = document.createElement('iframe');
         iframe.title = `${title} viewer`;
-        iframe.src = `https://docs.google.com/gview?embedded=1&url=${encodeURIComponent(url)}`;
+        iframe.src = `https://view.officeapps.live.com/op/embed.aspx?src=${encodeURIComponent(url)}`;
         iframe.referrerPolicy = 'no-referrer';
+        iframe.loading = 'lazy';
         iframe.allowFullscreen = true;
-        container.appendChild(iframe);
-        const fallback = document.createElement('p');
-        fallback.className = 'book-reader-viewer-fallback';
-        fallback.append('If the preview does not load, ');
-        appendReaderDirectLink(fallback, url, 'open the original link');
-        container.appendChild(fallback);
+        iframe.className = 'book-reader-office-iframe';
+        viewer.appendChild(iframe);
+        container.appendChild(viewer);
+    }
+    function renderViewerWithFallback(container, url) {
+        const card = document.createElement('div');
+        card.className = 'book-reader-external-viewer-card';
+        const message = document.createElement('p');
+        message.textContent = 'This is an external viewer page. It will open in a new tab.';
+        card.appendChild(message);
+        appendReaderDirectLink(card, url, '📖 Open Page', 'book-reader-open-page');
+        const urlLine = document.createElement('p');
+        urlLine.className = 'book-reader-viewer-url';
+        appendReaderDirectLink(urlLine, url, url);
+        card.appendChild(urlLine);
+        container.appendChild(card);
+    }
+    function readerDownloadFilename(url, title, blob) {
+        let pathName = '';
+        try {
+            pathName = new URL(url).pathname.split('/').pop() || '';
+            pathName = decodeURIComponent(pathName);
+        } catch (_) {
+            // Fall back to the saved title when the URL has no usable filename.
+        }
+        const pathHasExtension = /\.[a-z0-9]{1,10}$/iu.test(pathName);
+        let fileName = pathHasExtension ? pathName : (String(title || '').trim() || pathName || 'document');
+        fileName = fileName
+            .replace(/[\\/:*?"<>|\u0000-\u001f\u007f]/gu, '_')
+            .replace(/\s+/gu, ' ')
+            .slice(0, 128)
+            .trim();
+        if (!/\.[a-z0-9]{1,10}$/iu.test(fileName)) {
+            const mimeType = String(blob?.type || '').split(';', 1)[0].trim().toLowerCase();
+            const mimeExtensions = {
+                'application/pdf': 'pdf',
+                'application/msword': 'doc',
+                'application/vnd.openxmlformats-officedocument.wordprocessingml.document': 'docx',
+                'application/vnd.ms-excel': 'xls',
+                'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet': 'xlsx',
+                'application/vnd.ms-powerpoint': 'ppt',
+                'application/vnd.openxmlformats-officedocument.presentationml.presentation': 'pptx',
+                'application/vnd.oasis.opendocument.text': 'odt',
+                'application/vnd.oasis.opendocument.spreadsheet': 'ods',
+                'application/vnd.oasis.opendocument.presentation': 'odp',
+                'text/csv': 'csv',
+                'text/plain': 'txt',
+                'text/markdown': 'md',
+                'image/jpeg': 'jpg',
+                'image/png': 'png',
+                'image/gif': 'gif',
+                'image/webp': 'webp',
+                'video/mp4': 'mp4',
+                'video/webm': 'webm',
+                'audio/mpeg': 'mp3',
+                'audio/mp4': 'm4a',
+                'audio/ogg': 'ogg',
+            };
+            if (Object.hasOwn(mimeExtensions, mimeType)) {
+                fileName = `${fileName || 'document'}.${mimeExtensions[mimeType]}`;
+            }
+        }
+        return fileName || 'document';
+    }
+    function appendReaderFileActions(container, url, title) {
+        const download = document.createElement('button');
+        download.type = 'button';
+        download.className = 'book-reader-download';
+        download.textContent = 'Download file';
+        download.setAttribute('aria-label', `Download ${title || 'file'}`);
+        const status = document.createElement('div');
+        status.className = 'book-reader-download-status';
+        status.setAttribute('role', 'status');
+        status.setAttribute('aria-live', 'polite');
+        download.addEventListener('click', async () => {
+            download.disabled = true;
+            download.textContent = 'Preparing download…';
+            status.textContent = 'Preparing your file…';
+            try {
+                const blob = await fetchReaderDocumentBlob(url);
+                const objectUrl = URL.createObjectURL(blob);
+                const fileName = readerDownloadFilename(url, title, blob);
+                const link = document.createElement('a');
+                link.href = objectUrl;
+                link.download = fileName;
+                link.rel = 'noopener';
+                link.style.position = 'fixed';
+                link.style.left = '-10000px';
+                document.body.appendChild(link);
+                link.click();
+                window.setTimeout(() => link.remove(), 1000);
+                window.setTimeout(() => URL.revokeObjectURL(objectUrl), 60000);
+                status.textContent = `Your download is ready: ${fileName}`;
+            } catch (error) {
+                status.textContent = error?.message || 'Could not prepare the download.';
+            } finally {
+                download.disabled = false;
+                download.textContent = 'Download file';
+            }
+        });
+        container.replaceChildren(download);
+        appendReaderDirectLink(container, url, 'Open original link', 'book-reader-original-link');
+        container.appendChild(status);
+        container.hidden = false;
     }
     async function fetchReaderDocumentBlob(url) {
         const proxyUrl = `${API_BASE}/api/doc-proxy?url=${encodeURIComponent(url)}`;
@@ -3002,6 +3131,7 @@
         const errorPanel = document.getElementById('bookReaderError');
         const flipbook = document.getElementById('bookFlipbook');
         const media = document.getElementById('bookReaderMedia');
+        const actions = document.getElementById('bookReaderActions');
         const controls = document.getElementById('bookReaderControls');
         const directUrl = safeReaderDocumentUrl(pdf?.url);
         reader.classList.add('show');
@@ -3020,6 +3150,8 @@
         flipbook.innerHTML = '';
         media.hidden = true;
         media.replaceChildren();
+        actions.hidden = true;
+        actions.replaceChildren();
         controls.hidden = true;
         updateBookReaderPages();
         try {
@@ -3033,22 +3165,21 @@
             const kindInfo = documentReaderKinds[kind];
             document.getElementById('bookReaderDocIcon').textContent = kindInfo.icon;
             if (readerId !== activeBookReaderId) return;
+            if (['pdf', 'image', 'document', 'spreadsheet', 'presentation', 'video', 'audio', 'text'].includes(kind)) {
+                appendReaderFileActions(actions, directUrl, pdf.title || kindInfo.label);
+            }
 
             if (kind === 'viewer') {
                 loading.hidden = true;
                 media.hidden = false;
-                const notice = document.createElement('p');
-                notice.className = 'book-reader-viewer-fallback';
-                notice.textContent = 'This is a viewer page, use direct file link';
-                media.appendChild(notice);
-                appendReaderDirectLink(media, directUrl);
+                renderViewerWithFallback(media, directUrl);
                 return;
             }
 
             if (['document', 'spreadsheet', 'presentation'].includes(kind)) {
                 loading.hidden = true;
                 media.hidden = false;
-                appendGoogleDocsViewer(media, directUrl, pdf.title || kindInfo.label);
+                appendMicrosoftOfficeViewer(media, directUrl, pdf.title || kindInfo.label);
                 return;
             }
 
@@ -3195,6 +3326,11 @@
         if (media) {
             media.hidden = true;
             media.replaceChildren();
+        }
+        const actions = document.getElementById('bookReaderActions');
+        if (actions) {
+            actions.hidden = true;
+            actions.replaceChildren();
         }
         const controls = document.getElementById('bookReaderControls');
         if (controls) controls.hidden = true;
