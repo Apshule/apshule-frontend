@@ -323,6 +323,22 @@ authRoutes.post("/login", async (c) => {
       );
     }
   }
+  if (row.sector === "mfi" && row.role === "borrower") {
+    const customers = await sql`
+      SELECT id
+      FROM mfi_customers
+      WHERE user_id = ${row.id}
+        AND portal_enabled IS TRUE
+      LIMIT 1
+    `;
+    if (!customers[0]) {
+      throw new ApiError(
+        403,
+        "MFI_BORROWER_PORTAL_DISABLED",
+        "Borrower portal access has not been enabled for this account.",
+      );
+    }
+  }
 
   const updated = await sql`
     UPDATE users

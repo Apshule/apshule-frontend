@@ -56,6 +56,9 @@ export function createMfiLoansUI({
     disbursementFormOpen: false,
     paymentFormOpen: false,
     creditNoteFormOpen: false,
+    restructureFormOpen: false,
+    writeOffFormOpen: false,
+    reverseWriteOffFormOpen: false,
     reversePaymentId: "",
     receiptPaymentId: "",
   };
@@ -74,6 +77,8 @@ export function createMfiLoansUI({
   const isDirector = () => ["loan_director", "mfi_admin"].includes(role());
   const canDisburse = () => ["loan_manager", "loan_director", "mfi_admin"].includes(role());
   const canRecordPayments = () => ["loan_officer", "loan_manager", "mfi_admin"].includes(role());
+  const canRestructure = () => ["loan_manager", "loan_director", "mfi_admin"].includes(role());
+  const canWriteOff = () => ["loan_director", "mfi_admin", "superadmin"].includes(role());
   const records = (payload, key) => Array.isArray(payload?.[key]) ? payload[key] : [];
   const date = (value) => typeof formattedDate === "function" ? formattedDate(value) : value || "—";
   const amount = (value) => typeof money === "function" ? money(value) : `UGX ${Number(value || 0).toLocaleString()}`;
@@ -91,7 +96,7 @@ export function createMfiLoansUI({
     return `<span class="mfi-loan-status mfi-loan-status--${safeStatus}">${esc(statusLabel(safeStatus))}</span>`;
   };
   const scheduleStatusBadge = (value) => {
-    const safeStatus = ["pending", "partial", "overdue", "paid"].includes(value) ? value : "pending";
+    const safeStatus = ["pending", "partial", "overdue", "paid", "restructured"].includes(value) ? value : "pending";
     return `<span class="mfi-loan-status mfi-loan-status--${safeStatus}">${esc(statusLabel(safeStatus))}</span>`;
   };
   const errorText = (error) => error?.message || "Something went wrong. Please try again.";
@@ -355,6 +360,15 @@ export function createMfiLoansUI({
       isManager() && ["active", "past_due", "defaulted"].includes(loan.status)
         ? `<button type="button" class="mfi-btn mfi-btn--quiet" data-loan-action="open-credit-form">Issue credit note</button>`
         : "",
+      canRestructure() && ["active", "past_due", "defaulted"].includes(loan.status)
+        ? `<button type="button" class="mfi-btn mfi-btn--quiet" data-loan-action="open-restructure-form">Restructure loan</button>`
+        : "",
+      canWriteOff() && ["active", "past_due", "defaulted"].includes(loan.status)
+        ? `<button type="button" class="mfi-btn mfi-btn--danger" data-loan-action="open-writeoff-form">Write off</button>`
+        : "",
+      canWriteOff() && loan.status === "written_off"
+        ? `<button type="button" class="mfi-btn mfi-btn--quiet" data-loan-action="open-reverse-writeoff-form">Reverse write-off</button>`
+        : "",
     ].filter(Boolean).join("");
     return `<section class="mfi-panel mfi-loan-detail">
       <div class="mfi-section-head">
@@ -379,6 +393,51 @@ export function createMfiLoansUI({
       ${state.receiptPaymentId ? `<div class="mfi-loan-receipt-success" role="status"><div><strong>Payment recorded</strong><span>Receipt ${esc(state.loanPayments.find((item) => item.id === state.receiptPaymentId)?.receipt_number || "")}</span></div><button type="button" class="mfi-btn mfi-btn--quiet mfi-btn--small" data-loan-action="print-receipt" data-id="${esc(state.receiptPaymentId)}">Open receipt</button><button type="button" class="mfi-btn mfi-btn--quiet mfi-btn--small" data-loan-action="dismiss-receipt">Dismiss</button></div>` : ""}
       ${state.paymentFormOpen ? paymentFormView(loan, nextSchedule) : ""}
       ${state.creditNoteFormOpen ? creditNoteFormView() : ""}
+      ${state.restructureFormOpen ? restructureFormView(loan) : ""}
+      ${state.writeOffFormOpen ? writeOffFormView(loan) : ""}
+      ${state.reverseWriteOffFormOpen ? reverseWriteOffFormView() : ""}
+    </section>`;
+  }
+
+  function restructureFormView(loan) {
+    return `<section class="mfi-inline-form mfi-loan-form-panel">
+      <div class="mfi-section-head"><div><h3>Restructure loan</h3><p>The unpaid principal will be rescheduled. Unpaid interest and fees are added to the first new installment; repayment frequency stays unchanged.</p></div><button type="button" class="mfi-btn mfi-btn--quiet mfi-btn--small" data-loan-action="close-restructure-form">Close</button></div>
+      <form data-loan-form="restructure">
+        <div class="mfi-form-grid">
+          <div class="mfi-field"><label for="mfi-restructure-rate">New annual interest rate (%)</label><input id="mfi-restructure-rate" class="mfi-control" name="new_annual_rate" type="number" min="0" max="1000" step="any" value="${esc(loan.interest_rate ?? "")}"></div>
+          <div class="mfi-field"><label for="mfi-restructure-term">New term (months)</label><input id="mfi-restructure-term" class="mfi-control" name="new_term_months" type="number" min="1" max="360" step="1" value="${esc(loan.term_months ?? "")}"></div>
+          <div class="mfi-field"><label for="mfi-restructure-payment">Target installment (UGX, optional)</label><input id="mfi-restructure-payment" class="mfi-control" name="new_repayment_amount" type="number" min="1" step="1" placeholder="Leave blank to calculate from rate and term"></div>
+          <div class="mfi-field mfi-span-2"><label for="mfi-restructure-reason">Reason for restructure *</label><textarea id="mfi-restructure-reason" class="mfi-control" name="reason" rows="3" minlength="5" maxlength="1000" required></textarea></div>
+        </div>
+        <div class="mfi-action-row" style="justify-content:flex-start;margin-top:14px"><button class="mfi-btn" type="submit">Save restructure</button><button class="mfi-btn mfi-btn--quiet" type="button" data-loan-action="close-restructure-form">Cancel</button></div>
+        <div class="mfi-form-error" data-loan-form-error hidden></div>
+      </form>
+    </section>`;
+  }
+
+  function writeOffFormView(loan) {
+    return `<section class="mfi-inline-form mfi-loan-form-panel">
+      <div class="mfi-section-head"><div><h3>Write off loan</h3><p>Current outstanding balance: ${amount(loan.outstanding_balance)}. The write-off is recorded in the audit history and can be reversed by an authorised director or MFI administrator.</p></div><button type="button" class="mfi-btn mfi-btn--quiet mfi-btn--small" data-loan-action="close-writeoff-form">Close</button></div>
+      <form data-loan-form="write-off">
+        <div class="mfi-form-grid">
+          <div class="mfi-field"><label for="mfi-writeoff-amount">Write-off amount (UGX) *</label><input id="mfi-writeoff-amount" class="mfi-control" name="amount" type="number" min="1" max="${esc(loan.outstanding_balance || 0)}" step="1" required></div>
+          <div class="mfi-field"><label for="mfi-writeoff-date">Write-off date *</label><input id="mfi-writeoff-date" class="mfi-control" name="write_off_date" type="date" max="${todayInKampala()}" value="${todayInKampala()}" required></div>
+          <div class="mfi-field mfi-span-2"><label for="mfi-writeoff-reason">Reason *</label><textarea id="mfi-writeoff-reason" class="mfi-control" name="reason" rows="3" minlength="5" maxlength="1000" required></textarea></div>
+        </div>
+        <div class="mfi-action-row" style="justify-content:flex-start;margin-top:14px"><button class="mfi-btn mfi-btn--danger" type="submit">Confirm write-off</button><button class="mfi-btn mfi-btn--quiet" type="button" data-loan-action="close-writeoff-form">Cancel</button></div>
+        <div class="mfi-form-error" data-loan-form-error hidden></div>
+      </form>
+    </section>`;
+  }
+
+  function reverseWriteOffFormView() {
+    return `<section class="mfi-inline-form mfi-loan-form-panel">
+      <div class="mfi-section-head"><div><h3>Reverse write-off</h3><p>This restores the loan's status and outstanding balance as they were immediately before the write-off. Add a reason for the audit trail.</p></div><button type="button" class="mfi-btn mfi-btn--quiet mfi-btn--small" data-loan-action="close-reverse-writeoff-form">Close</button></div>
+      <form data-loan-form="reverse-write-off">
+        <div class="mfi-field"><label for="mfi-reverse-writeoff-reason">Reversal reason *</label><textarea id="mfi-reverse-writeoff-reason" class="mfi-control" name="reason" rows="3" minlength="5" maxlength="1000" required></textarea></div>
+        <div class="mfi-action-row" style="justify-content:flex-start;margin-top:14px"><button class="mfi-btn" type="submit">Confirm reversal</button><button class="mfi-btn mfi-btn--quiet" type="button" data-loan-action="close-reverse-writeoff-form">Cancel</button></div>
+        <div class="mfi-form-error" data-loan-form-error hidden></div>
+      </form>
     </section>`;
   }
 
@@ -941,6 +1000,9 @@ export function createMfiLoansUI({
     state.paymentFormOpen = false;
     state.creditNoteFormOpen = false;
     state.disbursementFormOpen = false;
+    state.restructureFormOpen = false;
+    state.writeOffFormOpen = false;
+    state.reverseWriteOffFormOpen = false;
     state.reversePaymentId = "";
     renderParent();
     try {
@@ -1007,6 +1069,55 @@ export function createMfiLoansUI({
     });
     state.reversePaymentId = "";
     announce("Payment reversed and loan balances recalculated.", "success");
+    await openLoan(loanId);
+  }
+
+  async function submitRestructure(form) {
+    const loanId = state.loanDetailId;
+    const data = new FormData(form);
+    const body = { reason: String(data.get("reason") || "").trim() };
+    for (const [field, source] of [
+      ["new_annual_rate", "new_annual_rate"],
+      ["new_term_months", "new_term_months"],
+      ["new_repayment_amount", "new_repayment_amount"],
+    ]) {
+      const value = String(data.get(source) || "").trim();
+      if (value) body[field] = Number(value);
+    }
+    const result = await request(`/api/mfi/loans/${encodeURIComponent(loanId)}/restructure`, {
+      method: "POST",
+      body,
+    });
+    state.restructureFormOpen = false;
+    const count = Number(result?.schedules_created || 0);
+    announce(`Loan terms updated. ${count} new installments created.`, "success");
+    await openLoan(loanId);
+  }
+
+  async function submitWriteOff(form) {
+    const loanId = state.loanDetailId;
+    const data = new FormData(form);
+    await request(`/api/mfi/loans/${encodeURIComponent(loanId)}/write-off`, {
+      method: "POST",
+      body: {
+        amount: Number(data.get("amount")),
+        write_off_date: String(data.get("write_off_date") || ""),
+        reason: String(data.get("reason") || "").trim(),
+      },
+    });
+    state.writeOffFormOpen = false;
+    announce("Loan write-off recorded.", "success");
+    await openLoan(loanId);
+  }
+
+  async function submitReverseWriteOff(form) {
+    const loanId = state.loanDetailId;
+    await request(`/api/mfi/loans/${encodeURIComponent(loanId)}/write-off/reverse`, {
+      method: "POST",
+      body: { reason: String(new FormData(form).get("reason") || "").trim() },
+    });
+    state.reverseWriteOffFormOpen = false;
+    announce("Write-off reversed and the prior loan balance restored.", "success");
     await openLoan(loanId);
   }
 
@@ -1136,6 +1247,36 @@ export function createMfiLoansUI({
     }
     if (action === "close-credit-form") {
       state.creditNoteFormOpen = false;
+      renderParent();
+    }
+    if (action === "open-restructure-form") {
+      state.restructureFormOpen = true;
+      state.writeOffFormOpen = false;
+      state.reverseWriteOffFormOpen = false;
+      renderParent();
+    }
+    if (action === "close-restructure-form") {
+      state.restructureFormOpen = false;
+      renderParent();
+    }
+    if (action === "open-writeoff-form") {
+      state.writeOffFormOpen = true;
+      state.restructureFormOpen = false;
+      state.reverseWriteOffFormOpen = false;
+      renderParent();
+    }
+    if (action === "close-writeoff-form") {
+      state.writeOffFormOpen = false;
+      renderParent();
+    }
+    if (action === "open-reverse-writeoff-form") {
+      state.reverseWriteOffFormOpen = true;
+      state.restructureFormOpen = false;
+      state.writeOffFormOpen = false;
+      renderParent();
+    }
+    if (action === "close-reverse-writeoff-form") {
+      state.reverseWriteOffFormOpen = false;
       renderParent();
     }
     if (action === "reverse-payment") {
@@ -1297,6 +1438,12 @@ export function createMfiLoansUI({
         await submitCreditNote(form);
       } else if (type === "reverse-payment") {
         await reversePayment(form);
+      } else if (type === "restructure") {
+        await submitRestructure(form);
+      } else if (type === "write-off") {
+        await submitWriteOff(form);
+      } else if (type === "reverse-write-off") {
+        await submitReverseWriteOff(form);
       }
     } catch (error) {
       if (errorNode) {

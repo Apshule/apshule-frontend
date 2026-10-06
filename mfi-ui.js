@@ -1,4 +1,6 @@
 import { createMfiLoansUI } from "./mfi-loans-ui.js";
+import { createMfiReportsUI } from "./mfi-reports-ui.js";
+import { createMfiBorrowerUI } from "./mfi-borrower-ui.js";
 
 const MFI_TABS = [
   ["dashboard", "Dashboard"],
@@ -42,6 +44,7 @@ export function initMfiUI({ api, getCurrentUser, notify, escapeHtml }) {
     search: "",
     branchFilter: "",
     customer: null,
+    portalAccessFormOpen: false,
     detailTab: "info",
     settings: null,
     organization: null,
@@ -50,6 +53,8 @@ export function initMfiUI({ api, getCurrentUser, notify, escapeHtml }) {
     audit: [],
     organizations: [],
     commandStats: null,
+    commandMfiOverview: null,
+    commandMfiError: "",
     commandError: "",
     commandLoading: true,
     commandFormOpen: false,
@@ -65,6 +70,7 @@ export function initMfiUI({ api, getCurrentUser, notify, escapeHtml }) {
   const role = () => String(state.user?.role || "").toLowerCase();
   const isAdmin = () => role() === "mfi_admin";
   const canSeeCustomers = () => isAdmin() || STAFF_ROLES.has(role());
+  const canProvisionBorrowerPortal = () => ["mfi_admin", "loan_manager", "loan_director"].includes(role());
   const isBorrower = () => role() === "borrower";
   const userName = () => state.user?.name || state.user?.full_name || "MFI staff";
   const safeColor = (value) => /^#[0-9a-f]{6}$/i.test(String(value || "")) ? value : "#17645f";
@@ -133,6 +139,23 @@ export function initMfiUI({ api, getCurrentUser, notify, escapeHtml }) {
     money,
     formattedDate,
   });
+  const reportsUI = createMfiReportsUI({
+    request,
+    escapeHtml,
+    money,
+    formattedDate,
+    announce,
+    onRender: renderPortalView,
+    currentUser: () => state.user,
+  });
+  const borrowerUI = createMfiBorrowerUI({
+    request,
+    escapeHtml,
+    money,
+    formattedDate,
+    announce,
+    onRender: renderPortalView,
+  });
 
   function brandMarkup() {
     const org = state.organization || {};
@@ -164,14 +187,14 @@ export function initMfiUI({ api, getCurrentUser, notify, escapeHtml }) {
 
   function portalContent() {
     if (isBorrower()) {
-      return `<section class="mfi-panel"><div class="mfi-state"><div class="mfi-state-symbol">03A</div><strong>Limited access</strong><p>Borrower self-service is outside Phase 3A. Contact your MFI officer for help with your account.</p></div></section>`;
+      return borrowerUI.render();
     }
     if (!isAdmin() && !STAFF_ROLES.has(role())) {
       return `<section class="mfi-panel"><div class="mfi-state"><div class="mfi-state-symbol">MFI</div><strong>MFI workspace unavailable</strong><p>This workspace is for MFI administrators and staff accounts.</p></div></section>`;
     }
     const visibleTabs = isAdmin()
       ? MFI_TABS
-      : MFI_TABS.filter(([key]) => ["dashboard", "customers", "collateral", "loans"].includes(key));
+      : MFI_TABS.filter(([key]) => ["dashboard", "customers", "collateral", "loans", "reports"].includes(key));
     const title = {
       dashboard: "Operations at a glance",
       branches: "Branches",
@@ -190,7 +213,7 @@ export function initMfiUI({ api, getCurrentUser, notify, escapeHtml }) {
       loans: "Manage loan products, applications, and approval decisions.",
       officers: "Keep staff access, roles, and branch assignments current.",
       settings: "Organization profile and operating defaults.",
-      reports: "Reporting tools are planned for Phase 3C.",
+      reports: "Daily activity, portfolio quality, officer performance, and prepared regulatory records.",
     }[state.tab];
     return `
       <div class="mfi-page-intro">
@@ -211,6 +234,7 @@ export function initMfiUI({ api, getCurrentUser, notify, escapeHtml }) {
     if (state.tab === "loans") return loanUI.render();
     if (state.tab === "officers") return officerView();
     if (state.tab === "settings") return settingsView();
+    if (state.tab === "reports") return reportsUI.render();
     return `<section class="mfi-placeholder"><strong>Reports are coming in Phase 3C</strong><p>Phase 3A keeps this workspace focused on people, locations, and accountability.</p></section>`;
   }
 
@@ -527,10 +551,12 @@ export function initMfiUI({ api, getCurrentUser, notify, escapeHtml }) {
     root.addEventListener("change", handlePortalChange);
     root.addEventListener("input", handlePortalInput);
     loanUI.bind(root);
+    reportsUI.bind(root);
+    borrowerUI.bind(root);
   }
 
   async function activateTab(tab) {
-    const allowed = isAdmin() ? MFI_TABS.map(([key]) => key) : ["dashboard", "customers", "collateral", "loans"];
+    const allowed = isAdmin() ? MFI_TABS.map(([key]) => key) : ["dashboard", "customers", "collateral", "loans", "reports"];
     if (!allowed.includes(tab)) return;
     state.tab = tab;
     state.listError = null;
@@ -545,6 +571,7 @@ export function initMfiUI({ api, getCurrentUser, notify, escapeHtml }) {
     if (tab === "loans") await loanUI.load();
     if (tab === "officers") await loadOfficers();
     if (tab === "settings") await loadSettings();
+    if (tab === "reports") await reportsUI.load();
     renderPortalView();
   }
 
@@ -782,6 +809,14 @@ export function initMfiUI({ api, getCurrentUser, notify, escapeHtml }) {
     if (action === "delete-officer") confirmDelete("officer", id);
     if (action === "add-customer") openCustomerForm();
     if (action === "view-customer") renderCustomerDetails(id, "info");
+    if (action === "enable-borrower-portal") {
+      state.portalAccessFormOpen = id;
+      renderCustomerDetails(id, "info");
+    }
+    if (action === "cancel-borrower-portal-access") {
+      state.portalAccessFormOpen = false;
+      renderCustomerDetails(state.customer?.id, "info");
+    }
     if (action === "delete-customer") confirmDelete("customer", id);
     if (action === "edit-customer") editCustomer(id);
     if (action === "add-guarantor") openGuarantorForm(state.customer?.id);
@@ -844,6 +879,7 @@ export function initMfiUI({ api, getCurrentUser, notify, escapeHtml }) {
       if (type === "branch") await submitBranch(form);
       else if (type === "officer") await submitOfficer(form);
       else if (type === "customer") await submitCustomer(form);
+      else if (type === "borrower-portal") await submitBorrowerPortal(form);
       else if (type === "guarantor") await submitGuarantor(form);
       else if (type === "settings") await submitSettings(form);
       else if (type === "collateral") await submitCollateral(form);
@@ -855,6 +891,28 @@ export function initMfiUI({ api, getCurrentUser, notify, escapeHtml }) {
       announce(errorMessage(error), "error");
       setFormBusy(form, false);
     }
+  }
+
+  async function submitBorrowerPortal(form) {
+    const customerId = form.dataset.id;
+    const data = new FormData(form);
+    const result = await request(
+      `/api/mfi/customers/${encodeURIComponent(customerId)}/portal-access`,
+      {
+        method: "POST",
+        body: {
+          email: String(data.get("email") || "").trim(),
+          password: String(data.get("password") || ""),
+        },
+      },
+    );
+    state.portalAccessFormOpen = false;
+    if (result?.email_sent) {
+      announce("Borrower portal enabled. Share the password separately through a secure channel.", "success");
+    } else {
+      announce("Portal account created, but the welcome email failed. Share the password separately through a secure channel.", "error");
+    }
+    await renderCustomerDetails(customerId, "info");
   }
 
   async function handlePortalChange(event) {
@@ -1398,12 +1456,22 @@ export function initMfiUI({ api, getCurrentUser, notify, escapeHtml }) {
         ["Relationship", customer.nok_relationship], ["Next-of-kin phone", customer.nok_phone],
         ["Added", customer.created_at ? formattedDate(customer.created_at) : ""],
       ];
+      const portalForm = state.portalAccessFormOpen === id
+        ? `<section class="mfi-subpanel mfi-borrower-access-form"><div class="mfi-section-head"><div><h3>Enable borrower portal</h3><p>Set a sign-in email and initial password. The password is not emailed.</p></div></div>
+          <form data-form="borrower-portal" data-id="${esc(id)}"><div class="mfi-form-grid">
+            ${field("Borrower sign-in email", "email", customer.email || "", "email", true)}
+            ${field("Set borrower password", "password", "", "password", true, "", 'minlength="12" maxlength="128"')}
+          </div><div class="mfi-action-row" style="justify-content:flex-start;margin-top:12px"><button class="mfi-btn" type="submit">Create portal access</button><button class="mfi-btn mfi-btn--quiet" type="button" data-action="cancel-borrower-portal-access">Cancel</button></div></form>
+        </section>`
+        : customer.portal_enabled
+          ? `<section class="mfi-subpanel mfi-borrower-access-status"><div><h3>Borrower portal</h3><p>This customer can sign in to view their loans and statement.</p></div><span class="mfi-status">Enabled</span></section>`
+          : "";
       body = `<div class="mfi-modal-body"><div class="mfi-subtabs" role="tablist"><button type="button" data-detail-tab="info" data-id="${esc(id)}" aria-selected="true">Info</button><button type="button" data-detail-tab="guarantors" data-id="${esc(id)}" aria-selected="false">Guarantors</button></div>
         ${image ? `<div style="margin:0 0 12px"><img src="${esc(image)}" alt="" style="width:76px;height:76px;object-fit:cover;border-radius:15px;border:1px solid var(--mfi-line)"></div>` : ""}
-        <div class="mfi-info-grid">${details.map(([label, item]) => `<div class="mfi-info-item"><span>${esc(label)}</span><strong>${item === undefined || item === null || item === "" ? EMPTY : typeof item === "string" && item.startsWith("UGX ") ? item : esc(item)}</strong></div>`).join("")}</div></div>`;
+        <div class="mfi-info-grid">${details.map(([label, item]) => `<div class="mfi-info-item"><span>${esc(label)}</span><strong>${item === undefined || item === null || item === "" ? EMPTY : typeof item === "string" && item.startsWith("UGX ") ? item : esc(item)}</strong></div>`).join("")}</div>${portalForm}</div>`;
     }
     return `<div class="mfi-modal-backdrop" data-modal-backdrop><section class="mfi-modal mfi-modal--wide" role="dialog" aria-modal="true" aria-label="${esc(name)}">
-      <header class="mfi-modal-head"><div><h2>${esc(name)}</h2><p>Customer record · ${esc(customer.branch_name || "Branch not assigned")}</p></div><div class="mfi-action-row"><button type="button" class="mfi-btn mfi-btn--quiet mfi-btn--small" data-action="edit-customer" data-id="${esc(id)}">Edit record</button><button type="button" class="mfi-close" data-close-modal aria-label="Close">×</button></div></header>
+      <header class="mfi-modal-head"><div><h2>${esc(name)}</h2><p>Customer record · ${esc(customer.branch_name || "Branch not assigned")}</p></div><div class="mfi-action-row">${canProvisionBorrowerPortal() ? customer.portal_enabled ? `<span class="mfi-status">Portal enabled</span>` : `<button type="button" class="mfi-btn mfi-btn--quiet mfi-btn--small" data-action="enable-borrower-portal" data-id="${esc(id)}">Enable borrower portal</button>` : ""}<button type="button" class="mfi-btn mfi-btn--quiet mfi-btn--small" data-action="edit-customer" data-id="${esc(id)}">Edit record</button><button type="button" class="mfi-close" data-close-modal aria-label="Close">×</button></div></header>
       ${body}</section></div>`;
   }
 
@@ -1468,6 +1536,8 @@ export function initMfiUI({ api, getCurrentUser, notify, escapeHtml }) {
   async function setUser(user) {
     state.user = user || (typeof getCurrentUser === "function" ? getCurrentUser() : null);
     loanUI.reset();
+    reportsUI.reset();
+    borrowerUI.reset();
     state.tab = "dashboard";
     state.organization = null;
     state.stats = null;
@@ -1491,11 +1561,14 @@ export function initMfiUI({ api, getCurrentUser, notify, escapeHtml }) {
     state.settingsSubtab = "profile";
     state.search = "";
     state.branchFilter = "";
+    state.portalAccessFormOpen = false;
     state.listError = null;
     state.dashboardError = null;
     if (portalHost) {
       portalFrame();
       if (isAdmin()) await activateTab("dashboard");
+      else if (isBorrower()) await borrowerUI.load();
+      else if (canSeeCustomers()) await activateTab("customers");
     }
   }
 
@@ -1529,12 +1602,24 @@ export function initMfiUI({ api, getCurrentUser, notify, escapeHtml }) {
       ["Overdue loans", "overdue_loans"],
       ["Defaults", "defaulted_loans"],
     ].map(([label, key]) => `<div class="mfi-metric"><span>${esc(label)}</span><strong>${metricValue(key)}</strong></div>`).join("");
+    const mfi = state.commandMfiOverview || {};
+    const mfiCard = state.commandMfiError
+      ? `<section class="mfi-panel"><div class="mfi-section-head"><div><h2>MFI portfolio snapshot</h2><p>Platform-wide lending activity.</p></div></div><div class="mfi-state mfi-error-state"><strong>Snapshot unavailable</strong><p>${esc(state.commandMfiError)}</p></div></section>`
+      : `<section class="mfi-panel"><div class="mfi-section-head"><div><p class="mfi-eyebrow">Platform-wide lending</p><h2>MFI portfolio snapshot</h2><p>Current activity across microfinance organizations.</p></div></div>
+        <div class="mfi-metrics">
+          <div class="mfi-metric"><span>Organizations</span><strong>${esc(value(mfi, "organization_count", 0))}</strong></div>
+          <div class="mfi-metric"><span>Total loans</span><strong>${esc(value(mfi, "total_loans", 0))}</strong></div>
+          <div class="mfi-metric"><span>Active loans</span><strong>${esc(value(mfi, "active_loans", 0))}</strong></div>
+          <div class="mfi-metric"><span>Outstanding loan book</span><strong>${money(value(mfi, "loan_book", 0))}</strong></div>
+          <div class="mfi-metric"><span>Collections this month</span><strong>${money(value(mfi, "collections_this_month", 0))}</strong></div>
+        </div></section>`;
     const orgRows = state.organizations.length ? state.organizations.map((org) => `<tr>
        <td><div class="mfi-brand-preview"><div class="mfi-brand-mark" style="background:${esc(safeColor(org.brand_color))}">${safeImage(org.logo_base64) ? `<img src="${esc(safeImage(org.logo_base64))}" alt="">` : "A."}</div><div class="mfi-primary-cell"><strong>${text(org, "name")}</strong><span>${text(org, "city")}${org.district ? `, ${text(org, "district")}` : ""}</span></div></div></td>
        <td>${text(org, "registration_number")}</td><td>${text(org, "admin_name")}</td><td>${text(org, "admin_email")}</td><td>${esc(value(org, "branch_count", 0))}</td><td>${esc(value(org, "customer_count", 0))}</td><td>${esc(value(org, "collateral_count", 0))}</td><td>${esc(value(org, "total_loans", 0))}</td><td>${money(value(org, "outstanding_balance", 0))}</td><td>${esc(value(org, "overdue_loans", 0))}</td><td>${esc(value(org, "defaulted_loans", 0))}</td>
       </tr>`).join("") : `<tr><td colspan="11"><div class="mfi-state"><div class="mfi-state-symbol">·</div><strong>No MFI organizations yet</strong><p>Create the first organization to start platform operations.</p></div></td></tr>`;
     return `<div class="mfi-page-intro"><div><p class="mfi-eyebrow">APSHULE · MFI OPERATIONS</p><h1>Microfinance organizations</h1><p>Organization coverage and customer records across the platform.</p></div><button type="button" class="mfi-btn" data-command-add>＋ Add organization</button></div>
       <div class="mfi-metrics">${metrics}</div>
+      ${mfiCard}
       ${state.commandFormOpen ? commandOrganizationForm() : ""}
         <section class="mfi-panel"><div class="mfi-section-head"><div><h2>Organization directory</h2><p>${state.organizations.length} organizations · live platform records</p></div></div><div class="mfi-table-wrap"><table class="mfi-table"><thead><tr><th>Organization</th><th>Registration</th><th>Administrator</th><th>Login email</th><th>Branches</th><th>Customers</th><th>Collateral</th><th>Loans</th><th>Outstanding</th><th>Overdue</th><th>Defaults</th></tr></thead><tbody>${orgRows}</tbody></table></div></section>`;
   }
@@ -1568,12 +1653,17 @@ export function initMfiUI({ api, getCurrentUser, notify, escapeHtml }) {
     state.commandError = "";
     renderCommandShell();
     try {
-      const [statsPayload, organizationsPayload] = await Promise.all([
+      const [statsPayload, organizationsPayload, mfiPayload] = await Promise.all([
         request("/api/mfi/stats"),
         request("/api/mfi/organizations"),
+        request("/api/mfi/superadmin/overview")
+          .then((result) => ({ result }))
+          .catch((error) => ({ error })),
       ]);
       state.commandStats = statsPayload?.stats || {};
       state.organizations = listOf(organizationsPayload, "organizations");
+      state.commandMfiOverview = mfiPayload.result?.overview || null;
+      state.commandMfiError = mfiPayload.error ? errorMessage(mfiPayload.error) : "";
       state.commandError = "";
     } catch (error) {
       state.commandError = error;
@@ -1623,6 +1713,7 @@ export function initMfiUI({ api, getCurrentUser, notify, escapeHtml }) {
   if (portalHost) {
     portalFrame();
     if (isAdmin()) activateTab("dashboard");
+      else if (isBorrower()) borrowerUI.load();
     else if (canSeeCustomers()) activateTab("customers");
   }
   if (commandHost) {
