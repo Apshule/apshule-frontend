@@ -22,7 +22,12 @@ export type UserRole =
   | "loan_officer"
   | "loan_manager"
   | "loan_director"
-  | "borrower";
+  | "borrower"
+  | "clinic_admin"
+  | "doctor"
+  | "nurse"
+  | "receptionist"
+  | "pharmacist";
 
 export interface AuthenticatedUser {
   id: string;

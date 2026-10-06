@@ -159,6 +159,13 @@ authRoutes.post("/signup", async (c) => {
       "MFI accounts are created by a Super Admin.",
     );
   }
+  if (sector === "clinic") {
+    throw new ApiError(
+      403,
+      "CLINIC_INVITE_ONLY",
+      "Clinic accounts are created by a clinic administrator.",
+    );
+  }
   const isEducation = sector === "education";
   const roleValue = body.role === undefined
     ? "individual"
@@ -336,6 +343,58 @@ authRoutes.post("/login", async (c) => {
         403,
         "MFI_BORROWER_PORTAL_DISABLED",
         "Borrower portal access has not been enabled for this account.",
+      );
+    }
+  }
+  const clinicRoles = new Set([
+    "clinic_admin",
+    "doctor",
+    "nurse",
+    "receptionist",
+    "pharmacist",
+  ]);
+  if (clinicRoles.has(row.role) && row.sector !== "clinic") {
+    throw new ApiError(
+      403,
+      "CLINIC_SECTOR_REQUIRED",
+      "This account must sign in through the Clinic sector.",
+    );
+  }
+  if (row.sector === "clinic" && row.role !== "superadmin") {
+    if (row.role === "clinic_admin") {
+      const organizations = await sql`
+        SELECT id
+        FROM clinic_organizations
+        WHERE created_by = ${row.id}
+        LIMIT 1
+      `;
+      if (!organizations[0]) {
+        throw new ApiError(
+          403,
+          "CLINIC_ACCESS_NOT_PROVISIONED",
+          "This Clinic administrator is not linked to an organization.",
+        );
+      }
+    } else if (clinicRoles.has(row.role)) {
+      const staff = await sql`
+        SELECT id
+        FROM clinic_staff
+        WHERE user_id = ${row.id}
+          AND active IS TRUE
+        LIMIT 1
+      `;
+      if (!staff[0]) {
+        throw new ApiError(
+          403,
+          "CLINIC_ACCESS_NOT_PROVISIONED",
+          "This Clinic staff account is inactive or is not linked to an organization.",
+        );
+      }
+    } else {
+      throw new ApiError(
+        403,
+        "CLINIC_ACCESS_NOT_PROVISIONED",
+        "Clinic accounts are created by a clinic administrator.",
       );
     }
   }

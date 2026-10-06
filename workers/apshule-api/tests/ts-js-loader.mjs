@@ -31,7 +31,7 @@ export async function resolve(specifier, context, nextResolve) {
     ) ||
     (
       specifier === "../db.js" &&
-      /\/src\/routes\/(payments|platform-settings|ncdc-foundation|documents)\.ts$/u.test(
+      /\/src\/routes\/(payments|platform-settings|ncdc-foundation|documents|clinic)\.ts$/u.test(
         context.parentURL ?? "",
       )
     )
@@ -106,6 +106,45 @@ export async function resolve(specifier, context, nextResolve) {
       export function requireRole(...roles) {
         return async (c, next) => {
           if (!roles.includes(c.get("user")?.role)) return c.json({ error: "FORBIDDEN" }, 403);
+          await next();
+        };
+      }
+    `);
+  }
+  if (
+    specifier === "../auth.js" &&
+    context.parentURL?.endsWith("/src/routes/clinic.ts")
+  ) {
+    return virtualModule(`
+      export const authMiddleware = async (c, next) => {
+        if (c.req.header("authorization") !== "Bearer test-token") {
+          return c.json({ error: "UNAUTHORIZED" }, 401);
+        }
+        c.set("user", {
+          id: "00000000-0000-4000-8000-000000000123",
+          name: "Clinic test user",
+          email: "clinic-test@example.test",
+          role: c.req.header("x-test-role") || "clinic_admin",
+          sector: c.req.header("x-test-sector") || "clinic",
+          impersonatedBy: c.req.header("x-test-impersonated") || null
+        });
+        await next();
+      };
+      export async function hashPassword() { return "test-password-hash"; }
+      export function requireRole(...roles) {
+        return async (c, next) => {
+          if (!roles.includes(c.get("user")?.role)) {
+            return c.json({ error: "FORBIDDEN" }, 403);
+          }
+          await next();
+        };
+      }
+      export function requireRealSuperAdmin() {
+        return async (c, next) => {
+          const user = c.get("user");
+          if (user.role !== "superadmin" || user.impersonatedBy) {
+            return c.json({ error: "FORBIDDEN" }, 403);
+          }
           await next();
         };
       }
