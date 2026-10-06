@@ -31,7 +31,7 @@ export async function resolve(specifier, context, nextResolve) {
     ) ||
     (
       specifier === "../db.js" &&
-      /\/src\/routes\/(payments|platform-settings|ncdc-foundation|documents|clinic)\.ts$/u.test(
+      /\/src\/routes\/(payments|platform-settings|ncdc-foundation|documents|clinic|clinic-workflows)\.ts$/u.test(
         context.parentURL ?? "",
       )
     )
@@ -151,6 +151,21 @@ export async function resolve(specifier, context, nextResolve) {
     `);
   }
   if (
+    specifier === "../auth.js" &&
+    context.parentURL?.endsWith("/src/routes/clinic-workflows.ts")
+  ) {
+    return virtualModule(`
+      export function requireRole(...roles) {
+        return async (c, next) => {
+          if (!roles.includes(c.get("user")?.role)) {
+            return c.json({ error: "FORBIDDEN" }, 403);
+          }
+          await next();
+        };
+      }
+    `);
+  }
+  if (
     specifier === "../http.js" &&
     context.parentURL?.endsWith("/src/routes/payments.ts")
   ) {
@@ -193,6 +208,21 @@ export async function resolve(specifier, context, nextResolve) {
         if (typeof body[key] !== "string") throw new Error("Invalid string");
         const value = body[key].trim();
         if (value.length > (options.max ?? 500)) throw new Error("String too long");
+        return value;
+      }
+    `);
+  }
+  if (
+    specifier === "../http.js" &&
+    context.parentURL?.endsWith("/src/routes/clinic-workflows.ts")
+  ) {
+    return virtualModule(`
+      export async function readJson(c) { return c.req.json(); }
+      export function parseLimit(raw, fallback = 100) {
+        if (raw === undefined) return fallback;
+        if (!/^\\\\d+$/u.test(raw)) throw new Error("Invalid limit");
+        const value = Number(raw);
+        if (!Number.isInteger(value) || value < 1 || value > 250) throw new Error("Invalid limit");
         return value;
       }
     `);

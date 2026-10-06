@@ -1,17 +1,19 @@
 const PHOTO_LIMIT = 200 * 1024;
 const IMAGE_TYPES = new Set(["image/jpeg", "image/png", "image/webp"]);
 const TABS = [
-  ["overview", "Overview"],
-  ["patients", "Patients"],
+  ["overview", "Dashboard"],
+  ["appointments", "Appointments"],
+  ["visits", "Visits"],
   ["branches", "Branches"],
+  ["patients", "Patients"],
   ["staff", "Staff"],
   ["settings", "Settings"],
 ];
 const ROLE_TABS = {
-  clinic_admin: new Set(["overview", "patients", "branches", "staff", "settings"]),
-  doctor: new Set(["patients"]),
-  nurse: new Set(["patients"]),
-  receptionist: new Set(["patients", "branches"]),
+  clinic_admin: new Set(["overview", "appointments", "visits", "patients", "branches", "staff", "settings"]),
+  doctor: new Set(["overview", "appointments", "visits", "patients"]),
+  nurse: new Set(["overview", "appointments", "visits", "patients"]),
+  receptionist: new Set(["overview", "appointments", "patients", "branches"]),
   pharmacist: new Set(["patient-lookup"]),
 };
 const PATIENT_FIELDS = [
@@ -83,6 +85,19 @@ export function initClinicUI({ api, getCurrentUser, escapeHtml, notify }) {
     branches: [],
     staff: [],
     stats: null,
+    today: null,
+    appointments: [],
+    visits: [],
+    doctors: [],
+    bookingPatients: [],
+    appointmentFilters: { date: "", doctor_id: "" },
+    visitFilters: { date: "", doctor_id: "", status: "" },
+    selectedVisit: null,
+    selectedVisitId: null,
+    visitNotes: [],
+    patientDetailTab: "info",
+    patientAppointments: [],
+    patientVisits: [],
     settings: null,
     selectedPatient: null,
     selectedPatientId: null,
@@ -148,8 +163,40 @@ export function initClinicUI({ api, getCurrentUser, escapeHtml, notify }) {
   function dateLabel(value) {
     if (!value) return empty;
     const date = new Date(value);
-    return Number.isNaN(date.getTime()) ? esc(value) : esc(new Intl.DateTimeFormat("en-UG", { day: "numeric", month: "short", year: "numeric" }).format(date));
+    return Number.isNaN(date.getTime()) ? esc(value) : esc(new Intl.DateTimeFormat("en-UG", { timeZone: "Africa/Kampala", day: "numeric", month: "short", year: "numeric" }).format(date));
   }
+  function clinicToday() {
+    return new Intl.DateTimeFormat("en-CA", { timeZone: "Africa/Kampala", year: "numeric", month: "2-digit", day: "2-digit" }).format(new Date());
+  }
+  function timeLabel(value) {
+    if (!value) return empty;
+    const date = new Date(value);
+    return Number.isNaN(date.getTime()) ? esc(value) : esc(new Intl.DateTimeFormat("en-UG", { timeZone: "Africa/Kampala", hour: "numeric", minute: "2-digit" }).format(date));
+  }
+  function clinicDateKey(value) {
+    if (!value) return "";
+    const date = new Date(value);
+    return Number.isNaN(date.getTime()) ? String(value).slice(0,10)
+      : new Intl.DateTimeFormat("en-CA", { timeZone: "Africa/Kampala", year: "numeric", month: "2-digit", day: "2-digit" }).format(date);
+  }
+  function staffId() { return state.user?.id || state.user?.user_id || ""; }
+  function doctorId(doctor) { return doctor?.user_id || doctor?.id || ""; }
+  function isDoctor() { return role() === "doctor"; }
+  function canBookAppointment() { return isAdmin() || isReceptionist() || isNurse(); }
+  function brandLogo() {
+    const value = state.organization?.logo_base64 || state.organization?.logo || state.organization?.logo_url || state.user?.organization?.logo_base64 || state.user?.organization?.logo_url || "";
+    return safeImage(value) || (/^(https?:\/\/|\/)/i.test(String(value)) ? String(value) : "");
+  }
+  function queryString(values) {
+    const params = new URLSearchParams();
+    Object.entries(values).forEach(([key, value]) => { if (value !== "" && value != null) params.set(key, value); });
+    return params.toString();
+  }
+  function statusClass(status) {
+    return ["cancelled", "voided", "no_show"].includes(String(status || "").toLowerCase()) ? "clinic-status--inactive"
+      : ["checked_in", "in_progress", "referred"].includes(String(status || "").toLowerCase()) ? "clinic-status--attention" : "";
+  }
+  function statusLabel(value) { return String(value || "unknown").replaceAll("_", " "); }
   function ageLabel(value) {
     if (!value) return empty;
     const birth = new Date(`${String(value).slice(0, 10)}T00:00:00`);
@@ -171,7 +218,7 @@ export function initClinicUI({ api, getCurrentUser, escapeHtml, notify }) {
     portalHost.innerHTML = `<section class="clinic-portal">
       <div class="clinic-shell">
         <header class="clinic-topbar">
-          <div class="clinic-brand"><div class="clinic-brand-mark" aria-hidden="true">A.</div><div><strong>${esc(brandName())}</strong><span>APSHULE · CLINIC WORKSPACE</span></div></div>
+          <div class="clinic-brand">${brandLogo() ? `<img class="clinic-brand-logo" src="${esc(brandLogo())}" alt="${esc(brandName())} logo">` : `<div class="clinic-brand-mark" aria-hidden="true">A.</div>`}<div><strong>${esc(brandName())}</strong><span>APSHULE · CLINIC WORKSPACE</span></div></div>
           <div class="clinic-user"><div class="clinic-avatar" aria-hidden="true">${esc(initials(userName()))}</div><div><strong>${esc(userName())}</strong><span>${esc(role().replaceAll("_", " ") || "clinic staff")}</span></div></div>
         </header>
         ${pharmacistLookup ? `<div class="clinic-intro"><div><p class="clinic-eyebrow">Clinic workspace</p><h1>Patient detail access</h1><p>Open an assigned patient profile using its record ID. Patient lists are not available to this role.</p></div></div>` : ""}
@@ -180,6 +227,9 @@ export function initClinicUI({ api, getCurrentUser, escapeHtml, notify }) {
         <div class="clinic-modal-slot">${modalMarkup()}</div>
       </div>
     </section>`;
+    const portal = portalRoot();
+    const brandColor = String(state.organization?.brand_color || state.user?.organization?.brand_color || "").trim();
+    if (portal && /^#[0-9a-f]{6}$/i.test(brandColor)) portal.style.setProperty("--clinic-primary", brandColor);
   }
 
   function intro(title, description, eyebrow = "Clinic workspace") {
@@ -189,8 +239,10 @@ export function initClinicUI({ api, getCurrentUser, escapeHtml, notify }) {
   function portalView() {
     if (!state.user) return `${intro("Clinic workspace", "Sign in with a clinic account to view and manage records.")}<section class="clinic-panel">${stateMarkup("Clinic access required", "Your account does not have access to the clinic workspace.")}</section>`;
     if (!ROLE_TABS[role()]) return `${intro("Clinic workspace", "This account is not assigned to a supported clinic role.")}<section class="clinic-panel">${stateMarkup("Clinic access unavailable", "Ask a clinic administrator to confirm your role and organization access.")}</section>`;
-    let title = "Clinic overview";
-    let desc = "A clear view of your clinic's people, locations, and patient records.";
+    let title = "Clinic dashboard";
+    let desc = "The day's schedule and care, at a glance.";
+    if (state.tab === "appointments") { title = "Appointments"; desc = "Coordinate arrivals and keep today's schedule moving."; }
+    if (state.tab === "visits") { title = "Clinical visits"; desc = "Review visit notes and continue active care."; }
     if (state.tab === "patients") { title = "Patient records"; desc = "Find a patient record and review the details your role allows."; }
     if (state.tab === "branches") { title = "Branches"; desc = "View clinic locations and their contact details."; }
     if (state.tab === "staff") { title = "Clinic team"; desc = "Manage staff access, roles, and branch assignments."; }
@@ -200,8 +252,10 @@ export function initClinicUI({ api, getCurrentUser, escapeHtml, notify }) {
 
   function viewContent() {
     if (state.loading) return `<section class="clinic-panel"><div class="clinic-skeleton" aria-label="Loading"><span></span><span></span><span></span><span></span></div></section>`;
-    if (state.error) return `<section class="clinic-panel">${stateMarkup("We could not load this view", errorText({ message: state.error }), true, state.selectedPatientId ? "patient-detail" : state.tab)}${state.selectedPatientId ? `<div class="clinic-actions"><button type="button" class="clinic-btn clinic-btn--quiet" data-clinic-action="patient-back">Back to patient records</button></div>` : ""}</section>`;
+    if (state.error) return `<section class="clinic-panel">${stateMarkup("We could not load this view", errorText({ message: state.error }), true, state.selectedVisitId && state.tab === "visits" ? "visit-detail" : state.selectedPatientId ? (state.selectedPatient ? "patients" : "patient-detail") : state.tab)}${state.selectedPatientId ? `<div class="clinic-actions"><button type="button" class="clinic-btn clinic-btn--quiet" data-clinic-action="patient-back">Back to patient records</button></div>` : ""}</section>`;
     if (state.tab === "overview") return dashboard();
+    if (state.tab === "appointments") return appointmentsView();
+    if (state.tab === "visits") return state.selectedVisit ? visitDetail() : visitsView();
     if (state.tab === "patients") return state.selectedPatientId ? patientDetail() : patientList();
     if (state.tab === "branches") return branchList();
     if (state.tab === "staff") return staffList();
@@ -214,14 +268,19 @@ export function initClinicUI({ api, getCurrentUser, escapeHtml, notify }) {
   }
 
   function dashboard() {
+    if (isDoctor()) return doctorDashboard();
     const stats = state.stats || {};
+    const today = state.today || {};
+    const todayRows = Array.isArray(today.appointments_today) ? today.appointments_today : [];
     const metrics = [
       ["Patients", stats.patients ?? 0],
       ["Active patients", stats.active_patients ?? 0],
       ["Branches", stats.branches ?? 0],
       ["Team members", stats.staff ?? 0],
     ];
-    return `<section class="clinic-metrics">${metrics.map(([label, count]) => `<article class="clinic-metric"><span>${esc(label)}</span><strong>${esc(count)}</strong></article>`).join("")}</section>
+    return `<section class="clinic-today-strip"><div class="clinic-section-head"><div><p class="clinic-eyebrow">Kampala · ${dateLabel(today.date || clinicToday())}</p><h2>Today's clinic flow</h2></div><button type="button" class="clinic-btn clinic-btn--quiet" data-clinic-tab="appointments">Open appointments</button></div><div class="clinic-metrics clinic-counts">${[["Appointments", todayRows.length],["Scheduled",today.scheduled_count??0],["Checked in",today.checked_in_count??0],["Completed",today.completed_count??0]].map(([label,count])=>`<article class="clinic-metric"><span>${esc(label)}</span><strong>${esc(count)}</strong></article>`).join("")}</div>
+      ${todayRows.length ? `<div class="clinic-appointment-list">${todayRows.slice(0,5).map((a)=>`<article class="clinic-appointment-row"><div class="clinic-time">${timeLabel(a.scheduled_for)}</div><div class="clinic-appointment-person"><strong>${text(a,"patient_name")}</strong><span>${text(a,"doctor_name")} · ${text(a,"reason","No reason recorded")}</span></div><span class="clinic-status ${statusClass(a.status)}">${esc(statusLabel(a.status))}</span></article>`).join("")}</div>` : `<div class="clinic-empty-note">No appointments scheduled for today.</div>`}</section>
+      ${isAdmin() ? `<section class="clinic-metrics">${metrics.map(([label, count]) => `<article class="clinic-metric"><span>${esc(label)}</span><strong>${esc(count)}</strong></article>`).join("")}</section>` : ""}
       <div class="clinic-dashboard-grid">
         <section class="clinic-panel"><div class="clinic-section-head"><div><h2>Clinic operations</h2><p>Patient information stays within your organization and role permissions.</p></div><span class="clinic-status">Workspace ready</span></div>
           <div class="clinic-info-grid">
@@ -232,6 +291,87 @@ export function initClinicUI({ api, getCurrentUser, escapeHtml, notify }) {
         </section>
         <aside class="clinic-quick"><div><p class="clinic-eyebrow">Patient desk</p><h2>Keep the right record close at hand.</h2><p>Search patient information and open profiles available to your role.</p></div><button class="clinic-btn" type="button" data-clinic-tab="patients">Open patient records</button></aside>
       </div>`;
+  }
+
+  function doctorDashboard() {
+    const today = state.today || {};
+    const appointments = state.appointments;
+    const ownVisits = (Array.isArray(today.in_progress_visits) ? today.in_progress_visits : state.visits)
+      .filter((visit) => String(visit.doctor_id) === String(staffId()));
+    const seen = new Set(state.visits.filter((visit) => {
+      const value = visit.visit_started_at || "";
+      return String(visit.doctor_id) === String(staffId()) && clinicDateKey(value) === clinicToday() &&
+        ["completed", "referred"].includes(visit.status);
+    }).map((visit) => String(visit.patient_id)));
+    return `<section class="clinic-metrics">
+      ${[["Today's appointments", appointments.length], ["My active visits", ownVisits.length], ["Patients seen today", seen.size]].map(([label, count]) => `<article class="clinic-metric"><span>${esc(label)}</span><strong>${esc(count)}</strong></article>`).join("")}
+    </section><section class="clinic-panel"><div class="clinic-section-head"><div><h2>Today's appointments</h2><p>${dateLabel(clinicToday())} · Kampala time</p></div><button class="clinic-btn clinic-btn--quiet" type="button" data-clinic-tab="appointments">Open schedule</button></div>
+      ${appointments.length ? `<div class="clinic-appointment-list">${appointments.slice().sort((a,b) => new Date(a.scheduled_for)-new Date(b.scheduled_for)).map((a) => `<article class="clinic-appointment-row"><div class="clinic-time">${timeLabel(a.scheduled_for)}</div><div class="clinic-appointment-person"><strong>${text(a, "patient_name")}</strong><span>${text(a, "patient_number")} · ${text(a, "reason", "No reason recorded")}</span></div><span class="clinic-status ${statusClass(a.status)}">${esc(statusLabel(a.status))}</span></article>`).join("")}</div>` : `<div class="clinic-empty-note">No appointments are on your schedule today.</div>`}
+    </section><section class="clinic-panel clinic-dashboard-lower"><div class="clinic-section-head"><div><h2>My in-progress visits</h2><p>Continue clinical work already underway.</p></div><button class="clinic-btn clinic-btn--quiet" type="button" data-clinic-tab="visits">Open visits</button></div>
+      ${ownVisits.length ? ownVisits.map((v) => `<button type="button" class="clinic-visit-card" data-clinic-action="open-visit" data-id="${esc(v.id)}"><strong>${text(v, "patient_name")}</strong><span>${text(v, "visit_number")} · ${text(v, "chief_complaint", "Complaint not recorded")}</span><span class="clinic-status clinic-status--attention">In progress</span></button>`).join("") : `<div class="clinic-empty-note">No in-progress visits assigned to you.</div>`}
+    </section>`;
+  }
+
+  function appointmentsView() {
+    const filters = state.appointmentFilters;
+    const doctorChoices = state.doctors.filter((doctor) => !isDoctor() || String(doctorId(doctor)) === String(staffId()));
+    const sorted = state.appointments.slice().sort((a,b) => new Date(a.scheduled_for)-new Date(b.scheduled_for));
+    const grouped = sorted.reduce((acc, appointment) => {
+      const key = clinicDateKey(appointment.scheduled_for) || "Unscheduled";
+      (acc[key] ||= []).push(appointment);
+      return acc;
+    }, {});
+    const counts = [
+      [filters.date === clinicToday() ? "Today" : "Appointments", state.appointments.length],
+      ["Checked in", state.appointments.filter((a) => a.status === "checked_in").length],
+      ["Completed", state.appointments.filter((a) => a.status === "completed").length],
+      ["Cancelled", state.appointments.filter((a) => a.status === "cancelled").length],
+    ];
+    const rows = Object.entries(grouped).map(([date, list]) => `<section class="clinic-day-group"><div class="clinic-day-heading"><h3>${date === clinicToday() ? "Today" : dateLabel(date)}</h3><span>${list.length} ${list.length === 1 ? "appointment" : "appointments"}</span></div>
+      ${list.map((a) => `<article class="clinic-appointment-row"><div class="clinic-time">${timeLabel(a.scheduled_for)}</div><div class="clinic-appointment-person"><strong>${text(a,"patient_name")}</strong><span>${text(a,"patient_number")} · ${text(a,"reason","No reason recorded")}</span><small>${text(a,"doctor_name")} · ${text(a,"branch_name")}</small></div><span class="clinic-status ${statusClass(a.status)}">${esc(statusLabel(a.status))}</span><div class="clinic-row-actions">
+      ${a.status === "scheduled" && (isReceptionist() || isNurse()) ? `<button class="clinic-btn clinic-btn--quiet clinic-btn--small" data-clinic-action="check-in" data-id="${esc(a.id)}">Check in</button>` : ""}
+      ${a.status === "checked_in" && can("visits") ? `<button class="clinic-btn clinic-btn--small" data-clinic-action="start-visit" data-id="${esc(a.id)}">Start visit</button>` : ""}
+      ${["scheduled","checked_in"].includes(a.status) && (isAdmin() || isReceptionist() || isNurse()) ? `<button class="clinic-btn clinic-btn--quiet clinic-btn--small" data-clinic-action="cancel-appointment" data-id="${esc(a.id)}">Cancel</button>` : ""}
+      ${a.status === "scheduled" && isReceptionist() ? `<button class="clinic-btn clinic-btn--quiet clinic-btn--small" data-clinic-action="no-show" data-id="${esc(a.id)}">No-show</button>` : ""}
+      </div></article>`).join("")}</section>`).join("");
+    return `<section class="clinic-panel"><div class="clinic-section-head"><div><h2>Schedule</h2><p>${state.appointments.length} appointments · Kampala local time</p></div>${canBookAppointment() ? `<button type="button" class="clinic-btn" data-clinic-action="new-appointment">New appointment</button>` : ""}</div>
+      <div class="clinic-metrics clinic-counts">${counts.map(([label,count]) => `<article class="clinic-metric"><span>${esc(statusLabel(label))}</span><strong>${count}</strong></article>`).join("")}</div>
+      <form class="clinic-toolbar clinic-filter-toolbar" data-clinic-form="appointment-filter"><label class="clinic-field"><span>Date</span><input class="clinic-control" type="date" name="date" value="${esc(filters.date || clinicToday())}"></label><label class="clinic-field"><span>Doctor</span><select class="clinic-control" name="doctor_id"><option value="">${isDoctor()?"My schedule":"All doctors"}</option>${doctorChoices.map((d) => `<option value="${esc(doctorId(d))}" ${String(filters.doctor_id)===String(doctorId(d))?"selected":""}>${text(d,"name")}</option>`).join("")}</select></label><button class="clinic-btn clinic-btn--quiet" type="submit">Apply filters</button></form>
+      ${rows || `<div class="clinic-empty-note">No appointments match this date and doctor. Adjust the filters or add a new appointment.</div>`}</section>`;
+  }
+
+  function visitsView() {
+    const filters = state.visitFilters;
+    const doctorChoices = state.doctors.filter((doctor) => !isDoctor() || String(doctorId(doctor)) === String(staffId()));
+    const rows = state.visits.length ? state.visits.slice().sort((a,b) => new Date(b.visit_started_at)-new Date(a.visit_started_at)).map((v) => `<article class="clinic-visit-row"><div class="clinic-visit-date">${dateLabel(v.visit_started_at)}<strong>${timeLabel(v.visit_started_at)}</strong></div><div class="clinic-appointment-person"><strong>${text(v,"patient_name")}</strong><span>${text(v,"patient_number")} · ${text(v,"chief_complaint","No chief complaint")}</span><small>${text(v,"doctor_name")}</small></div><span class="clinic-status ${statusClass(v.status)}">${esc(statusLabel(v.status))}</span>${v.status === "voided" ? `<span class="clinic-muted">Retained for audit</span>` : `<button type="button" class="clinic-btn clinic-btn--quiet clinic-btn--small" data-clinic-action="open-visit" data-id="${esc(v.id)}">Open visit</button>`}</article>`).join("") : `<div class="clinic-empty-note">No visits match the selected filters.</div>`;
+    return `<section class="clinic-panel"><div class="clinic-section-head"><div><h2>Visit register</h2><p>${state.visits.length} clinical records</p></div></div>
+      <form class="clinic-toolbar clinic-filter-toolbar" data-clinic-form="visit-filter"><label class="clinic-field"><span>Status</span><select class="clinic-control" name="status"><option value="">All statuses</option>${["in_progress","completed","referred",...(isAdmin()?["voided"]:[])].map((s) => `<option value="${s}" ${filters.status===s?"selected":""}>${esc(statusLabel(s))}</option>`).join("")}</select></label><label class="clinic-field"><span>Doctor</span><select class="clinic-control" name="doctor_id"><option value="">${isDoctor()?"My visits":"All doctors"}</option>${doctorChoices.map((d) => `<option value="${esc(doctorId(d))}" ${String(filters.doctor_id)===String(doctorId(d))?"selected":""}>${text(d,"name")}</option>`).join("")}</select></label><label class="clinic-field"><span>Date</span><input class="clinic-control" name="date" type="date" value="${esc(filters.date)}"></label><button class="clinic-btn clinic-btn--quiet" type="submit">Apply filters</button></form>
+      <div class="clinic-visit-list">${rows}</div></section>`;
+  }
+
+  const VITAL_FIELDS = [["blood_pressure","Blood pressure"],["temperature_c","Temperature (°C)"],["weight_kg","Weight (kg)"],["height_cm","Height (cm)"],["pulse_bpm","Pulse (bpm)"],["respiratory_rate","Respiratory rate"]];
+  function visitDetail() {
+    const visit = state.selectedVisit;
+    const canEdit = isDoctor() && String(visit.doctor_id) === String(staffId()) && visit.status === "in_progress";
+    const canAddNote = (isDoctor() || isNurse()) && visit.status === "in_progress" &&
+      (!isDoctor() || String(visit.doctor_id) === String(staffId()));
+    const vitals = visit.vitals || {};
+    return `<section class="clinic-panel"><div class="clinic-detail-head"><div><button type="button" class="clinic-back" data-clinic-action="visit-back">Back to visits</button><div class="clinic-detail-title"><div class="clinic-photo clinic-photo-fallback" aria-hidden="true">${esc(initials(visit.patient_name))}</div><div><h2>${text(visit,"patient_name")}</h2><p>${text(visit,"patient_number")} · ${text(visit,"visit_number")} · ${dateLabel(visit.visit_started_at)}</p></div></div></div><div class="clinic-actions"><span class="clinic-status ${statusClass(visit.status)}">${esc(statusLabel(visit.status))}</span>${isAdmin() ? `<button type="button" class="clinic-btn clinic-btn--danger clinic-btn--small" data-clinic-action="void-visit" data-id="${esc(visit.id)}">Void visit</button>` : ""}</div></div>
+      <div class="clinic-allergy"><strong>Allergies</strong><span>${text(visit,"patient_allergies","No allergies recorded")}</span></div>
+      <form class="clinic-form-grid clinic-visit-form" data-clinic-form="visit-edit" data-id="${esc(visit.id)}">
+        <div class="clinic-form-section">Clinical assessment</div>
+        <div class="clinic-field clinic-span-2"><label for="visitComplaint">Chief complaint</label><textarea class="clinic-control" id="visitComplaint" name="chief_complaint" ${canEdit?"":"readonly"}>${esc(visit.chief_complaint||"")}</textarea></div>
+        <div class="clinic-field clinic-span-2"><label for="visitSymptoms">Symptoms</label><textarea class="clinic-control" id="visitSymptoms" name="symptoms" ${canEdit?"":"readonly"}>${esc(visit.symptoms||"")}</textarea></div>
+        <div class="clinic-form-section">Vitals</div>${VITAL_FIELDS.map(([key,label]) => `<div class="clinic-field"><label for="vital-${key}">${esc(label)}</label><input class="clinic-control" id="vital-${key}" name="vital_${key}" type="${key==="blood_pressure"?"text":"number"}" ${key==="blood_pressure"?"":'step="any"'} value="${esc(vitals[key]??"")}" ${canEdit?"":"readonly"}></div>`).join("")}
+        <div class="clinic-form-section">Clinical plan</div>
+        ${[["examination_notes","Examination notes"],["diagnosis","Diagnosis"],["diagnosis_code","Diagnosis code"],["treatment_plan","Treatment plan"],["referral","Referral"]].map(([key,label])=>`<div class="clinic-field ${["examination_notes","treatment_plan","referral"].includes(key)?"clinic-span-2":""}"><label for="visit-${key}">${esc(label)}</label>${["examination_notes","treatment_plan","referral"].includes(key)?`<textarea class="clinic-control" id="visit-${key}" name="${key}" ${canEdit?"":"readonly"}>${esc(visit[key]||"")}</textarea>`:`<input class="clinic-control" id="visit-${key}" name="${key}" value="${esc(visit[key]||"")}" ${canEdit?"":"readonly"}>`}</div>`).join("")}
+        <div class="clinic-field"><label for="visit-follow-up">Follow-up date</label><input class="clinic-control" id="visit-follow-up" name="follow_up_date" type="date" value="${esc(visit.follow_up_date?String(visit.follow_up_date).slice(0,10):"")}" ${canEdit?"":"readonly"}></div>
+        ${canEdit?`<div class="clinic-span-2 clinic-actions"><button type="submit" class="clinic-btn clinic-btn--quiet">Save visit</button><button type="button" class="clinic-btn" data-clinic-action="complete-visit" data-id="${esc(visit.id)}">Complete visit</button><button type="button" class="clinic-btn clinic-btn--quiet" data-clinic-action="refer-visit" data-id="${esc(visit.id)}">Refer</button></div>`:""}
+      </form>
+      <section class="clinic-subpanel clinic-notes"><div class="clinic-section-head"><div><h3>Visit notes</h3><p>Append-only timeline</p></div></div>${state.visitNotes.length?state.visitNotes.map((n)=>`<article class="clinic-note"><div><strong>${text(n,"author_name","Clinic team")}</strong><span>${esc(statusLabel(n.note_type))} · ${dateLabel(n.created_at)} ${timeLabel(n.created_at)}</span></div><p>${text(n,"note_text","")}</p></article>`).join(""):`<div class="clinic-empty-note">No notes have been added to this visit.</div>`}
+        ${canAddNote?`<form class="clinic-form-grid clinic-note-form" data-clinic-form="visit-note"><label class="clinic-field"><span>Note type</span><input class="clinic-control" name="note_type" value="clinical" required></label><label class="clinic-field clinic-span-2"><span>Append a note</span><textarea class="clinic-control" name="note_text" required></textarea></label><div class="clinic-span-2 clinic-actions"><button class="clinic-btn clinic-btn--quiet" type="submit">Add note</button></div></form>`:""}
+      </section><div class="clinic-phase-note" aria-disabled="true"><strong>Prescriptions coming in Phase 4B-2</strong><span>Prescription workflows are not available in this phase.</span></div>
+    </section>`;
   }
 
   function patientList() {
@@ -274,16 +414,13 @@ export function initClinicUI({ api, getCurrentUser, escapeHtml, notify }) {
       <div class="clinic-detail-head"><div>${role() === "pharmacist" ? `<button type="button" class="clinic-back" data-clinic-action="patient-back">Back to patient lookup</button>` : `<button type="button" class="clinic-back" data-clinic-action="patient-back">Back to patient records</button>`}<div class="clinic-detail-title">
         ${photo ? `<img class="clinic-photo" src="${esc(photo)}" alt="Patient photo">` : `<div class="clinic-photo clinic-photo-fallback" aria-hidden="true">${esc(initials(patientName(patient)))}</div>`}
         <div><h2>${esc(patientName(patient))}</h2><p>${text(patient, "patient_number")} · Record created ${dateLabel(patient.created_at)}</p></div></div></div>
-        <div class="clinic-actions">${canEdit ? `<button type="button" class="clinic-btn" data-clinic-action="edit-patient" data-id="${esc(patient.id)}">Edit record</button>` : ""}${isAdmin() ? `<button type="button" class="clinic-btn clinic-btn--danger" data-clinic-action="delete-patient" data-id="${esc(patient.id)}">Deactivate</button>` : ""}</div>
+        <div class="clinic-actions">${isDoctor() && patient.status === "active" ? `<button type="button" class="clinic-btn" data-clinic-action="start-walk-in">Start walk-in visit</button>` : ""}${canEdit ? `<button type="button" class="clinic-btn" data-clinic-action="edit-patient" data-id="${esc(patient.id)}">Edit record</button>` : ""}${isAdmin() ? `<button type="button" class="clinic-btn clinic-btn--danger" data-clinic-action="delete-patient" data-id="${esc(patient.id)}">Deactivate</button>` : ""}</div>
       </div>
-      <div class="clinic-profile-layout"><article class="clinic-subpanel"><h3>Patient information</h3><div class="clinic-info-grid">${fields.map(([label, val]) => `<div class="clinic-info-item"><span>${esc(label)}</span><strong>${val == null || val === "" ? empty : esc(val)}</strong></div>`).join("")}</div></article>
-        <aside class="clinic-subpanel"><h3>Other clinic services</h3><p class="clinic-help">These areas are not active in this release.</p><ul class="clinic-phase-list">
-          <li><strong>Appointments</strong><span>Coming in phase 4B</span></li>
-          <li><strong>Prescriptions</strong><span>Coming in phase 4B</span></li>
-          <li><strong>Pharmacy</strong><span>Coming in phase 4C</span></li>
-          <li><strong>Billing</strong><span>Coming in phase 4C</span></li>
-        </ul></aside>
-      </div>
+      ${role() !== "pharmacist" ? `<nav class="clinic-patient-tabs" aria-label="Patient record sections">${[["info","Info"],["appointments","Appointments"],...(can("visits")?[["visits","Visits"]]:[]),["prescriptions","Prescriptions (Phase 4B-2)"],["invoices","Invoices (Phase 4C)"]].map(([key,label])=>["prescriptions","invoices"].includes(key)?`<button type="button" disabled aria-disabled="true" title="Not available in this phase">${esc(label)}</button>`:`<button type="button" data-clinic-action="patient-section" data-section="${key}" aria-current="${state.patientDetailTab===key?"page":"false"}">${esc(label)}</button>`).join("")}</nav>` : ""}
+      ${state.patientDetailTab==="info" ? `<article class="clinic-subpanel"><h3>Patient information</h3><div class="clinic-info-grid">${fields.map(([label, val]) => `<div class="clinic-info-item"><span>${esc(label)}</span><strong>${val == null || val === "" ? empty : esc(val)}</strong></div>`).join("")}</div></article>` :
+        state.patientDetailTab==="appointments" ? `<article class="clinic-subpanel"><h3>Appointments</h3>${state.patientAppointments.length?`<div class="clinic-appointment-list">${state.patientAppointments.slice().sort((a,b)=>new Date(a.scheduled_for)-new Date(b.scheduled_for)).map((a)=>`<article class="clinic-appointment-row"><div class="clinic-time">${dateLabel(a.scheduled_for)}<strong>${timeLabel(a.scheduled_for)}</strong></div><div class="clinic-appointment-person"><strong>${text(a,"reason","Appointment")}</strong><span>${text(a,"doctor_name")} · ${text(a,"branch_name")}</span></div><span class="clinic-status ${statusClass(a.status)}">${esc(statusLabel(a.status))}</span></article>`).join("")}</div>`:`<div class="clinic-empty-note">No appointments are recorded for this patient.</div>`}</article>` :
+        state.patientDetailTab==="visits" ? `<article class="clinic-subpanel"><h3>Visits</h3>${state.patientVisits.length?`<div class="clinic-visit-list">${state.patientVisits.slice().sort((a,b)=>new Date(b.visit_started_at)-new Date(a.visit_started_at)).map((v)=>`<article class="clinic-visit-row"><div class="clinic-visit-date">${dateLabel(v.visit_started_at)}</div><div class="clinic-appointment-person"><strong>${text(v,"chief_complaint","Clinical visit")}</strong><span>${text(v,"doctor_name")} · ${text(v,"visit_number")}</span></div><span class="clinic-status ${statusClass(v.status)}">${esc(statusLabel(v.status))}</span><button class="clinic-btn clinic-btn--quiet clinic-btn--small" type="button" data-clinic-action="open-visit" data-id="${esc(v.id)}">Open visit</button></article>`).join("")}</div>`:`<div class="clinic-empty-note">No visits are recorded for this patient.</div>`}</article>` :
+        `<article class="clinic-subpanel clinic-deferred"><h3>${state.patientDetailTab==="prescriptions"?"Prescriptions":"Invoices"}</h3><p>${state.patientDetailTab==="prescriptions"?"Prescriptions are deferred to Phase 4B-2.":"Invoices are deferred to Phase 4C."}</p></article>`}
     </section>`;
   }
 
@@ -365,7 +502,17 @@ export function initClinicUI({ api, getCurrentUser, escapeHtml, notify }) {
   function modalMarkup() {
     if (!state.modal) return "";
     const modal = state.modal;
-    if (modal.type === "confirm") return `<div class="clinic-modal-backdrop" data-clinic-backdrop><section class="clinic-modal" role="dialog" aria-modal="true" aria-labelledby="clinicModalTitle"><div class="clinic-modal-head"><div><h2 id="clinicModalTitle">${esc(modal.title)}</h2><p>${esc(modal.description)}</p></div><button type="button" class="clinic-close" aria-label="Close" data-clinic-action="close-modal">×</button></div><div class="clinic-modal-foot"><button type="button" class="clinic-btn clinic-btn--quiet" data-clinic-action="close-modal">Cancel</button><button type="button" class="clinic-btn clinic-btn--danger" data-clinic-action="confirm-delete">Deactivate</button></div></section></div>`;
+    if (modal.type === "confirm") return `<div class="clinic-modal-backdrop" data-clinic-backdrop><section class="clinic-modal" role="dialog" aria-modal="true" aria-labelledby="clinicModalTitle"><div class="clinic-modal-head"><div><h2 id="clinicModalTitle">${esc(modal.title)}</h2><p>${esc(modal.description)}</p></div><button type="button" class="clinic-close" aria-label="Close" data-clinic-action="close-modal">×</button></div>${modal.target?.type==="appointment-cancel" ? `<form class="clinic-modal-body clinic-form-grid" data-clinic-form="cancel-appointment"><label class="clinic-field clinic-span-2"><span>Cancellation reason</span><textarea class="clinic-control" name="reason" required></textarea></label><div class="clinic-span-2 clinic-modal-foot"><button type="button" class="clinic-btn clinic-btn--quiet" data-clinic-action="close-modal">Keep appointment</button><button type="submit" class="clinic-btn clinic-btn--danger">Cancel appointment</button></div></form>` : `<div class="clinic-modal-foot"><button type="button" class="clinic-btn clinic-btn--quiet" data-clinic-action="close-modal">Cancel</button><button type="button" class="clinic-btn clinic-btn--danger" data-clinic-action="confirm-delete">${modal.target?.type === "visit" ? "Void visit" : "Deactivate"}</button></div>`}</section></div>`;
+    if (modal.type === "appointment") return `<div class="clinic-modal-backdrop" data-clinic-backdrop><section class="clinic-modal" role="dialog" aria-modal="true" aria-labelledby="clinicModalTitle"><div class="clinic-modal-head"><div><h2 id="clinicModalTitle">New appointment</h2><p>Schedule an active patient with a clinic doctor. Times are Kampala local time.</p></div><button type="button" class="clinic-close" aria-label="Close" data-clinic-action="close-modal">×</button></div><form class="clinic-modal-body clinic-form-grid" data-clinic-form="appointment-create">
+      <label class="clinic-field clinic-span-2"><span>Search active patient</span><input class="clinic-control" name="patient_search" list="clinicPatientOptions" autocomplete="off" required placeholder="Search by name or patient number"><datalist id="clinicPatientOptions">${state.bookingPatients.map((p)=>`<option value="${esc(`${patientName(p)} · ${p.patient_number||p.id}`)}" data-id="${esc(p.id)}"></option>`).join("")}</datalist><input type="hidden" name="patient_id"></label>
+      <label class="clinic-field"><span>Doctor</span><select class="clinic-control" name="doctor_id" required><option value="">Choose a doctor</option>${state.doctors.filter((d)=>d.active!==false).map((d)=>`<option value="${esc(d.id)}">${text(d,"name")}${d.specialization?` · ${text(d,"specialization")}`:""}</option>`).join("")}</select></label>
+      <label class="clinic-field"><span>Scheduled date and time</span><input class="clinic-control" type="datetime-local" name="scheduled_for" required></label>
+      <label class="clinic-field"><span>Duration (minutes)</span><input class="clinic-control" type="number" name="duration_minutes" min="5" step="5" value="30" required></label>
+      <label class="clinic-field clinic-span-2"><span>Reason for visit</span><textarea class="clinic-control" name="reason" required></textarea></label>
+      <div class="clinic-span-2 clinic-modal-foot"><button type="button" class="clinic-btn clinic-btn--quiet" data-clinic-action="close-modal">Cancel</button><button type="submit" class="clinic-btn">Create appointment</button></div>
+    </form></section></div>`;
+    if (modal.type === "start-visit") return `<div class="clinic-modal-backdrop" data-clinic-backdrop><section class="clinic-modal" role="dialog" aria-modal="true" aria-labelledby="clinicModalTitle"><div class="clinic-modal-head"><div><h2 id="clinicModalTitle">Start clinical visit</h2><p>${esc(modal.appointment?.patient_name || "Appointment")} · ${esc(modal.appointment?.patient_number || "")}</p></div><button type="button" class="clinic-close" aria-label="Close" data-clinic-action="close-modal">×</button></div><form class="clinic-modal-body clinic-form-grid" data-clinic-form="visit-create"><input type="hidden" name="appointment_id" value="${esc(modal.appointment?.id||"")}"><input type="hidden" name="patient_id" value="${esc(modal.appointment?.patient_id||"")}"><label class="clinic-field clinic-span-2"><span>Chief complaint</span><textarea class="clinic-control" name="chief_complaint" required>${esc(modal.appointment?.reason||"")}</textarea></label><label class="clinic-field clinic-span-2"><span>Symptoms</span><textarea class="clinic-control" name="symptoms"></textarea></label><div class="clinic-span-2 clinic-modal-foot"><button type="button" class="clinic-btn clinic-btn--quiet" data-clinic-action="close-modal">Cancel</button><button type="submit" class="clinic-btn">Start visit</button></div></form></section></div>`;
+    if (modal.type === "refer") return `<div class="clinic-modal-backdrop" data-clinic-backdrop><section class="clinic-modal" role="dialog" aria-modal="true" aria-labelledby="clinicModalTitle"><div class="clinic-modal-head"><div><h2 id="clinicModalTitle">Refer patient</h2><p>Record the referral and optional follow-up date.</p></div><button type="button" class="clinic-close" aria-label="Close" data-clinic-action="close-modal">×</button></div><form class="clinic-modal-body clinic-form-grid" data-clinic-form="visit-refer" data-id="${esc(modal.id)}"><label class="clinic-field clinic-span-2"><span>Referral</span><textarea class="clinic-control" name="referral" required></textarea></label><label class="clinic-field"><span>Follow-up date</span><input class="clinic-control" type="date" name="follow_up_date"></label><div class="clinic-span-2 clinic-modal-foot"><button type="button" class="clinic-btn clinic-btn--quiet" data-clinic-action="close-modal">Cancel</button><button type="submit" class="clinic-btn">Save referral</button></div></form></section></div>`;
     const isEdit = Boolean(modal.record);
     const config = modal.type === "patient" ? { title: isEdit ? "Edit patient record" : "Add patient", desc: "Patient identity and contact information.", fields: PATIENT_FIELDS, kind: "patient" }
       : modal.type === "branch" ? { title: isEdit ? "Edit branch" : "Add branch", desc: "Location, contact, and branch identification.", fields: BRANCH_FIELDS, kind: "branch" }
@@ -391,16 +538,63 @@ export function initClinicUI({ api, getCurrentUser, escapeHtml, notify }) {
           : null;
       }
       if (tab === "overview") {
-        const [statsPayload, branchesPayload] = await Promise.all([
-          request("/api/clinic/stats"),
-          request("/api/clinic/branches"),
+        const dashboardCalls = isAdmin()
+          ? [request("/api/clinic/today"), request("/api/clinic/stats"), request("/api/clinic/stats/appointments"), request("/api/clinic/branches"), request("/api/clinic/doctors")]
+          : [request("/api/clinic/today"), request("/api/clinic/stats/appointments"), request("/api/clinic/doctors")];
+        const payloads = await Promise.all(dashboardCalls);
+        const [todayPayload, ...rest] = payloads;
+        state.today = todayPayload || {};
+        if (isAdmin()) {
+          state.stats = rest[0].stats || {};
+          state.appointmentStats = rest[1].stats || {};
+          state.branches = Array.isArray(rest[2].branches) ? rest[2].branches : [];
+          state.doctors = Array.isArray(rest[3].doctors) ? rest[3].doctors : [];
+        } else {
+          state.appointmentStats = rest[0].stats || {};
+          state.doctors = Array.isArray(rest[1].doctors) ? rest[1].doctors : [];
+        }
+        if (isDoctor()) {
+          const [appointmentPayload, activeVisitPayload, seenVisitPayload] = await Promise.all([
+            request(`/api/clinic/appointments?${queryString({ date: clinicToday(), doctor_id: staffId() })}`),
+            request(`/api/clinic/visits?${queryString({ doctor_id: staffId(), status: "in_progress" })}`),
+            request(`/api/clinic/visits?${queryString({ doctor_id: staffId(), date: clinicToday() })}`),
+          ]);
+          state.appointments = Array.isArray(appointmentPayload.appointments) ? appointmentPayload.appointments : [];
+          const visitsById = new Map([...(activeVisitPayload.visits || []), ...(seenVisitPayload.visits || [])].map((visit) => [String(visit.id), visit]));
+          state.visits = [...visitsById.values()];
+        }
+      } else if (tab === "appointments") {
+        const [doctorPayload, bookingPayload] = await Promise.all([
+          request("/api/clinic/doctors"),
+          canBookAppointment() ? request("/api/clinic/patients?status=active") : Promise.resolve({ patients: [] }),
         ]);
-        state.stats = statsPayload.stats || {};
-        state.branches = Array.isArray(branchesPayload.branches) ? branchesPayload.branches : [];
+        state.doctors = Array.isArray(doctorPayload.doctors) ? doctorPayload.doctors : [];
+        state.bookingPatients = Array.isArray(bookingPayload.patients) ? bookingPayload.patients : [];
+        if (!state.appointmentFilters.date) state.appointmentFilters.date = clinicToday();
+        if (isDoctor() && !state.appointmentFilters.doctor_id) state.appointmentFilters.doctor_id = staffId();
+        const params = { date: state.appointmentFilters.date, doctor_id: state.appointmentFilters.doctor_id };
+        const payload = await request(`/api/clinic/appointments?${queryString(params)}`);
+        state.appointments = Array.isArray(payload.appointments) ? payload.appointments : [];
+      } else if (tab === "visits") {
+        if (isDoctor() && !state.visitFilters.doctor_id) state.visitFilters.doctor_id = staffId();
+        const [doctorPayload, visitPayload] = await Promise.all([
+          request("/api/clinic/doctors"),
+          request(`/api/clinic/visits?${queryString({ ...state.visitFilters, doctor_id: isDoctor() ? staffId() : state.visitFilters.doctor_id })}`),
+        ]);
+        state.doctors = Array.isArray(doctorPayload.doctors) ? doctorPayload.doctors : [];
+        state.visits = Array.isArray(visitPayload.visits) ? visitPayload.visits : [];
       } else if (tab === "patients") {
         if (state.selectedPatientId) {
           const payload = await request(`/api/clinic/patients/${encodeURIComponent(state.selectedPatientId)}`);
           state.selectedPatient = payload.patient || null;
+          if (state.patientDetailTab === "appointments") {
+            const records = await request(`/api/clinic/appointments?${queryString({ patient_id: state.selectedPatientId })}`);
+            state.patientAppointments = Array.isArray(records.appointments) ? records.appointments : [];
+          }
+          if (state.patientDetailTab === "visits") {
+            const records = await request(`/api/clinic/visits?${queryString({ patient_id: state.selectedPatientId })}`);
+            state.patientVisits = Array.isArray(records.visits) ? records.visits : [];
+          }
         } else {
           const params = new URLSearchParams();
           if (state.search) params.set("search", state.search);
@@ -441,12 +635,35 @@ export function initClinicUI({ api, getCurrentUser, escapeHtml, notify }) {
       if (!state.selectedPatientId) throw new Error("Enter a patient record ID.");
       const payload = await request(`/api/clinic/patients/${encodeURIComponent(state.selectedPatientId)}`);
       state.selectedPatient = payload.patient || null;
+      state.patientDetailTab = "info";
+      state.patientAppointments = [];
+      state.patientVisits = [];
     } catch (error) {
       state.error = errorText(error);
     } finally {
       state.loading = false;
       frameMarkup();
     }
+  }
+
+  async function loadVisitDetail(id) {
+    if (!id) return;
+    state.selectedVisitId = String(id);
+    state.selectedVisit = null;
+    state.visitNotes = [];
+    state.loading = true;
+    state.error = "";
+    frameMarkup();
+    try {
+      const [visitPayload, notesPayload] = await Promise.all([
+        request(`/api/clinic/visits/${encodeURIComponent(id)}`),
+        request(`/api/clinic/visits/${encodeURIComponent(id)}/notes`),
+      ]);
+      state.selectedVisit = visitPayload.visit || null;
+      state.visitNotes = Array.isArray(notesPayload.notes) ? notesPayload.notes : [];
+      if (!state.selectedVisit) throw new Error("This visit could not be found.");
+    } catch (error) { state.error = errorText(error); }
+    finally { state.loading = false; frameMarkup(); }
   }
 
   function fieldMap(form, fields) {
@@ -552,6 +769,126 @@ export function initClinicUI({ api, getCurrentUser, escapeHtml, notify }) {
     await loadPatientDetail(formValue(form, "patient_id"));
   }
 
+  function formDataMap(form, names) {
+    const data = new FormData(form);
+    return Object.fromEntries(names.map((name) => [name, String(data.get(name) ?? "").trim()]));
+  }
+
+  async function createAppointment(form) {
+    const data = new FormData(form);
+    const patientText = String(data.get("patient_search") || "").trim();
+    const patient = state.bookingPatients.find((p) => `${patientName(p)} · ${p.patient_number || p.id}` === patientText);
+    if (!patient) { announce("Choose an active patient from the search suggestions.", "error"); return; }
+    const scheduled = String(data.get("scheduled_for") || "");
+    const body = {
+      patient_id: patient.id,
+      doctor_id: String(data.get("doctor_id") || ""),
+      scheduled_for: scheduled ? `${scheduled}:00+03:00` : "",
+      duration_minutes: Number(data.get("duration_minutes")),
+      reason: String(data.get("reason") || "").trim(),
+    };
+    try {
+      await request("/api/clinic/appointments", { method: "POST", body });
+      state.modal = null;
+      state.appointmentFilters.date = scheduled.slice(0,10);
+      announce("Appointment created.");
+      await loadPortal("appointments");
+    } catch (error) { announce(errorText(error), "error"); }
+  }
+
+  async function submitVisitCreate(form) {
+    const body = formDataMap(form, ["patient_id", "appointment_id", "chief_complaint", "symptoms"]);
+    if (!body.appointment_id) delete body.appointment_id;
+    try {
+      const result = await request("/api/clinic/visits", { method: "POST", body });
+      state.modal = null;
+      announce("Visit started.");
+      state.tab = "visits";
+      await loadPortal("appointments");
+      await loadPortal("visits");
+      const visitId = result.visit?.id;
+      if (visitId) await loadVisitDetail(visitId);
+    } catch (error) { announce(errorText(error), "error"); }
+  }
+
+  async function saveVisit(form) {
+    const data = new FormData(form);
+    const vitals = {};
+    VITAL_FIELDS.forEach(([key]) => {
+      const raw = String(data.get(`vital_${key}`) || "").trim();
+      vitals[key] = raw === "" ? null : key === "blood_pressure" ? raw : Number(raw);
+    });
+    const body = {
+      chief_complaint: String(data.get("chief_complaint") || "").trim(),
+      symptoms: String(data.get("symptoms") || "").trim(),
+      vitals,
+      examination_notes: String(data.get("examination_notes") || "").trim(),
+      diagnosis: String(data.get("diagnosis") || "").trim(),
+      diagnosis_code: String(data.get("diagnosis_code") || "").trim(),
+      treatment_plan: String(data.get("treatment_plan") || "").trim(),
+      referral: String(data.get("referral") || "").trim(),
+      follow_up_date: String(data.get("follow_up_date") || "").trim() || null,
+    };
+    try {
+      await request(`/api/clinic/visits/${encodeURIComponent(form.dataset.id)}`, { method: "PATCH", body });
+      announce("Visit saved.");
+      await loadVisitDetail(form.dataset.id);
+      await loadPortal("visits");
+    } catch (error) { announce(errorText(error), "error"); }
+  }
+
+  async function completeVisit(id) {
+    try {
+      await request(`/api/clinic/visits/${encodeURIComponent(id)}/complete`, { method: "POST" });
+      announce("Visit completed.");
+      await loadVisitDetail(id);
+      await loadPortal("appointments");
+      await loadPortal("visits");
+    } catch (error) { announce(errorText(error), "error"); }
+  }
+
+  async function submitVisitRefer(form) {
+    const body = formDataMap(form, ["referral", "follow_up_date"]);
+    if (!body.follow_up_date) delete body.follow_up_date;
+    try {
+      await request(`/api/clinic/visits/${encodeURIComponent(form.dataset.id)}/refer`, { method: "POST", body });
+      state.modal = null;
+      announce("Referral saved.");
+      await loadVisitDetail(form.dataset.id);
+      await loadPortal("appointments");
+      await loadPortal("visits");
+    } catch (error) { announce(errorText(error), "error"); }
+  }
+
+  async function addVisitNote(form) {
+    const body = formDataMap(form, ["note_type", "note_text"]);
+    try {
+      await request(`/api/clinic/visits/${encodeURIComponent(state.selectedVisit.id)}/notes`, { method: "POST", body });
+      announce("Visit note added.");
+      await loadVisitDetail(state.selectedVisit.id);
+    } catch (error) { announce(errorText(error), "error"); }
+  }
+
+  async function appointmentMutation(id, action, body = undefined) {
+    try {
+      const options = { method: "POST" };
+      if (body) options.body = body;
+      await request(`/api/clinic/appointments/${encodeURIComponent(id)}/${action}`, options);
+      state.modal = null;
+      announce(action === "check-in" ? "Patient checked in." : action === "no-show" ? "Appointment marked as no-show." : "Appointment cancelled.");
+      await loadPortal("appointments");
+    } catch (error) { announce(errorText(error), "error"); }
+  }
+
+  async function searchBookingPatients(term) {
+    try {
+      const result = await request(`/api/clinic/patients?${queryString({ status: "active", search: term })}`);
+      state.bookingPatients = Array.isArray(result.patients) ? result.patients : [];
+      const list = portalRoot()?.querySelector("#clinicPatientOptions");
+      if (list) list.innerHTML = state.bookingPatients.map((p) => `<option value="${esc(`${patientName(p)} · ${p.patient_number || p.id}`)}"></option>`).join("");
+    } catch (error) { announce(errorText(error), "error"); }
+  }
+
   function showModal(type, record = null) {
     state.modal = { type, record };
     state.modalError = "";
@@ -564,10 +901,18 @@ export function initClinicUI({ api, getCurrentUser, escapeHtml, notify }) {
       patient: `/api/clinic/patients/${encodeURIComponent(id)}`,
       branch: `/api/clinic/branches/${encodeURIComponent(id)}`,
       staff: `/api/clinic/staff/${encodeURIComponent(id)}`,
+      visit: `/api/clinic/visits/${encodeURIComponent(id)}`,
     };
     try {
       await request(routes[type], { method: "DELETE" });
       state.modal = null;
+      if (type === "visit") {
+        state.selectedVisit = null;
+        state.selectedVisitId = null;
+        announce("Visit voided. The clinical record is retained for audit.");
+        await loadPortal("visits");
+        return;
+      }
       state.selectedPatient = null;
       state.selectedPatientId = null;
       announce(`${type === "patient" ? "Patient record" : type === "branch" ? "Branch" : "Staff member"} deactivated.`);
@@ -590,6 +935,8 @@ export function initClinicUI({ api, getCurrentUser, escapeHtml, notify }) {
         state.selectedPatientId = null;
         state.search = "";
         state.branchFilter = "";
+        state.selectedVisit = null;
+        state.selectedVisitId = null;
         void loadPortal(next);
       }
       return;
@@ -601,6 +948,46 @@ export function initClinicUI({ api, getCurrentUser, escapeHtml, notify }) {
     }
     const action = actionNode.dataset.clinicAction;
     const id = actionNode.dataset.id;
+    if (action === "patient-section") {
+      state.patientDetailTab = actionNode.dataset.section;
+      void loadPortal("patients");
+    }
+    if (action === "new-appointment" && canBookAppointment()) {
+      state.modal = { type: "appointment" };
+      frameMarkup();
+      portalRoot()?.querySelector('[name="patient_search"]')?.focus();
+    }
+    if (action === "check-in" && (isReceptionist() || isNurse())) void appointmentMutation(id, "check-in");
+    if (action === "start-walk-in" && isDoctor() && state.selectedPatient?.status === "active") {
+      state.modal = {
+        type: "start-visit",
+        appointment: {
+          id: "",
+          patient_id: state.selectedPatient.id,
+          patient_name: patientName(state.selectedPatient),
+          patient_number: state.selectedPatient.patient_number,
+        },
+      };
+      frameMarkup();
+      portalRoot()?.querySelector('[name="chief_complaint"]')?.focus();
+    }
+    if (action === "start-visit" && can("visits")) {
+      const appointment = state.appointments.find((item) => String(item.id) === String(id));
+      if (appointment?.status === "checked_in") { state.modal = { type: "start-visit", appointment }; frameMarkup(); portalRoot()?.querySelector('[name="chief_complaint"]')?.focus(); }
+    }
+    if (action === "cancel-appointment" && (isAdmin() || isReceptionist() || isNurse())) {
+      state.modal = { type: "confirm", title: "Cancel this appointment?", description: "The cancellation reason will be recorded with the appointment.", target: { type: "appointment-cancel", id } };
+      frameMarkup();
+    }
+    if (action === "no-show" && isReceptionist()) void appointmentMutation(id, "no-show");
+    if (action === "open-visit" && id) { state.tab = "visits"; state.selectedVisit = null; void loadVisitDetail(id); }
+    if (action === "visit-back") { state.selectedVisit = null; state.selectedVisitId = null; void loadPortal("visits"); }
+    if (action === "complete-visit" && isDoctor() && String(state.selectedVisit?.doctor_id) === String(staffId())) void completeVisit(id);
+    if (action === "refer-visit" && isDoctor() && String(state.selectedVisit?.doctor_id) === String(staffId())) { state.modal = { type: "refer", id }; frameMarkup(); }
+    if (action === "void-visit" && isAdmin() && String(state.selectedVisit?.id) === String(id)) {
+      state.modal = { type: "confirm", title: "Void this clinical visit?", description: "The visit will be removed from active lists but retained in the audit history.", target: { type: "visit", id } };
+      frameMarkup();
+    }
     if (action === "patient-detail") void loadPatientDetail(id);
     if (action === "patient-back") {
       state.selectedPatientId = null;
@@ -640,6 +1027,20 @@ export function initClinicUI({ api, getCurrentUser, escapeHtml, notify }) {
     if (type === "settings" || type === "organization-settings") void submitGeneralForm(form, type);
     if (type === "patient-search") void submitPatientSearch(form);
     if (type === "patient-lookup") void submitLookup(form);
+    if (type === "appointment-filter") {
+      state.appointmentFilters = { date: formValue(form,"date"), doctor_id: isDoctor() ? staffId() : formValue(form,"doctor_id") };
+      void loadPortal("appointments");
+    }
+    if (type === "visit-filter") {
+      state.visitFilters = { date: formValue(form,"date"), doctor_id: isDoctor() ? staffId() : formValue(form,"doctor_id"), status: formValue(form,"status") };
+      void loadPortal("visits");
+    }
+    if (type === "appointment-create" && canBookAppointment()) void createAppointment(form);
+    if (type === "visit-create" && can("visits")) void submitVisitCreate(form);
+    if (type === "visit-edit" && isDoctor() && String(state.selectedVisit?.doctor_id) === String(staffId()) && state.selectedVisit?.status === "in_progress") void saveVisit(form);
+    if (type === "visit-note" && (isDoctor() || isNurse()) && (!isDoctor() || String(state.selectedVisit?.doctor_id) === String(staffId()))) void addVisitNote(form);
+    if (type === "visit-refer" && isDoctor()) void submitVisitRefer(form);
+    if (type === "cancel-appointment" && state.modal?.target?.type === "appointment-cancel" && (isAdmin() || isReceptionist() || isNurse())) void appointmentMutation(state.modal.target.id, "cancel", { reason: formValue(form,"reason") });
   }
 
   function handlePortalRetry(event) {
@@ -648,7 +1049,8 @@ export function initClinicUI({ api, getCurrentUser, escapeHtml, notify }) {
     if (retry === "patient-detail") {
       if (state.selectedPatientId) void loadPatientDetail(state.selectedPatientId);
       else { state.error = ""; frameMarkup(); }
-    } else void loadPortal(retry);
+    } else if (retry === "visit-detail" && state.selectedVisitId) void loadVisitDetail(state.selectedVisitId);
+    else void loadPortal(retry);
   }
 
   function commandMarkup() {
@@ -761,11 +1163,19 @@ export function initClinicUI({ api, getCurrentUser, escapeHtml, notify }) {
   portalHost?.addEventListener("click", handlePortalClick);
   portalHost?.addEventListener("submit", handlePortalSubmit);
   portalHost?.addEventListener("click", handlePortalRetry);
+  let patientSearchTimer = null;
+  portalHost?.addEventListener("input", (event) => {
+    if (event.target.matches('[name="patient_search"]')) {
+      clearTimeout(patientSearchTimer);
+      patientSearchTimer = setTimeout(() => void searchBookingPatients(event.target.value.trim()), 220);
+    }
+  });
   commandHost?.addEventListener("click", handleCommandClick);
   commandHost?.addEventListener("submit", handleCommandSubmit);
 
   async function setUser(user) {
     const previousUserId = state.user?.id;
+    const previousRole = role();
     state.user = user || null;
     state.organization = null;
     state.tab = TABS.find(([key]) => can(key))?.[0] || "patients";
@@ -776,15 +1186,28 @@ export function initClinicUI({ api, getCurrentUser, escapeHtml, notify }) {
     state.saving = false;
     state.error = "";
     state.loading = false;
-    if (!state.user || previousUserId !== state.user.id) {
+    if (!state.user || previousUserId !== state.user.id || previousRole !== role()) {
       state.patients = [];
       state.branches = [];
       state.staff = [];
       state.stats = null;
+      state.today = null;
+      state.appointments = [];
+      state.visits = [];
+      state.doctors = [];
       state.settings = null;
       state.search = "";
       state.branchFilter = "";
       state.patientStatus = "active";
+      state.appointmentFilters = { date: "", doctor_id: "" };
+      state.visitFilters = { date: "", doctor_id: "", status: "" };
+      state.selectedVisit = null;
+      state.selectedVisitId = null;
+      state.visitNotes = [];
+      state.patientDetailTab = "info";
+      state.patientAppointments = [];
+      state.patientVisits = [];
+      state.bookingPatients = [];
       state.command = { organizations: [], stats: null, loading: false, error: "", creating: false, saving: false };
     }
     frameMarkup();
