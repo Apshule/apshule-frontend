@@ -23,6 +23,7 @@ import {
 } from "../clinic-domain.js";
 import type { AppEnv, AuthenticatedUser } from "../types.js";
 import { createClinicWorkflowRoutes } from "./clinic-workflows.js";
+import { createClinicPharmacyRoutes } from "./clinic-pharmacy.js";
 
 const clinic = new Hono<AppEnv>();
 const UUID_PATTERN =
@@ -1375,6 +1376,10 @@ clinic.patch(
 clinic.route(
   "/",
   createClinicWorkflowRoutes({ organizationForRequest, requestIp }),
+);
+clinic.route(
+  "/",
+  createClinicPharmacyRoutes({ organizationForRequest, requestIp }),
 );
 
 export default clinic;

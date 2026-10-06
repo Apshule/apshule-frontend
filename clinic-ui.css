@@ -315,12 +315,35 @@ textarea.clinic-control { min-height: 78px; resize: vertical; }
 .clinic-visit-card span:not(.clinic-status) { color: var(--clinic-muted); font-size: 10px; }
 .clinic-portal button:disabled { cursor: not-allowed; }
 
+.clinic-pharmacy-metrics { display: grid; grid-template-columns: repeat(auto-fit, minmax(145px, 1fr)); gap: 10px; margin: 14px 0; }
+.clinic-pharmacy-filters { display: flex; align-items: end; flex-wrap: wrap; gap: 10px; margin: 14px 0; }
+.clinic-pharmacy-filters .clinic-field { flex: 1 1 180px; }
+.clinic-pharmacy-columns { display: grid; grid-template-columns: minmax(0, 1.2fr) minmax(260px, .8fr); gap: 14px; }
+.clinic-pharmacy-detail-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); gap: 10px; }
+.clinic-pharmacy-dl { display: grid; grid-template-columns: minmax(110px, .4fr) 1fr; gap: 8px 14px; margin: 0; }
+.clinic-pharmacy-dl dt { color: var(--clinic-muted); font-size: 11px; }
+.clinic-pharmacy-dl dd { margin: 0; color: var(--clinic-ink); font-size: 12px; font-weight: 650; overflow-wrap: anywhere; }
+.clinic-pharmacy-activity, .clinic-compact-list, .clinic-rx-items, .clinic-timeline { display: grid; gap: 9px; }
+.clinic-rx-item { min-width: 0; margin: 0; padding: 12px; border: 1px solid var(--clinic-line); border-radius: 12px; background: #fcfdf9; }
+.clinic-rx-item-head { display: flex; align-items: center; justify-content: space-between; gap: 10px; margin-bottom: 10px; }
+.clinic-rx-form-list { display: grid; gap: 12px; }
+.clinic-pharmacy-add-row { display: flex; justify-content: flex-start; }
+.clinic-prescription-meta { display: flex; align-items: center; flex-wrap: wrap; gap: 8px 14px; color: var(--clinic-muted); font-size: 11px; }
+.clinic-prescription-summary { display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: start; gap: 8px 12px; }
+.clinic-pharmacy-warning, .clinic-inline-warning { color: #7c491f; }
+.clinic-pharmacy-notes { white-space: pre-wrap; overflow-wrap: anywhere; }
+.clinic-timeline article, .clinic-compact-list article, .clinic-pharmacy-activity article { padding: 10px 12px; border: 1px solid var(--clinic-line); border-radius: 10px; background: #fffefa; }
+.clinic-timeline article strong, .clinic-compact-list article strong { display: block; font-size: 12px; }
+.clinic-timeline article span, .clinic-compact-list article span { color: var(--clinic-muted); font-size: 10px; }
+.clinic-visit-prescriptions { margin-top: 14px; }
+
 @media (max-width: 760px) {
   .clinic-appointment-row, .clinic-visit-row { grid-template-columns: minmax(0, 1fr) auto; gap: 9px 12px; }
   .clinic-appointment-row .clinic-time, .clinic-visit-row .clinic-visit-date { grid-column: 1 / -1; }
   .clinic-appointment-row .clinic-row-actions { grid-column: 1 / -1; justify-content: flex-start; }
   .clinic-appointment-row > .clinic-status, .clinic-visit-row > .clinic-status { justify-self: end; }
   .clinic-filter-toolbar .clinic-field { min-width: 0; }
+  .clinic-pharmacy-columns { grid-template-columns: 1fr; }
 }
 @media (max-width: 480px) {
   .clinic-counts { grid-template-columns: repeat(2, minmax(0, 1fr)); }

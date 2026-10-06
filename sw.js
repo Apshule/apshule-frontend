@@ -1,5 +1,5 @@
 // Preserve offline snapshots; activation deletes every other apshule-cache-* namespace.
-const CACHE_NAME = "apshule-cache-v10";
+const CACHE_NAME = "apshule-cache-v11";
 const APP_SHELL_URLS = [
     "/",
     "/index.html",
@@ -15,7 +15,8 @@ const APP_SHELL_URLS = [
     "/mfi-loans-domain.mjs",
     "/mfi-ui.css",
     "/clinic-ui.js",
-    "/clinic-ui.css"
+    "/clinic-ui.css",
+    "/clinic-pharmacy-ui.js"
 ];
 
 function offlineResponse() {
