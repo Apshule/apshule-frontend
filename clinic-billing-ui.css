@@ -1,0 +1,771 @@
+/*
+ * APShule clinic billing + patient portal additions.
+ * This file layers onto clinic-ui.css and intentionally inherits
+ * --clinic-primary so each clinic's custom brand color remains in control.
+ */
+
+.clinic-command-panel,
+.clinic-patient-portal {
+  --billing-wash: #f6f8f4;
+  --billing-line-strong: #cbdcd3;
+  --billing-insurance-wash: #f3f1f8;
+  --billing-insurance-ink: #5d527a;
+}
+
+/* Billing work surface */
+.clinic-command-panel .clinic-view {
+  min-width: 0;
+}
+
+.clinic-command-panel .clinic-view > .clinic-panel + .clinic-panel,
+.clinic-command-panel .clinic-view > .clinic-dashboard-grid + .clinic-panel {
+  margin-top: 15px;
+}
+
+.clinic-billing-metrics {
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 10px;
+  margin: 0 0 17px;
+}
+
+.clinic-billing-metrics .clinic-metric {
+  min-width: 0;
+  min-height: 94px;
+  padding: 14px 15px;
+  background: linear-gradient(145deg, var(--clinic-card), #f8faf6);
+}
+
+.clinic-billing-metrics .clinic-metric strong {
+  position: relative;
+  z-index: 1;
+  font-size: clamp(19px, 2vw, 25px);
+  overflow-wrap: anywhere;
+}
+
+.clinic-billing-metrics .clinic-metric-money {
+  font: 700 clamp(15px, 1.5vw, 19px)/1.25 "IBM Plex Mono", monospace;
+  letter-spacing: -.04em;
+}
+
+.clinic-billing-subpanel {
+  margin-top: 15px;
+}
+
+.clinic-insurance-layout {
+  align-items: start;
+  grid-template-columns: minmax(0, 1.08fr) minmax(300px, .92fr);
+}
+
+.clinic-insurance-layout > .clinic-panel {
+  min-width: 0;
+}
+
+.clinic-claim-card + .clinic-claim-card {
+  margin-top: 10px;
+}
+
+.clinic-claim-card {
+  padding: 15px;
+  background: #fcfdf9;
+}
+
+.clinic-claim-card .clinic-section-head {
+  align-items: flex-start;
+  margin-bottom: 11px;
+}
+
+.clinic-claim-card .clinic-section-head h3 {
+  overflow-wrap: anywhere;
+}
+
+.clinic-claim-card .clinic-info-grid {
+  gap: 0 15px;
+}
+
+.clinic-claim-card .clinic-actions {
+  justify-content: flex-start;
+  margin-top: 13px;
+  padding-top: 12px;
+  border-top: 1px solid #e6ece7;
+}
+
+/* Tables: retain their natural scan pattern while allowing safe horizontal scroll. */
+.clinic-command-panel .clinic-table-wrap {
+  max-width: 100%;
+  overscroll-behavior-inline: contain;
+  scrollbar-color: #b8cbc1 transparent;
+  scrollbar-width: thin;
+}
+
+.clinic-command-panel .clinic-table {
+  min-width: 680px;
+}
+
+.clinic-command-panel .clinic-table th {
+  position: sticky;
+  top: 0;
+  z-index: 1;
+}
+
+.clinic-command-panel .clinic-table td {
+  overflow-wrap: anywhere;
+}
+
+.clinic-command-panel .clinic-table tbody tr[data-billing-action="view-invoice"] {
+  cursor: pointer;
+  transition: background-color .15s ease;
+}
+
+.clinic-command-panel .clinic-table tbody tr[data-billing-action="view-invoice"]:hover {
+  background: #f5f9f4;
+}
+
+.clinic-command-panel .clinic-table tbody tr[data-billing-action="view-invoice"]:focus-visible {
+  position: relative;
+  outline: 3px solid var(--clinic-accent);
+  outline-offset: -3px;
+}
+
+.clinic-command-panel .clinic-table td:last-child {
+  white-space: nowrap;
+}
+
+.clinic-command-panel .clinic-row-actions {
+  flex-wrap: wrap;
+  align-items: center;
+}
+
+.clinic-command-panel .clinic-empty-note {
+  background: #fafbf7;
+  line-height: 1.55;
+}
+
+/* Invoice composition: each line item remains legible at tablet and phone widths. */
+.clinic-billing-invoice-modal {
+  width: min(920px, 100%);
+}
+
+.clinic-billing-items {
+  display: grid;
+  gap: 9px;
+  min-width: 0;
+}
+
+.clinic-billing-item {
+  display: grid;
+  grid-template-columns: minmax(105px, .85fr) minmax(150px, 1.15fr) minmax(180px, 1.7fr) minmax(70px, .55fr) minmax(115px, .9fr) minmax(125px, 1fr) auto;
+  align-items: end;
+  gap: 10px;
+  min-width: 0;
+  padding: 13px;
+  border: 1px solid var(--clinic-line);
+  border-radius: 12px;
+  background: #fbfcf8;
+}
+
+.clinic-billing-item .clinic-field {
+  min-width: 0;
+}
+
+.clinic-billing-item-description {
+  min-width: 145px;
+}
+
+.clinic-billing-item-total {
+  display: grid;
+  align-content: center;
+  min-height: 39px;
+  min-width: 0;
+  padding: 5px 9px;
+  border-left: 2px solid var(--clinic-primary);
+  background: #f1f6f2;
+}
+
+.clinic-billing-item-total span {
+  color: var(--clinic-muted);
+  font-size: 9px;
+  font-weight: 700;
+}
+
+.clinic-billing-item-total strong {
+  color: var(--clinic-ink);
+  font: 600 11px "IBM Plex Mono", monospace;
+  overflow-wrap: anywhere;
+}
+
+.clinic-billing-item > .clinic-btn {
+  min-height: 35px;
+  white-space: nowrap;
+}
+
+.clinic-billing-total-preview {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 15px;
+  padding: 15px 17px;
+  border: 1px solid var(--billing-line-strong);
+  border-radius: 11px;
+  background: linear-gradient(110deg, #eff6f1, #fffefa);
+}
+
+.clinic-billing-total-preview span {
+  color: var(--clinic-muted);
+  font-size: 11px;
+  font-weight: 700;
+}
+
+.clinic-billing-total-preview strong {
+  color: var(--clinic-ink);
+  font: 700 18px "IBM Plex Mono", monospace;
+  text-align: right;
+  overflow-wrap: anywhere;
+}
+
+/* Dialog content and invoice account summaries */
+.clinic-modal-slot {
+  position: relative;
+  z-index: 10000;
+}
+
+.clinic-billing-modal {
+  width: min(680px, 100%);
+}
+
+.clinic-billing-detail-modal {
+  width: min(900px, 100%);
+}
+
+.clinic-billing-detail-body {
+  display: grid;
+  gap: 13px;
+}
+
+.clinic-billing-detail-body > .clinic-subpanel {
+  min-width: 0;
+}
+
+.clinic-billing-detail-body > .clinic-subpanel > .clinic-section-head {
+  margin-bottom: 12px;
+}
+
+.clinic-invoice-summary {
+  border-color: var(--billing-line-strong);
+  background: linear-gradient(140deg, #fbfcf8, #f4f8f3);
+}
+
+.clinic-invoice-summary-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 0 18px;
+}
+
+.clinic-invoice-summary-grid .clinic-info-item {
+  min-width: 0;
+  padding: 11px 8px;
+}
+
+.clinic-invoice-summary-grid .clinic-info-item strong {
+  font: 600 12px "IBM Plex Mono", monospace;
+  overflow-wrap: anywhere;
+}
+
+.clinic-invoice-summary-grid .clinic-info-item:nth-child(4),
+.clinic-invoice-summary-grid .clinic-info-item:nth-child(5) {
+  margin-top: 5px;
+  padding-right: 10px;
+  padding-left: 10px;
+  border: 1px solid #e4e9df;
+  border-radius: 9px;
+  background: #f5f8f2;
+}
+
+.clinic-invoice-summary-grid .clinic-info-item:nth-child(5) {
+  border-color: #e7dfcc;
+  background: #fcf7ed;
+}
+
+.clinic-invoice-summary-grid .clinic-info-item:nth-child(9) {
+  border-top: 1px solid var(--billing-line-strong);
+}
+
+.clinic-invoice-summary-grid .clinic-info-item:nth-child(9) strong {
+  color: var(--clinic-primary-deep);
+  font-size: 14px;
+}
+
+.clinic-payment-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto auto;
+  align-items: center;
+  gap: 10px 14px;
+  min-width: 0;
+  padding: 11px 12px;
+  border: 1px solid #e6ece7;
+  border-radius: 10px;
+  background: #fffefa;
+}
+
+.clinic-payment-row + .clinic-payment-row {
+  margin-top: 8px;
+}
+
+.clinic-payment-row > div {
+  min-width: 0;
+}
+
+.clinic-payment-row > div strong,
+.clinic-payment-row > div span {
+  display: block;
+  overflow-wrap: anywhere;
+}
+
+.clinic-payment-row > div strong,
+.clinic-payment-row > strong {
+  color: var(--clinic-ink);
+  font-size: 11px;
+}
+
+.clinic-payment-row > div span {
+  margin-top: 3px;
+  color: var(--clinic-muted);
+  font-size: 10px;
+  line-height: 1.45;
+}
+
+.clinic-payment-row > strong {
+  font: 600 11px "IBM Plex Mono", monospace;
+  text-align: right;
+}
+
+.clinic-payment-row > .clinic-btn {
+  justify-self: end;
+}
+
+.clinic-invoice-actions {
+  justify-content: flex-start;
+  padding-top: 13px;
+  border-top: 1px solid var(--clinic-line);
+}
+
+.clinic-modal-backdrop {
+  overflow-y: auto;
+  overscroll-behavior: contain;
+}
+
+.clinic-modal {
+  margin: auto;
+}
+
+.clinic-modal-foot .clinic-btn {
+  min-width: 100px;
+}
+
+.clinic-modal :is(input, select, textarea):disabled {
+  background: #f0f3ef;
+  color: #71817c;
+  cursor: not-allowed;
+}
+
+/* Shared record panels rendered inside the existing patient record view. */
+.clinic-patient-record-list {
+  display: grid;
+  gap: 11px;
+  min-width: 0;
+}
+
+.clinic-patient-record-list > .clinic-subpanel {
+  min-width: 0;
+}
+
+.clinic-patient-record-list .clinic-table-wrap {
+  margin-top: 11px;
+}
+
+.clinic-patient-portal-action {
+  justify-content: flex-start;
+  margin-top: 14px;
+  padding-top: 12px;
+  border-top: 1px solid #e8eee8;
+}
+
+.clinic-subpanel .clinic-form-grid {
+  align-items: end;
+}
+
+/* Patient portal: calm, high-contrast groupings without merging payer balances. */
+.clinic-patient-portal {
+  background:
+    radial-gradient(ellipse at 95% 0%, rgba(217, 156, 78, .1), transparent 26rem),
+    var(--clinic-paper);
+}
+
+.clinic-patient-portal .clinic-view {
+  display: grid;
+  gap: 15px;
+  min-width: 0;
+}
+
+.clinic-patient-portal .clinic-view > .clinic-panel,
+.clinic-patient-portal .clinic-view > .clinic-metrics,
+.clinic-patient-portal .clinic-view > .clinic-dashboard-grid {
+  min-width: 0;
+}
+
+.clinic-patient-portal .clinic-metrics {
+  gap: 11px;
+}
+
+.clinic-patient-portal .clinic-metric {
+  background: linear-gradient(145deg, #fffefa, #f7faf6);
+}
+
+.clinic-patient-number {
+  font: 650 17px "IBM Plex Mono", monospace !important;
+  letter-spacing: -.03em;
+  overflow-wrap: anywhere;
+}
+
+.clinic-patient-insurance-card {
+  border-left: 3px solid var(--clinic-primary);
+}
+
+.clinic-patient-invoice {
+  min-width: 0;
+  padding: 17px;
+  border: 1px solid var(--clinic-line);
+  border-radius: 13px;
+  background: linear-gradient(145deg, #fffefa, #fafbf7);
+  transition: border-color .16s ease, box-shadow .16s ease, transform .16s ease;
+}
+
+.clinic-patient-invoice:hover {
+  border-color: #bfd3c8;
+  box-shadow: 0 8px 22px rgba(24, 63, 60, .055);
+  transform: translateY(-1px);
+}
+
+.clinic-patient-invoice + .clinic-patient-invoice {
+  margin-top: 10px;
+}
+
+.clinic-patient-invoice .clinic-section-head {
+  align-items: flex-start;
+}
+
+.clinic-patient-invoice .clinic-section-head h2 {
+  margin: 0;
+  font: 800 16px/1.25 Manrope, sans-serif;
+  letter-spacing: -.025em;
+  overflow-wrap: anywhere;
+}
+
+.clinic-patient-invoice-grid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 8px;
+  min-width: 0;
+}
+
+.clinic-patient-invoice-grid > div {
+  min-width: 0;
+  padding: 11px 12px;
+  border: 1px solid #e6ece7;
+  border-radius: 10px;
+  background: #f8faf6;
+}
+
+.clinic-patient-invoice-grid > div span {
+  display: block;
+  color: var(--clinic-muted);
+  font-size: 10px;
+  font-weight: 650;
+}
+
+.clinic-patient-invoice-grid > div strong {
+  display: block;
+  margin-top: 5px;
+  color: var(--clinic-ink);
+  font: 600 12px "IBM Plex Mono", monospace;
+  overflow-wrap: anywhere;
+}
+
+.clinic-patient-invoice-grid > div:nth-child(3) {
+  border-color: #c9ded3;
+  background: var(--clinic-green-wash);
+}
+
+.clinic-patient-invoice-grid > div:nth-child(3) strong {
+  color: var(--clinic-primary-deep);
+}
+
+.clinic-patient-invoice-grid > div:nth-child(4) {
+  border-color: #e3dded;
+  background: var(--billing-insurance-wash);
+}
+
+.clinic-patient-invoice-grid > div:nth-child(4) strong {
+  color: var(--billing-insurance-ink);
+}
+
+.clinic-patient-invoice > .clinic-patient-invoice-grid + .clinic-patient-claim + .clinic-patient-invoice-grid > div {
+  border-color: #e3dded;
+  background: var(--billing-insurance-wash);
+}
+
+.clinic-patient-invoice > .clinic-patient-invoice-grid + .clinic-patient-claim + .clinic-patient-invoice-grid > div strong {
+  color: var(--billing-insurance-ink);
+}
+
+.clinic-patient-invoice > .clinic-patient-invoice-grid + .clinic-patient-claim + .clinic-patient-invoice-grid > div:nth-child(3) {
+  border-color: #d5cce4;
+}
+
+.clinic-patient-claim {
+  margin: 11px 0 0;
+  padding: 9px 11px;
+  border-left: 2px solid var(--clinic-accent);
+  background: var(--clinic-accent-wash);
+  color: #6f592f;
+  font-size: 11px;
+  overflow-wrap: anywhere;
+}
+
+.clinic-patient-claim strong {
+  color: #554321;
+  font-weight: 700;
+  text-transform: capitalize;
+}
+
+/* Invoice detail shows patient and insurance ledgers as distinct blocks. */
+.clinic-patient-invoice > .clinic-patient-invoice-grid + .clinic-patient-claim + .clinic-patient-invoice-grid {
+  margin-top: 13px;
+  padding-top: 12px;
+  border-top: 1px solid var(--clinic-line);
+}
+
+.clinic-patient-invoice > h3 {
+  margin: 0 0 11px;
+  color: var(--clinic-ink);
+  font: 700 14px Manrope, sans-serif;
+}
+
+.clinic-patient-rx-list {
+  display: grid;
+  gap: 8px;
+  margin-top: 15px;
+}
+
+.clinic-patient-rx-list h4 {
+  margin: 0;
+  color: var(--clinic-primary);
+  font: 700 10px "IBM Plex Mono", monospace;
+  letter-spacing: .08em;
+  text-transform: uppercase;
+}
+
+.clinic-patient-rx {
+  display: grid;
+  gap: 5px;
+  padding: 10px 12px;
+  border: 1px solid #e4ece6;
+  border-radius: 9px;
+  background: #f8faf6;
+}
+
+.clinic-patient-rx strong {
+  color: var(--clinic-ink);
+  font-size: 11px;
+}
+
+.clinic-patient-rx span {
+  color: var(--clinic-muted);
+  font-size: 11px;
+  overflow-wrap: anywhere;
+}
+
+.clinic-patient-portal .clinic-subpanel h3 {
+  margin: 0 0 10px;
+  color: var(--clinic-ink);
+  font: 700 14px Manrope, sans-serif;
+}
+
+.clinic-patient-portal .clinic-back {
+  min-height: 29px;
+  border-radius: 6px;
+}
+
+/* Consistent keyboard access and restrained interactive feedback. */
+.clinic-command-panel :is(button, a, [role="button"], input, select, textarea):focus-visible,
+.clinic-patient-portal :is(button, a, [role="button"], input, select, textarea):focus-visible {
+  outline: 3px solid color-mix(in srgb, var(--clinic-accent) 78%, white);
+  outline-offset: 2px;
+}
+
+.clinic-command-panel .clinic-btn:active,
+.clinic-patient-portal .clinic-btn:active {
+  transform: translateY(1px);
+}
+
+.clinic-command-panel .clinic-btn:disabled,
+.clinic-patient-portal .clinic-btn:disabled {
+  cursor: not-allowed;
+}
+
+.clinic-command-panel [aria-invalid="true"],
+.clinic-patient-portal [aria-invalid="true"] {
+  border-color: var(--clinic-red);
+  box-shadow: 0 0 0 2px rgba(162, 71, 62, .08);
+}
+
+.clinic-command-panel .clinic-form-error,
+.clinic-patient-portal .clinic-form-error {
+  line-height: 1.5;
+}
+
+.clinic-command-panel .clinic-skeleton span,
+.clinic-patient-portal .clinic-skeleton span {
+  min-width: 0;
+}
+
+@media (max-width: 980px) {
+  .clinic-billing-item {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+  }
+
+  .clinic-billing-item-description {
+    grid-column: span 2;
+  }
+
+  .clinic-billing-item-total {
+    grid-column: span 2;
+  }
+
+  .clinic-billing-item > .clinic-btn {
+    justify-self: end;
+  }
+
+  .clinic-insurance-layout {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 760px) {
+  .clinic-billing-metrics {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .clinic-invoice-summary-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .clinic-patient-invoice-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .clinic-command-panel .clinic-table {
+    min-width: 620px;
+  }
+}
+
+@media (max-width: 560px) {
+  .clinic-billing-item {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 9px;
+    padding: 11px;
+  }
+
+  .clinic-billing-item-description,
+  .clinic-billing-item-total {
+    grid-column: 1 / -1;
+  }
+
+  .clinic-billing-item > .clinic-btn {
+    grid-column: 2;
+    justify-self: end;
+  }
+
+  .clinic-billing-total-preview {
+    align-items: flex-start;
+    flex-direction: column;
+    gap: 6px;
+  }
+
+  .clinic-billing-total-preview strong {
+    text-align: left;
+  }
+
+  .clinic-payment-row {
+    grid-template-columns: minmax(0, 1fr) auto;
+  }
+
+  .clinic-payment-row > div {
+    grid-column: 1 / -1;
+  }
+
+  .clinic-payment-row > .clinic-btn {
+    grid-column: 2;
+  }
+
+  .clinic-payment-row > strong {
+    justify-self: start;
+    text-align: left;
+  }
+
+  .clinic-patient-invoice {
+    padding: 13px;
+  }
+
+  .clinic-patient-invoice .clinic-section-head {
+    flex-direction: column;
+  }
+
+  .clinic-patient-invoice .clinic-section-head > .clinic-btn {
+    align-self: flex-start;
+  }
+
+  .clinic-patient-invoice-grid > div {
+    padding: 9px;
+  }
+
+  .clinic-patient-invoice-grid > div strong {
+    font-size: 11px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .clinic-command-panel .clinic-patient-invoice,
+  .clinic-command-panel .clinic-table tbody tr[data-billing-action="view-invoice"],
+  .clinic-patient-portal .clinic-patient-invoice {
+    transition: none;
+  }
+
+  .clinic-command-panel .clinic-patient-invoice:hover,
+  .clinic-patient-portal .clinic-patient-invoice:hover {
+    transform: none;
+  }
+}
+
+@media print {
+  .clinic-modal-backdrop {
+    position: static;
+    display: block;
+    padding: 0;
+    background: transparent;
+    backdrop-filter: none;
+  }
+
+  .clinic-billing-detail-modal {
+    width: 100%;
+    max-height: none;
+    overflow: visible;
+    border: 0;
+    box-shadow: none;
+  }
+
+  .clinic-billing-detail-modal .clinic-close,
+  .clinic-invoice-actions,
+  .clinic-modal-foot {
+    display: none !important;
+  }
+}

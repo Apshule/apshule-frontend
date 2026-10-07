@@ -31,7 +31,7 @@ export async function resolve(specifier, context, nextResolve) {
     ) ||
     (
       specifier === "../db.js" &&
-       /\/src\/routes\/(payments|platform-settings|ncdc-foundation|documents|clinic|clinic-workflows|clinic-pharmacy)\.ts$/u.test(
+       /\/src\/routes\/(payments|platform-settings|ncdc-foundation|documents|clinic|clinic-workflows|clinic-pharmacy|clinic-billing|clinic-billing-shared|clinic-settlements|clinic-patient-portal)\.ts$/u.test(
         context.parentURL ?? "",
       )
     )
@@ -119,6 +119,50 @@ export async function resolve(specifier, context, nextResolve) {
       export function requireRole(...roles) {
         return async (c, next) => {
           if (!roles.includes(c.get("user")?.role)) {
+            return c.json({ error: "FORBIDDEN" }, 403);
+          }
+          await next();
+        };
+      }
+    `);
+  }
+  if (
+    specifier === "../auth.js" &&
+    context.parentURL?.endsWith("/src/routes/clinic-billing.ts")
+  ) {
+    return virtualModule(`
+      export async function hashPassword() { return "test-password-hash"; }
+      export function requireRole(...roles) {
+        return async (c, next) => {
+          if (!roles.includes(c.get("user")?.role)) return c.json({ error: "FORBIDDEN" }, 403);
+          await next();
+        };
+      }
+    `);
+  }
+  if (
+    specifier === "../auth.js" &&
+    context.parentURL?.endsWith("/src/routes/clinic-settlements.ts")
+  ) {
+    return virtualModule(`
+      export function requireRole(...roles) {
+        return async (c, next) => {
+          if (!roles.includes(c.get("user")?.role)) return c.json({ error: "FORBIDDEN" }, 403);
+          await next();
+        };
+      }
+    `);
+  }
+  if (
+    specifier === "../auth.js" &&
+    context.parentURL?.endsWith("/src/routes/clinic-patient-portal.ts")
+  ) {
+    return virtualModule(`
+      export const authMiddleware = async (c, next) => next();
+      export function requireClinicPatient() {
+        return async (c, next) => {
+          const user = c.get("user");
+          if (user?.role !== "patient" || user?.sector !== "clinic") {
             return c.json({ error: "FORBIDDEN" }, 403);
           }
           await next();
@@ -254,6 +298,35 @@ export async function resolve(specifier, context, nextResolve) {
         const value = Number(raw);
         if (!Number.isInteger(value) || value < 1 || value > 250) throw new Error("Invalid limit");
         return value;
+      }
+    `);
+  }
+  if (
+    specifier === "../http.js" &&
+    /\/src\/routes\/(clinic-billing|clinic-settlements|clinic-patient-portal)\.ts$/u.test(context.parentURL ?? "")
+  ) {
+    return virtualModule(`
+      export async function readJson(c) { return c.req.json(); }
+      export function parseLimit(raw, fallback = 100) {
+        if (raw === undefined) return fallback;
+        if (!/^\\\\d+$/u.test(raw)) throw new Error("Invalid limit");
+        const value = Number(raw);
+        if (!Number.isInteger(value) || value < 1 || value > 500) throw new Error("Invalid limit");
+        return value;
+      }
+      export function validEmail(value) {
+        return typeof value === "string" && /^[^\\\\s@]+@[^\\\\s@]+\\\\.[^\\\\s@]+$/u.test(value);
+      }
+    `);
+  }
+  if (
+    specifier === "../email.js" &&
+    context.parentURL?.endsWith("/src/routes/clinic-billing.ts")
+  ) {
+    return virtualModule(`
+      export async function sendEmail() { return true; }
+      export function welcomeEmailTemplate(name, audience, url, appUrl) {
+        return "<p>Welcome " + name + "</p>";
       }
     `);
   }

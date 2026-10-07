@@ -352,6 +352,7 @@ authRoutes.post("/login", async (c) => {
     "nurse",
     "receptionist",
     "pharmacist",
+    "patient",
   ]);
   if (clinicRoles.has(row.role) && row.sector !== "clinic") {
     throw new ApiError(
@@ -373,6 +374,21 @@ authRoutes.post("/login", async (c) => {
           403,
           "CLINIC_ACCESS_NOT_PROVISIONED",
           "This Clinic administrator is not linked to an organization.",
+        );
+      }
+    } else if (row.role === "patient") {
+      const patients = await sql`
+        SELECT id
+        FROM clinic_patients
+        WHERE user_id = ${row.id}
+          AND portal_enabled IS TRUE
+        LIMIT 1
+      `;
+      if (!patients[0]) {
+        throw new ApiError(
+          403,
+          "CLINIC_PATIENT_PORTAL_DISABLED",
+          "Patient portal access has not been enabled for this account.",
         );
       }
     } else if (clinicRoles.has(row.role)) {

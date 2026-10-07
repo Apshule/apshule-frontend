@@ -27,7 +27,8 @@ export type UserRole =
   | "doctor"
   | "nurse"
   | "receptionist"
-  | "pharmacist";
+  | "pharmacist"
+  | "patient";
 
 export interface AuthenticatedUser {
   id: string;

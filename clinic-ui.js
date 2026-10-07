@@ -1,4 +1,6 @@
 import { initClinicPharmacyUI } from "./clinic-pharmacy-ui.js";
+import { initClinicBillingUI } from "./clinic-billing-ui.js";
+import { initClinicPatientPortalUI } from "./clinic-patient-portal-ui.js";
 
 const PHOTO_LIMIT = 200 * 1024;
 const IMAGE_TYPES = new Set(["image/jpeg", "image/png", "image/webp"]);
@@ -8,6 +10,8 @@ const TABS = [
   ["visits", "Visits"],
   ["pharmacy", "Pharmacy"],
   ["prescriptions", "Prescriptions"],
+  ["billing", "Invoices"],
+  ["insurance", "Insurance"],
   ["patient-lookup", "Patient lookup"],
   ["branches", "Branches"],
   ["patients", "Patients"],
@@ -15,10 +19,10 @@ const TABS = [
   ["settings", "Settings"],
 ];
 const ROLE_TABS = {
-  clinic_admin: new Set(["overview", "appointments", "visits", "pharmacy", "prescriptions", "patients", "branches", "staff", "settings"]),
+  clinic_admin: new Set(["overview", "appointments", "visits", "billing", "insurance", "pharmacy", "prescriptions", "patients", "branches", "staff", "settings"]),
   doctor: new Set(["overview", "appointments", "visits", "pharmacy", "prescriptions", "patients"]),
-  nurse: new Set(["overview", "appointments", "visits", "pharmacy", "patients"]),
-  receptionist: new Set(["overview", "appointments", "pharmacy", "patients", "branches"]),
+  nurse: new Set(["overview", "appointments", "visits", "billing", "insurance", "pharmacy", "patients"]),
+  receptionist: new Set(["overview", "appointments", "billing", "insurance", "pharmacy", "patients", "branches"]),
   pharmacist: new Set(["pharmacy", "prescriptions", "patient-lookup"]),
 };
 const PATIENT_FIELDS = [
@@ -103,6 +107,8 @@ export function initClinicUI({ api, getCurrentUser, escapeHtml, notify }) {
     patientDetailTab: "info",
     patientAppointments: [],
     patientVisits: [],
+    patientInvoices: [],
+    patientInsurance: null,
     settings: null,
     selectedPatient: null,
     selectedPatientId: null,
@@ -127,6 +133,7 @@ export function initClinicUI({ api, getCurrentUser, escapeHtml, notify }) {
   const isNurse = () => role() === "nurse";
   const isReceptionist = () => role() === "receptionist";
   const isPharmacist = () => role() === "pharmacist";
+  const isClinicPatient = () => role() === "patient" && state.user?.sector === "clinic";
   const patientName = (patient) => `${patient?.first_name || ""} ${patient?.last_name || ""}`.trim() || "Patient";
   const safeImage = (value) => /^data:image\/(?:jpeg|png|webp);base64,[a-z0-9+/]+=*$/i.test(String(value || "")) ? value : "";
   const empty = "—";
@@ -182,6 +189,21 @@ export function initClinicUI({ api, getCurrentUser, escapeHtml, notify }) {
       await pharmacyUI.loadVisitPrescriptions(visitId);
       frameMarkup();
     },
+  });
+  const patientPortalUI = initClinicPatientPortalUI({
+    api: request,
+    escapeHtml: esc,
+    notify: announce,
+    host: portalHost,
+  });
+  const billingUI = initClinicBillingUI({
+    api: request,
+    getCurrentUser: () => state.user,
+    escapeHtml: esc,
+    notify: announce,
+    host: portalHost,
+    reload: (tab = state.tab) => loadPortal(tab),
+    getPatient: () => state.selectedPatient,
   });
 
   function portalRoot() { return portalHost?.querySelector(".clinic-portal") || null; }
@@ -241,6 +263,10 @@ export function initClinicUI({ api, getCurrentUser, escapeHtml, notify }) {
 
   function frameMarkup() {
     if (!portalHost) return;
+    if (isClinicPatient()) {
+      patientPortalUI.render();
+      return;
+    }
     const allowed = TABS.filter(([key]) => can(key));
     if (!allowed.some(([key]) => key === state.tab)) state.tab = allowed[0]?.[0] || "patients";
     const pharmacistLookup = isPharmacist() && state.tab === "patient-lookup";
@@ -253,7 +279,7 @@ export function initClinicUI({ api, getCurrentUser, escapeHtml, notify }) {
         ${pharmacistLookup ? `<div class="clinic-intro"><div><p class="clinic-eyebrow">Clinic workspace</p><h1>Patient detail access</h1><p>Open an assigned patient profile using its record ID. Patient lists are not available to this role.</p></div></div>` : ""}
         ${allowed.length ? `<nav class="clinic-nav" aria-label="Clinic workspace">${allowed.map(([key, label]) => `<button type="button" data-clinic-tab="${key}" aria-current="${state.tab === key ? "page" : "false"}">${esc(label)}</button>`).join("")}</nav>` : ""}
         <main class="clinic-view">${pharmacistLookup ? lookupView() : portalView()}</main>
-        <div class="clinic-modal-slot">${modalMarkup()}${pharmacyUI.renderModal()}</div>
+          <div class="clinic-modal-slot">${modalMarkup()}${pharmacyUI.renderModal()}${billingUI.renderModal()}</div>
       </div>
     </section>`;
     const portal = portalRoot();
@@ -272,6 +298,8 @@ export function initClinicUI({ api, getCurrentUser, escapeHtml, notify }) {
     let desc = "The day's schedule and care, at a glance.";
     if (state.tab === "appointments") { title = "Appointments"; desc = "Coordinate arrivals and keep today's schedule moving."; }
     if (state.tab === "visits") { title = "Clinical visits"; desc = "Review visit notes and continue active care."; }
+    if (state.tab === "billing") { title = "Billing"; desc = "Manage invoices, payments, and clinic services."; }
+    if (state.tab === "insurance") { title = "Insurance providers"; desc = "Maintain insurer details and patient coverage."; }
     if (state.tab === "pharmacy") {
       title = "Pharmacy";
       desc = isAdmin() || isPharmacist()
@@ -294,6 +322,7 @@ export function initClinicUI({ api, getCurrentUser, escapeHtml, notify }) {
     if (state.tab === "appointments") return appointmentsView();
     if (state.tab === "visits") return state.selectedVisit ? visitDetail() : visitsView();
     if (state.tab === "pharmacy" || state.tab === "prescriptions") return pharmacyUI.renderTab(state.tab);
+    if (["billing", "insurance"].includes(state.tab)) return billingUI.renderTab(state.tab);
     if (state.tab === "patient-lookup") return lookupView();
     if (state.tab === "patients") return state.selectedPatientId ? patientDetail() : patientList();
     if (state.tab === "branches") return branchList();
@@ -455,12 +484,13 @@ export function initClinicUI({ api, getCurrentUser, escapeHtml, notify }) {
         <div><h2>${esc(patientName(patient))}</h2><p>${text(patient, "patient_number")} · Record created ${dateLabel(patient.created_at)}</p></div></div></div>
         <div class="clinic-actions">${isDoctor() && patient.status === "active" ? `<button type="button" class="clinic-btn" data-clinic-action="start-walk-in">Start walk-in visit</button>` : ""}${canEdit ? `<button type="button" class="clinic-btn" data-clinic-action="edit-patient" data-id="${esc(patient.id)}">Edit record</button>` : ""}${isAdmin() ? `<button type="button" class="clinic-btn clinic-btn--danger" data-clinic-action="delete-patient" data-id="${esc(patient.id)}">Deactivate</button>` : ""}</div>
       </div>
-      ${role() !== "pharmacist" ? `<nav class="clinic-patient-tabs" aria-label="Patient record sections">${[["info","Info"],["appointments","Appointments"],...(can("visits")?[["visits","Visits"]]:[]),...(can("prescriptions")?[["prescriptions","Prescriptions"]]:[]),["invoices","Invoices (Phase 4C)"]].map(([key,label])=>key==="invoices"?`<button type="button" disabled aria-disabled="true" title="Not available in this phase">${esc(label)}</button>`:`<button type="button" data-clinic-action="patient-section" data-section="${key}" aria-current="${state.patientDetailTab===key?"page":"false"}">${esc(label)}</button>`).join("")}</nav>` : ""}
+      ${role() !== "pharmacist" ? `<nav class="clinic-patient-tabs" aria-label="Patient record sections">${[["info","Info"],["appointments","Appointments"],...(can("visits")?[["visits","Visits"]]:[]),...(can("prescriptions")?[["prescriptions","Prescriptions"]]:[]),...(can("billing")?[["invoices","Invoices"],["insurance","Insurance"]]:[])].map(([key,label])=>`<button type="button" data-clinic-action="patient-section" data-section="${key}" aria-current="${state.patientDetailTab===key?"page":"false"}">${esc(label)}</button>`).join("")}</nav>` : ""}
       ${state.patientDetailTab==="info" ? `<article class="clinic-subpanel"><h3>Patient information</h3><div class="clinic-info-grid">${fields.map(([label, val]) => `<div class="clinic-info-item"><span>${esc(label)}</span><strong>${val == null || val === "" ? empty : esc(val)}</strong></div>`).join("")}</div></article>` :
         state.patientDetailTab==="appointments" ? `<article class="clinic-subpanel"><h3>Appointments</h3>${state.patientAppointments.length?`<div class="clinic-appointment-list">${state.patientAppointments.slice().sort((a,b)=>new Date(a.scheduled_for)-new Date(b.scheduled_for)).map((a)=>`<article class="clinic-appointment-row"><div class="clinic-time">${dateLabel(a.scheduled_for)}<strong>${timeLabel(a.scheduled_for)}</strong></div><div class="clinic-appointment-person"><strong>${text(a,"reason","Appointment")}</strong><span>${text(a,"doctor_name")} · ${text(a,"branch_name")}</span></div><span class="clinic-status ${statusClass(a.status)}">${esc(statusLabel(a.status))}</span></article>`).join("")}</div>`:`<div class="clinic-empty-note">No appointments are recorded for this patient.</div>`}</article>` :
         state.patientDetailTab==="visits" ? `<article class="clinic-subpanel"><h3>Visits</h3>${state.patientVisits.length?`<div class="clinic-visit-list">${state.patientVisits.slice().sort((a,b)=>new Date(b.visit_started_at)-new Date(a.visit_started_at)).map((v)=>`<article class="clinic-visit-row"><div class="clinic-visit-date">${dateLabel(v.visit_started_at)}</div><div class="clinic-appointment-person"><strong>${text(v,"chief_complaint","Clinical visit")}</strong><span>${text(v,"doctor_name")} · ${text(v,"visit_number")}</span></div><span class="clinic-status ${statusClass(v.status)}">${esc(statusLabel(v.status))}</span><button class="clinic-btn clinic-btn--quiet clinic-btn--small" type="button" data-clinic-action="open-visit" data-id="${esc(v.id)}">Open visit</button></article>`).join("")}</div>`:`<div class="clinic-empty-note">No visits are recorded for this patient.</div>`}</article>` :
         state.patientDetailTab==="prescriptions" ? pharmacyUI.renderPatientPrescriptionSection(state.selectedPatientId) :
-        `<article class="clinic-subpanel clinic-deferred"><h3>Invoices</h3><p>Invoices are deferred to Phase 4C.</p></article>`}
+        state.patientDetailTab==="invoices" ? billingUI.renderPatientInvoices(state.selectedPatient, state.patientInvoices) :
+        state.patientDetailTab==="insurance" ? billingUI.renderPatientInsurance(state.selectedPatient, state.patientInsurance) : ""}
     </section>`;
   }
 
@@ -639,6 +669,13 @@ export function initClinicUI({ api, getCurrentUser, escapeHtml, notify }) {
           if (state.patientDetailTab === "prescriptions" && can("prescriptions")) {
             await pharmacyUI.loadPatientPrescriptions(state.selectedPatientId);
           }
+          if (state.patientDetailTab === "invoices" && can("billing")) {
+            const records = await request(`/api/clinic/invoices?${queryString({ patient_id: state.selectedPatientId })}`);
+            state.patientInvoices = Array.isArray(records.invoices) ? records.invoices : [];
+          }
+          if (state.patientDetailTab === "insurance" && can("billing")) {
+            state.patientInsurance = await request(`/api/clinic/patients/${encodeURIComponent(state.selectedPatientId)}/insurance`);
+          }
         } else {
           const params = new URLSearchParams();
           if (state.search) params.set("search", state.search);
@@ -660,6 +697,8 @@ export function initClinicUI({ api, getCurrentUser, escapeHtml, notify }) {
       } else if (tab === "settings") {
         const payload = await request("/api/clinic/settings");
         state.settings = payload.settings || {};
+      } else if (tab === "billing" || tab === "insurance") {
+        await billingUI.loadTab(tab);
       } else if (tab === "pharmacy" || tab === "prescriptions") {
         await pharmacyUI.loadTab(tab);
       }
@@ -999,6 +1038,17 @@ export function initClinicUI({ api, getCurrentUser, escapeHtml, notify }) {
       state.patientDetailTab = actionNode.dataset.section;
       void loadPortal("patients");
     }
+    if (action === "patient-new-invoice" && can("billing") && state.selectedPatient) {
+      billingUI.openInvoiceForPatient(state.selectedPatient);
+      state.tab = "billing";
+      state.selectedPatient = null;
+      state.selectedPatientId = null;
+      void loadPortal("billing");
+    }
+    if (action === "patient-create-portal" && (isAdmin() || isReceptionist()) && state.selectedPatient) {
+      billingUI.openPortalAccess(state.selectedPatient);
+      frameMarkup();
+    }
     if (action === "new-appointment" && canBookAppointment()) {
       state.modal = { type: "appointment" };
       frameMarkup();
@@ -1238,6 +1288,7 @@ export function initClinicUI({ api, getCurrentUser, escapeHtml, notify }) {
     state.loading = false;
     if (!state.user || previousUserId !== state.user.id || previousRole !== role()) {
       await pharmacyUI.resetForUser();
+      billingUI.reset();
       state.patients = [];
       state.branches = [];
       state.staff = [];
@@ -1258,16 +1309,28 @@ export function initClinicUI({ api, getCurrentUser, escapeHtml, notify }) {
       state.patientDetailTab = "info";
       state.patientAppointments = [];
       state.patientVisits = [];
+      state.patientInvoices = [];
+      state.patientInsurance = null;
       state.bookingPatients = [];
       state.command = { organizations: [], stats: null, loading: false, error: "", creating: false, saving: false };
     }
+    if (isClinicPatient()) {
+      await pharmacyUI.resetForUser();
+      await patientPortalUI.setUser(state.user);
+      return;
+    }
+    await patientPortalUI.setUser(null);
     frameMarkup();
     if (state.user && can(state.tab)) await loadPortal(state.tab);
   }
 
   if (portalHost) {
-    frameMarkup();
-    if (state.user && can(state.tab)) {
+    if (isClinicPatient()) {
+      void patientPortalUI.setUser(state.user);
+    } else {
+      frameMarkup();
+    }
+    if (!isClinicPatient() && state.user && can(state.tab)) {
       state.tab = TABS.find(([key]) => can(key))?.[0] || "patients";
       void loadPortal(state.tab);
     }
