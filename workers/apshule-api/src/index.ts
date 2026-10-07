@@ -32,6 +32,7 @@ import mfiLoanActionsRoutes from "./routes/mfi-loan-actions.js";
 import mfiCustomerPortalRoutes from "./routes/mfi-customer-portal.js";
 import clinicRoutes from "./routes/clinic.js";
 import clinicPatientPortalRoutes from "./routes/clinic-patient-portal.js";
+import farmRoutes from "./routes/farm.js";
 import documentRoutes from "./routes/documents.js";
 import type { AppEnv, Env } from "./types.js";
 
@@ -153,6 +154,7 @@ app.route("/api", mfiLoanActionsRoutes);
 app.route("/api", mfiCustomerPortalRoutes);
 app.route("/api", clinicRoutes);
 app.route("/api", clinicPatientPortalRoutes);
+app.route("/api/farm", farmRoutes);
 app.route("/api/yopayments", paymentsRoutes);
 app.route("/api/superadmin/platform-settings", platformSettingsRoutes);
 app.route("/api/subscription-plans", subscriptionPlansRoutes);

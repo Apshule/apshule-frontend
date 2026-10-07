@@ -15,6 +15,7 @@
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
     <link rel="stylesheet" href="./mfi-ui.css">
     <link rel="stylesheet" href="./clinic-ui.css">
+    <link rel="stylesheet" href="./farm-ui.css">
     <link rel="stylesheet" href="./clinic-billing-ui.css">
     <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
@@ -313,6 +314,16 @@
         .is-clinic-portal .main-content > .page:not(#clinicPortalPage) { display: none !important; }
         .is-clinic-portal .main-content > #clinicPortalPage.active-page { display: block !important; }
         .is-clinic-portal .bottom-nav { display: none; }
+        .app-container.is-farm-portal { max-width: none; min-height: 100dvh; padding-bottom: 0; background: #f6f5ee; color: #283b30; }
+        .is-farm-portal .header { padding: 10px clamp(14px, 3vw, 42px); background: #f6f5ee; box-shadow: none; }
+        .is-farm-portal .header-left { display: none; }
+        .is-farm-portal .header-right .ai-icon-btn { display: none; }
+        .is-farm-portal .more-menu-btn { background: #386b56; }
+        .is-farm-portal .more-menu-btn i { color: #fffefa; }
+        .is-farm-portal .main-content { max-width: none; margin: 0 auto; padding: 0; }
+        .is-farm-portal .main-content > .page:not(#farmPortalPage) { display: none !important; }
+        .is-farm-portal .main-content > #farmPortalPage.active-page { display: block !important; }
+        .is-farm-portal .bottom-nav { display: none; }
         .command-center { max-width: 1328px; margin: 0 auto; animation: ccEnter .32s ease both; }
         @keyframes ccEnter { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: translateY(0); } }
         .cc-heading { display:flex; align-items:flex-end; justify-content:space-between; gap:20px; margin: 0 0 22px; }
@@ -984,7 +995,7 @@
                 <option value="education">🏫 Education</option>
                 <option value="mfi" disabled>💰 Microfinance (staff accounts by invitation)</option>
                 <option value="clinic">🏥 Clinic &amp; Pharmacy (staff accounts by invitation)</option>
-                <option value="farm">🌾 Farming (coming soon)</option>
+                <option value="farm">🌾 Farming (invite only)</option>
             </select>
             <p id="clinicSignupNotice" hidden role="status" style="margin:0 0 14px;padding:10px 12px;border:1px solid #b9dfc9;border-radius:12px;background:#e8f5ee;color:#176b48;font-size:13px;">Clinic accounts are provisioned by a clinic administrator. You cannot create one through public sign-up.</p>
             <select id="signupRole" class="login-input" aria-label="Sign up as">
@@ -1113,6 +1124,7 @@
             <div id="mfiDashboard"></div>
         </section>
         <section id="clinicPortalPage" class="page" aria-label="Clinic workspace"></section>
+        <section id="farmPortalPage" class="page" aria-label="Farm workspace"><div id="farmDashboard"></div></section>
         <section id="commandCenter" class="command-center hidden" aria-label="APSHULE Command Center">
             <div class="cc-heading">
                 <div><div class="cc-eyebrow">APSHULE · PLATFORM OPERATIONS</div><h1>Command Center</h1><p>A cross-sector view of learning and the communities around it.</p></div>
@@ -1937,6 +1949,7 @@
     import { initRetoolingUI } from "./retooling-ui.js";
     import { initMfiUI } from "./mfi-ui.js";
     import { initClinicUI } from "./clinic-ui.js";
+    import { initFarmUI } from "./farm-ui.js";
     import { createOfflineDataLayer } from "./offline-data.js";
 
     const API_BASE = "https://apshule-api.apshule-migration.workers.dev";
@@ -1998,8 +2011,10 @@
     let profileUI = null;
     let mfiUI = null;
     let clinicUI = null;
+    let farmUI = null;
     const MFI_USER_ROLES = new Set(["mfi_admin", "loan_officer", "loan_manager", "loan_director", "borrower"]);
     const CLINIC_USER_ROLES = new Set(["clinic_admin", "doctor", "nurse", "receptionist", "pharmacist"]);
+    const FARM_USER_ROLES = new Set(["farm_admin", "farm_manager", "farm_worker"]);
     let siteBrandLogo = document.getElementById('headerLogoImg')?.src || '';
     let commandCenterUsers = [];
     let commandCenterUserQuery = '';
@@ -4224,7 +4239,30 @@
         const appScreen = document.getElementById('appScreen');
         appScreen.classList.remove('is-clinic-portal');
         document.getElementById('clinicPortalPage')?.classList.remove('active-page');
+        appScreen.classList.remove('is-farm-portal');
+        document.getElementById('farmPortalPage')?.classList.remove('active-page');
+        const isFarmAccount = FARM_USER_ROLES.has(String(currentUser?.role || "").toLowerCase());
+        if (isFarmAccount) {
+            void mfiUI?.setUser(null);
+            void clinicUI?.setUser(null);
+            await offlineData.saveSession(currentUser);
+            document.getElementById('adminMenuItem').style.display = "none";
+            document.getElementById('attendanceMenuItem').style.display = "none";
+            document.getElementById('commandCenter').classList.add('hidden');
+            appScreen.classList.remove('is-command-center', 'is-mfi-portal', 'is-clinic-portal');
+            appScreen.classList.add('is-farm-portal');
+            document.getElementById('mfiPortalPage')?.classList.remove('active-page');
+            document.getElementById('clinicPortalPage')?.classList.remove('active-page');
+            document.getElementById('farmPortalPage')?.classList.add('active-page');
+            document.getElementById('loginScreen').classList.add('hidden');
+            appScreen.classList.remove('hidden');
+            document.getElementById('moreDropdown')?.classList.remove('show');
+            updateGreeting();
+            await farmUI?.setUser(currentUser);
+            return;
+        }
         if (isMfiAccount) {
+            void farmUI?.setUser(null);
             void clinicUI?.setUser(null);
             await offlineData.saveSession(currentUser);
             document.getElementById('adminMenuItem').style.display = "none";
@@ -4242,6 +4280,7 @@
         }
         const isClinicAccount = CLINIC_USER_ROLES.has(String(currentUser?.role || "").toLowerCase());
         if (isClinicAccount) {
+            void farmUI?.setUser(null);
             await offlineData.saveSession(currentUser);
             document.getElementById('adminMenuItem').style.display = "none";
             document.getElementById('attendanceMenuItem').style.display = "none";
@@ -4260,6 +4299,8 @@
         document.getElementById('appScreen').classList.remove('is-mfi-portal');
         document.getElementById('appScreen').classList.remove('is-clinic-portal');
         document.getElementById('clinicPortalPage')?.classList.remove('active-page');
+        document.getElementById('appScreen').classList.remove('is-farm-portal');
+        document.getElementById('farmPortalPage')?.classList.remove('active-page');
         await offlineData.saveSession(currentUser);
         const shownUserId = String(currentUser.id);
         await migrateLegacyVideoViews(shownUserId);
@@ -5844,7 +5885,7 @@
         Object.entries(viewIds).forEach(([key, id]) => document.getElementById(id)?.classList.toggle('active', key === tab));
         if (tab === 'mfi') void mfiUI?.loadCommandCenter();
         else if (tab === 'clinic') void clinicUI?.loadCommandCenter();
-        else if (tab === 'farm') loadSectorWaitlist(tab);
+        else if (tab === 'farm') void farmUI?.loadCommandCenter();
         if (tab === 'ncdc') loadNcdcDashboard();
         if (tab === 'education' && currentUser?.role === 'superadmin') {
             void loadCcEarningsRate();
@@ -5872,9 +5913,11 @@
         await profileUI?.setUser(null);
         await mfiUI?.setUser(null);
         await clinicUI?.setUser(null);
-        document.getElementById('appScreen').classList.remove('is-mfi-portal', 'is-clinic-portal');
+        await farmUI?.setUser(null);
+        document.getElementById('appScreen').classList.remove('is-mfi-portal', 'is-clinic-portal', 'is-farm-portal');
         document.getElementById('mfiPortalPage')?.classList.remove('active-page');
         document.getElementById('clinicPortalPage')?.classList.remove('active-page');
+        document.getElementById('farmPortalPage')?.classList.remove('active-page');
         initializeTeacherDashboard(null);
         sessionStorage.removeItem(IMPERSONATION_TOKEN_KEY);
         sessionStorage.removeItem(ORIGINAL_SUPERADMIN_TOKEN_KEY);
@@ -5944,6 +5987,12 @@
             escapeHtml,
         });
         clinicUI = initClinicUI({
+            api,
+            getCurrentUser: () => currentUser,
+            notify: showNotification,
+            escapeHtml,
+        });
+        farmUI = initFarmUI({
             api,
             getCurrentUser: () => currentUser,
             notify: showNotification,

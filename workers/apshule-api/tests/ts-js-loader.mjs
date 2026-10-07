@@ -31,12 +31,49 @@ export async function resolve(specifier, context, nextResolve) {
     ) ||
     (
       specifier === "../db.js" &&
-       /\/src\/routes\/(payments|platform-settings|ncdc-foundation|documents|clinic|clinic-workflows|clinic-pharmacy|clinic-billing|clinic-billing-shared|clinic-settlements|clinic-patient-portal)\.ts$/u.test(
+       /\/src\/routes\/(payments|platform-settings|ncdc-foundation|documents|clinic|clinic-workflows|clinic-pharmacy|clinic-billing|clinic-billing-shared|clinic-settlements|clinic-patient-portal|farm)\.ts$/u.test(
         context.parentURL ?? "",
       )
     )
   ) {
     return virtualModule(dbStub);
+  }
+  if (
+    specifier === "../auth.js" &&
+    context.parentURL?.endsWith("/src/routes/farm.ts")
+  ) {
+    return virtualModule(`
+      export const authMiddleware = async (c, next) => {
+        if (c.req.header("authorization") !== "Bearer test-token") {
+          return c.json({ error: "UNAUTHORIZED" }, 401);
+        }
+        c.set("user", {
+          id: "00000000-0000-4000-8000-000000000123",
+          name: "Farm test user",
+          email: "farm-test@example.test",
+          role: c.req.header("x-test-role") || "farm_admin",
+          sector: c.req.header("x-test-sector") || "farm",
+          impersonatedBy: c.req.header("x-test-impersonated") || null
+        });
+        await next();
+      };
+      export async function hashPassword() { return "test-password-hash"; }
+      export function requireRole(...roles) {
+        return async (c, next) => {
+          if (!roles.includes(c.get("user")?.role)) return c.json({ error: "FORBIDDEN" }, 403);
+          await next();
+        };
+      }
+      export function requireRealSuperAdmin() {
+        return async (c, next) => {
+          const user = c.get("user");
+          if (user.role !== "superadmin" || user.impersonatedBy) {
+            return c.json({ error: "FORBIDDEN" }, 403);
+          }
+          await next();
+        };
+      }
+    `);
   }
   if (
     specifier === "../auth.js" &&
@@ -316,6 +353,17 @@ export async function resolve(specifier, context, nextResolve) {
       }
       export function validEmail(value) {
         return typeof value === "string" && /^[^\\\\s@]+@[^\\\\s@]+\\\\.[^\\\\s@]+$/u.test(value);
+      }
+    `);
+  }
+  if (
+    specifier === "../email.js" &&
+    context.parentURL?.endsWith("/src/routes/farm.ts")
+  ) {
+    return virtualModule(`
+      export async function sendEmail() { return true; }
+      export function welcomeEmailTemplate(name, audience) {
+        return "<p>Welcome " + name + " " + audience + "</p>";
       }
     `);
   }

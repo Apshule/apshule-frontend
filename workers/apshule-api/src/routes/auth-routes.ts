@@ -166,6 +166,13 @@ authRoutes.post("/signup", async (c) => {
       "Clinic accounts are created by a clinic administrator.",
     );
   }
+  if (sector === "farm") {
+    throw new ApiError(
+      403,
+      "FARM_INVITE_ONLY",
+      "Farm accounts are created by a Super Admin or farm administrator.",
+    );
+  }
   const isEducation = sector === "education";
   const roleValue = body.role === undefined
     ? "individual"
@@ -412,6 +419,52 @@ authRoutes.post("/login", async (c) => {
         "CLINIC_ACCESS_NOT_PROVISIONED",
         "Clinic accounts are created by a clinic administrator.",
       );
+    }
+  }
+  const farmRoles = new Set(["farm_admin", "farm_manager", "farm_worker"]);
+  if (farmRoles.has(row.role) && row.sector !== "farm") {
+    throw new ApiError(
+      403,
+      "FARM_SECTOR_REQUIRED",
+      "This account must sign in through the Farm sector.",
+    );
+  }
+  if (row.sector === "farm" && row.role !== "superadmin") {
+    if (row.waitlist || !farmRoles.has(row.role)) {
+      throw new ApiError(
+        403,
+        "FARM_ACCESS_NOT_PROVISIONED",
+        "Farm accounts are created by a Super Admin or farm administrator.",
+      );
+    }
+    if (row.role === "farm_admin") {
+      const organizations = await sql`
+        SELECT id FROM farm_organizations
+        WHERE created_by = ${row.id}
+        LIMIT 1
+      `;
+      if (!organizations[0]) {
+        throw new ApiError(
+          403,
+          "FARM_ACCESS_NOT_PROVISIONED",
+          "This Farm administrator is not linked to an organization.",
+        );
+      }
+    } else {
+      const workers = await sql`
+        SELECT id FROM farm_workers
+        WHERE user_id = ${row.id}
+          AND role = ${row.role}
+          AND active IS TRUE
+        LIMIT 1
+      `;
+      if (!workers[0]) {
+        throw new ApiError(
+          403,
+          "FARM_ACCESS_NOT_PROVISIONED",
+          "This Farm staff account is inactive or is not linked to an organization.",
+        );
+      }
     }
   }
 
