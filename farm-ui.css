@@ -395,3 +395,88 @@
   .farm-worker-shift-card > div { min-height: 65px; }
   .farm-face-actions > .farm-btn { flex: 1 1 100%; }
 }
+
+.farm-commerce-dashboard { display: grid; gap: 14px; margin-top: 18px; }
+.farm-commerce-metrics { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 9px; }
+.farm-commerce-metric { display: grid; align-content: start; gap: 7px; min-width: 0; min-height: 92px; padding: 13px 15px; border: 1px solid var(--farm-line); border-radius: 12px; background: var(--farm-card); }
+.farm-commerce-metric > span,.farm-commerce-metric > small { color: var(--farm-muted); font-size: 9px; }
+.farm-commerce-metric > strong { overflow-wrap: anywhere; color: var(--farm-green-deep); font: 800 clamp(17px, 2vw, 24px)/1.1 Manrope, sans-serif; letter-spacing: -.035em; }
+.farm-commerce-dashboard-grid,.farm-commerce-split { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; }
+.farm-commerce-dashboard-grid .farm-panel,.farm-commerce-split .farm-panel { min-width: 0; }
+.farm-commerce-queue,.farm-commerce-reminders { display: grid; gap: 7px; }
+.farm-commerce-queue button,.farm-commerce-reminders > div { display: flex; align-items: center; justify-content: space-between; gap: 12px; min-height: 43px; padding: 8px 11px; border: 1px solid #e8eee3; border-radius: 8px; background: #fbfcf8; color: var(--farm-ink); text-align: left; }
+.farm-commerce-queue button:hover { border-color: #bfd1bb; background: #f2f7ee; }
+.farm-commerce-queue button span,.farm-commerce-reminders span { font-size: 10px; }
+.farm-commerce-queue button strong,.farm-commerce-reminders strong { color: var(--farm-green); font: 800 15px Manrope, sans-serif; }
+.farm-commerce-low-stock { padding: 17px; border: 1px solid var(--farm-line); border-radius: 12px; background: var(--farm-card); }
+.farm-commerce-low-stock h3,.farm-commerce-split h3,.farm-commerce-subhead { margin: 0 0 12px; color: var(--farm-ink); font: 750 14px Manrope, sans-serif; }
+.farm-commerce-low { display: inline-block; margin-left: 4px; padding: 3px 5px; border-radius: 4px; background: #fff1d9; color: #94620c; font-size: 8px; font-weight: 700; }
+.farm-commerce-status { display: inline-flex; width: fit-content; padding: 4px 7px; border-radius: 999px; background: #eef1ea; color: #687269; font-size: 8px; font-weight: 700; line-height: 1.2; text-transform: capitalize; white-space: nowrap; }
+.farm-commerce-status.status-pending_owner_review,.farm-commerce-status.status-payment_confirmed,.farm-commerce-status.status-release_authorized { background: #fff1d9; color: #805b17; }
+.farm-commerce-status.status-released,.farm-commerce-status.status-closed,.farm-commerce-status.status-active,.farm-commerce-status.status-online { background: #e7f3e7; color: #2f7044; }
+.farm-commerce-status.status-rejected,.farm-commerce-status.status-cancelled,.farm-commerce-status.status-inactive,.farm-commerce-status.status-offline { background: #fbe9e5; color: #9e443b; }
+.farm-commerce-toolbar { display: flex; flex-wrap: wrap; align-items: end; gap: 9px; margin: 0 0 14px; padding: 12px; border: 1px solid var(--farm-line); border-radius: 10px; background: #fafbf7; }
+.farm-commerce-toolbar form { display: flex; flex: 1 1 400px; align-items: end; gap: 9px; }
+.farm-commerce-toolbar .farm-field { min-width: 150px; margin: 0; }
+.farm-commerce-toolbar .farm-btn { min-height: 36px; }
+.farm-commerce-inline-note { color: var(--farm-muted); font-size: 10px; line-height: 1.55; }
+.farm-commerce-loading { padding: 20px 8px; color: var(--farm-muted); font-size: 11px; }
+.farm-commerce-sale-line { display: grid; grid-template-columns: minmax(150px, 1.7fr) minmax(105px, .7fr) minmax(140px, 1fr) auto; align-items: end; gap: 9px; padding: 10px; border: 1px solid var(--farm-line); border-radius: 9px; background: #fbfcf8; }
+.farm-commerce-sale-lines { display: grid; gap: 8px; }
+.farm-commerce-sale-form { gap: 12px; }
+.farm-commerce-sale-detail { display: grid; gap: 12px; }
+.farm-commerce-sale-detail h3 { margin: 2px 0 0; color: var(--farm-ink); font: 750 14px Manrope, sans-serif; }
+.farm-commerce-detail-grid { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 9px; }
+.farm-commerce-detail-grid > div { display: grid; gap: 6px; min-width: 0; padding: 10px; border: 1px solid var(--farm-line); border-radius: 8px; background: #fafbf7; }
+.farm-commerce-detail-grid small { color: var(--farm-muted); font-size: 8px; text-transform: uppercase; }
+.farm-commerce-detail-grid strong { overflow-wrap: anywhere; color: var(--farm-ink); font-size: 10px; }
+.farm-commerce-rejection { padding: 10px 12px; border-radius: 8px; background: #fff3f0; color: #9e443b; font-size: 10px; }
+.farm-commerce-actions { justify-content: flex-start; }
+.farm-commerce-muted { color: var(--farm-muted); font-size: 11px; }
+.farm-commerce-report-metrics { grid-template-columns: repeat(4, minmax(0, 1fr)); margin: 12px 0 16px; }
+.farm-report-tabs { display: flex; gap: 5px; overflow-x: auto; margin: 0 0 12px; border-bottom: 1px solid var(--farm-line); }
+.farm-report-tabs button { padding: 9px 12px; border: 0; border-bottom: 2px solid transparent; background: transparent; color: var(--farm-muted); font-size: 10px; font-weight: 700; white-space: nowrap; }
+.farm-report-tabs button.is-active { border-color: var(--farm-green); color: var(--farm-green-deep); }
+.farm-report-filters { margin-bottom: 12px; }
+.farm-chart-panel { min-height: 260px; }
+.farm-chart-panel canvas { width: 100%; height: 205px; }
+.farm-worker-commercial-actions { display: flex; align-items: center; justify-content: space-between; gap: 14px; margin: 14px 0; padding: 16px; border: 1px solid #dfe9d9; border-radius: 12px; background: #f7faf3; }
+.farm-worker-commercial-actions h3 { margin: 0; color: var(--farm-ink); font: 750 14px Manrope, sans-serif; }
+.farm-worker-commercial-actions p:not(.farm-overline) { margin: 4px 0 0; color: var(--farm-muted); font-size: 10px; }
+.farm-worker-commercial-actions > div:last-child { display: flex; flex-wrap: wrap; gap: 8px; }
+.farm-worker-sale-list { display: grid; gap: 8px; }
+.farm-worker-sale-list article { display: grid; grid-template-columns: 1fr auto auto; align-items: center; gap: 12px; padding: 11px; border: 1px solid var(--farm-line); border-radius: 9px; }
+.farm-worker-sale-list article > div { display: grid; gap: 5px; }
+.farm-worker-sale-list article > div > strong { color: var(--farm-ink); font-size: 11px; }
+.farm-worker-sale-list article small { color: var(--farm-muted); font-size: 9px; }
+.farm-worker-sale-list article > div:nth-child(2) { justify-items: end; }
+.farm-worker-sale-authorized { display: flex !important; align-items: flex-start !important; justify-content: space-between; gap: 18px !important; padding: 18px !important; border: 2px solid #a9d3a5 !important; border-radius: 14px !important; background: linear-gradient(120deg, #eff9ed, #f8fcf5) !important; box-shadow: 0 5px 16px rgba(46, 107, 57, .08); }
+.farm-worker-sale-authorized > div:first-child { display: grid; gap: 7px; }
+.farm-worker-sale-authorized h3 { margin: 0; color: #265d37; font: 800 16px/1.3 Manrope, sans-serif; }
+.farm-worker-sale-authorized p { margin: 0; color: #3b5f40; font-size: 10px; }
+.farm-worker-sale-authorized small { color: #667568; font-size: 9px; }
+.farm-worker-authorized-actions { display: flex; flex-wrap: wrap; align-items: center; justify-content: flex-end; gap: 8px; }
+.farm-worker-authorized-actions .farm-btn { min-height: 38px; }
+.farm-commerce-dashboard .farm-section-line { margin-top: 3px; }
+
+@media (max-width: 900px) {
+  .farm-commerce-metrics,.farm-commerce-report-metrics { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .farm-commerce-dashboard-grid,.farm-commerce-split { grid-template-columns: 1fr; }
+  .farm-commerce-detail-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}
+@media (max-width: 560px) {
+  .farm-commerce-metric { min-height: 82px; padding: 10px; }
+  .farm-commerce-toolbar,.farm-commerce-toolbar form { align-items: stretch; flex-direction: column; }
+  .farm-commerce-toolbar .farm-field { min-width: 0; }
+  .farm-commerce-toolbar .farm-btn { width: 100%; }
+  .farm-commerce-sale-line { grid-template-columns: 1fr 1fr; }
+  .farm-commerce-sale-line .farm-field:first-child { grid-column: 1 / -1; }
+  .farm-commerce-sale-line > button { grid-column: 1 / -1; }
+  .farm-worker-commercial-actions { align-items: stretch; flex-direction: column; }
+  .farm-worker-commercial-actions > div:last-child { display: grid; grid-template-columns: 1fr 1fr; }
+  .farm-worker-sale-list article { grid-template-columns: 1fr auto; }
+  .farm-worker-sale-list article > button { grid-column: 1 / -1; width: 100%; }
+  .farm-worker-sale-authorized { flex-direction: column; }
+  .farm-worker-authorized-actions { display: grid; width: 100%; grid-template-columns: 1fr; }
+  .farm-commerce-detail-grid { gap: 6px; }
+}

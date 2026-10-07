@@ -1,4 +1,5 @@
 import { initFarmOperationsUI } from "./farm-operations-ui.js";
+import { initFarmCommerceUI } from "./farm-commerce-ui.js";
 
 const PHOTO_LIMIT = 200 * 1024;
 const IMAGE_TYPES = new Set(["image/jpeg", "image/png", "image/webp"]);
@@ -6,13 +7,17 @@ const FARM_TABS = [
   ["dashboard", "Dashboard"],
   ["locations", "Locations"],
   ["animals", "Animals"],
-  ["workers", "Workers"],
   ["eggs", "Eggs"],
+  ["produce", "Produce"],
+  ["sales", "Sales"],
+  ["expenses", "Expenses"],
+  ["cameras", "Cameras"],
+  ["workers", "Workers"],
   ["attendance", "Attendance"],
   ["health", "Health"],
+  ["reports", "Reports"],
   ["settings", "Settings"],
 ];
-const PHASE_PLACEHOLDERS = ["Produce", "Sales", "Expenses", "Cameras"];
 
 export function initFarmUI({ api, getCurrentUser, notify, escapeHtml }) {
   const farmHost = document.getElementById("farmDashboard");
@@ -38,6 +43,7 @@ export function initFarmUI({ api, getCurrentUser, notify, escapeHtml }) {
     command: { organizations: [], loading: false, error: "", creating: false },
   };
   let operationsUI = null;
+  let commerceUI = null;
 
   const esc = (value) => typeof escapeHtml === "function"
     ? escapeHtml(value == null ? "" : String(value))
@@ -226,7 +232,7 @@ export function initFarmUI({ api, getCurrentUser, notify, escapeHtml }) {
     return FARM_TABS.find(([key]) => key === tab)?.[1] || "Dashboard";
   }
   function tabsForRole() {
-    return isFarmAdmin() ? FARM_TABS : FARM_TABS.filter(([key]) => key !== "settings");
+    return FARM_TABS.filter(([key]) => isFarmAdmin() || key !== "settings");
   }
   function shellMarkup() {
     const orgName = state.organization?.name || state.user?.organization_name || "Farm workspace";
@@ -247,7 +253,7 @@ export function initFarmUI({ api, getCurrentUser, notify, escapeHtml }) {
          <div class="farm-mobile-nav">${tabs.map(([key, label]) => `<button type="button" data-farm-action="tab" data-tab="${key}" aria-current="${state.tab === key ? "page" : "false"}">${label}</button>`).join("")}</div>
         <div class="farm-content">${tabMarkup()}</div>
       </main>
-      ${modalMarkup()}${operationsUI?.modalMarkup?.() || ""}
+      ${modalMarkup()}${operationsUI?.modalMarkup?.() || ""}${commerceUI?.modalMarkup?.() || ""}
     </div>`;
   }
   function tabMarkup() {
@@ -256,6 +262,9 @@ export function initFarmUI({ api, getCurrentUser, notify, escapeHtml }) {
     if (state.tab === "animals") return animalsPanel();
     if (["eggs", "attendance", "health"].includes(state.tab)) return operationsUI?.render(state.tab) || "";
     if (state.tab === "settings") return settingsPanel();
+    if (["produce", "sales", "expenses", "cameras", "reports"].includes(state.tab)) {
+      return commerceUI?.render(state.tab) || "";
+    }
     return dashboardPanel();
   }
   function dashboardPanel() {
@@ -281,7 +290,7 @@ export function initFarmUI({ api, getCurrentUser, notify, escapeHtml }) {
       </article>
       <article class="farm-alert-card"><div class="farm-alert-head"><span class="farm-alert-symbol">${icon("alert", 19)}</span><p class="farm-overline">ATTENTION</p></div><strong class="farm-alert-count">${esc(stats.health_alerts ?? 0)}</strong><h3>Health alerts</h3><p>Animals needing attention based on your records.</p><div class="farm-alert-foot"><span class="farm-alert-rule"></span><span>Health alert total</span></div></article>
     </section>
-     <section class="farm-panel farm-phase-panel"><div class="farm-panel-heading"><div><p class="farm-overline">ON THE ROADMAP</p><h3>More farm tools are coming</h3><p class="farm-panel-copy">These Phase 5C tools are not available yet.</p></div><span class="farm-phase-stamp">PHASE 5C</span></div><div class="farm-phase-list">${PHASE_PLACEHOLDERS.map((name) => `<div class="farm-phase-item" aria-disabled="true"><span>${esc(name)}</span><small>Coming later</small></div>`).join("")}</div></section>`;
+     ${commerceUI?.renderDashboard?.() || ""}`;
   }
 
   function locationsPanel() {
@@ -488,11 +497,13 @@ export function initFarmUI({ api, getCurrentUser, notify, escapeHtml }) {
     if (roleOf(state.user) === "farm_worker") {
       farmHost.innerHTML = operationsUI?.renderWorkerWorkspace?.() || "";
       operationsUI?.afterRender?.();
+      commerceUI?.afterRender?.();
       return;
     }
     if (!tabsForRole().some(([tab]) => tab === state.tab)) state.tab = "dashboard";
     farmHost.innerHTML = shellMarkup();
     operationsUI?.afterRender?.();
+    commerceUI?.afterRender?.();
   }
 
   function commandMarkup() {
@@ -505,15 +516,18 @@ export function initFarmUI({ api, getCurrentUser, notify, escapeHtml }) {
       result.workers += Number(org.counts?.workers ?? org.workers_count ?? 0);
       result.eggs += Number(org.counts?.eggs_week ?? org.eggs_week ?? 0);
       result.present += Number(org.counts?.workers_present_today ?? org.workers_present_today ?? 0);
+      result.sales += Number(org.counts?.sales_month ?? org.sales_month ?? 0);
+      result.expenses += Number(org.counts?.expenses_month ?? org.expenses_month ?? 0);
+      result.profit += Number(org.counts?.profit_month ?? 0);
       return result;
-    }, { farms: 0, animals: 0, workers: 0, eggs: 0, present: 0 });
+    }, { farms: 0, animals: 0, workers: 0, eggs: 0, present: 0, sales: 0, expenses: 0, profit: 0 });
     return `<section class="farm-command-panel">
       <div class="farm-command-heading"><div><p class="farm-overline">COMMAND CENTER / ORGANIZATIONS</p><h2>Farm organizations</h2><p>Review registered farms and set up new organizations.</p></div><button type="button" class="farm-btn" data-farm-action="new-organization">${icon("plus", 16)} Create organization</button></div>
-       ${!state.command.loading && !state.command.error ? `<section class="farm-command-stats"><article><small>Total farms</small><strong>${esc(totals.farms)}</strong></article><article><small>Registered animals</small><strong>${esc(totals.animals)}</strong></article><article><small>Active workers</small><strong>${esc(totals.workers)}</strong></article><article><small>Eggs this week</small><strong>${esc(totals.eggs)}</strong></article><article><small>Workers present today</small><strong>${esc(totals.present)}</strong></article></section>` : ""}
+       ${!state.command.loading && !state.command.error ? `<section class="farm-command-stats"><article><small>Total farms</small><strong>${esc(totals.farms)}</strong></article><article><small>Registered animals</small><strong>${esc(totals.animals)}</strong></article><article><small>Active workers</small><strong>${esc(totals.workers)}</strong></article><article><small>Eggs this week</small><strong>${esc(totals.eggs)}</strong></article><article><small>Workers present today</small><strong>${esc(totals.present)}</strong></article><article><small>Sales this month</small><strong>${esc(totals.sales.toLocaleString("en-UG"))} UGX</strong></article><article><small>Expenses this month</small><strong>${esc(totals.expenses.toLocaleString("en-UG"))} UGX</strong></article><article><small>Profit this month</small><strong>${esc(totals.profit.toLocaleString("en-UG"))} UGX</strong></article></section>` : ""}
       ${state.command.loading ? `<section class="farm-panel farm-state-card"><div class="farm-skeleton-heading"></div><div class="farm-skeleton-row"></div><div class="farm-skeleton-row"></div><p>Loading farm organizations…</p></section>` : ""}
       ${state.command.error ? `<section class="farm-panel farm-resource-error"><span>${icon("alert", 18)} ${esc(state.command.error)}</span><button type="button" class="farm-btn farm-btn--quiet farm-btn--small" data-farm-action="retry-command">${icon("retry", 14)} Try again</button></section>` : ""}
       ${!state.command.loading && !state.command.error ? `<section class="farm-panel"><div class="farm-panel-heading"><div><p class="farm-overline">ORGANIZATION DIRECTORY</p><h3>${esc(state.command.organizations.length)} ${state.command.organizations.length === 1 ? "farm" : "farms"}</h3></div></div>
-         <div class="farm-table-wrap"><table class="farm-table farm-org-table"><thead><tr><th>Organization</th><th>Farm type</th><th>District</th><th>Contact</th><th>Locations</th><th>Workers</th><th>Animals</th><th>Eggs this week</th><th>Present today</th></tr></thead><tbody>${state.command.organizations.length ? state.command.organizations.map((org) => `<tr><td><strong>${esc(org.name || "Unnamed organization")}</strong><small>${esc(org.registration_number || org.tin || "Registration not provided")}</small></td><td>${moneyless(org.farm_type)}</td><td>${moneyless(org.district)}</td><td>${esc(org.phone || org.email || "—")}</td><td>${esc(org.counts?.locations ?? org.locations_count ?? 0)}</td><td>${esc(org.counts?.workers ?? org.workers_count ?? 0)}</td><td>${esc(org.counts?.animals ?? org.animals_count ?? 0)}</td><td>${esc(org.counts?.eggs_week ?? org.eggs_week ?? 0)}</td><td>${esc(org.counts?.workers_present_today ?? org.workers_present_today ?? 0)}</td></tr>`).join("") : `<tr><td colspan="9"><div class="farm-empty-note">No farm organizations have been created. Create an organization to set up its first administrator.</div></td></tr>`}</tbody></table></div>
+         <div class="farm-table-wrap"><table class="farm-table farm-org-table"><thead><tr><th>Organization</th><th>Farm type</th><th>District</th><th>Contact</th><th>Locations</th><th>Workers</th><th>Animals</th><th>Eggs this week</th><th>Present today</th><th>Sales this month</th><th>Expenses this month</th><th>Profit this month</th></tr></thead><tbody>${state.command.organizations.length ? state.command.organizations.map((org) => `<tr><td><strong>${esc(org.name || "Unnamed organization")}</strong><small>${esc(org.registration_number || org.tin || "Registration not provided")}</small></td><td>${moneyless(org.farm_type)}</td><td>${moneyless(org.district)}</td><td>${esc(org.phone || org.email || "—")}</td><td>${esc(org.counts?.locations ?? org.locations_count ?? 0)}</td><td>${esc(org.counts?.workers ?? org.workers_count ?? 0)}</td><td>${esc(org.counts?.animals ?? org.animals_count ?? 0)}</td><td>${esc(org.counts?.eggs_week ?? org.eggs_week ?? 0)}</td><td>${esc(org.counts?.workers_present_today ?? org.workers_present_today ?? 0)}</td><td>${esc(org.counts?.sales_month ?? org.sales_month ?? 0)} UGX</td><td>${esc(org.counts?.expenses_month ?? org.expenses_month ?? 0)} UGX</td><td>${esc(org.counts?.profit_month ?? 0)} UGX</td></tr>`).join("") : `<tr><td colspan="12"><div class="farm-empty-note">No farm organizations have been created. Create an organization to set up its first administrator.</div></td></tr>`}</tbody></table></div>
       </section>` : ""}
       ${state.modal?.kind === "organization" ? modalMarkup() : ""}
     </section>`;
@@ -568,6 +582,7 @@ export function initFarmUI({ api, getCurrentUser, notify, escapeHtml }) {
   function refreshTabData() {
     if (!canViewFarmWorkspace()) return;
     if (state.tab === "dashboard") loadStats();
+    if (state.tab === "dashboard") commerceUI?.loadTab("dashboard");
     if (state.tab === "locations") loadLocations();
     if (state.tab === "workers") { loadLocations(); loadWorkers(); }
     if (state.tab === "animals") { loadLocations(); loadAnimalTypes().then(loadAnimals); }
@@ -580,6 +595,9 @@ export function initFarmUI({ api, getCurrentUser, notify, escapeHtml }) {
     }
     if (state.tab === "health") {
       void Promise.all([loadAnimals(), loadAnimalTypes()]).then(() => operationsUI?.loadTab("health"));
+    }
+    if (["produce", "sales", "expenses", "cameras", "reports"].includes(state.tab)) {
+      void commerceUI?.loadTab(state.tab);
     }
   }
 
@@ -767,7 +785,7 @@ export function initFarmUI({ api, getCurrentUser, notify, escapeHtml }) {
     }
   }
 
-  operationsUI = initFarmOperationsUI({
+  commerceUI = initFarmCommerceUI({
     request,
     escapeHtml: esc,
     notify: announce,
@@ -775,7 +793,24 @@ export function initFarmUI({ api, getCurrentUser, notify, escapeHtml }) {
     getCoreState: () => state,
   });
 
+  operationsUI = initFarmOperationsUI({
+    request,
+    escapeHtml: esc,
+    notify: announce,
+    rerender: renderFarm,
+    getCoreState: () => state,
+    renderCommercialActions: () => commerceUI.renderWorkerActions(),
+    renderCommercialSales: () => commerceUI.renderWorkerSales(),
+    hasCommercialSales: () => commerceUI.hasWorkerSales(),
+    onCommercialSalesTab: () => commerceUI.workerQuickAction("worker-tab-sales"),
+  });
+
   async function handleFarmClick(event) {
+    const commerceButton = event.target.closest("[data-farm-commerce-action]");
+    if (commerceButton && farmHost?.contains(commerceButton)) {
+      await commerceUI.handleClick(commerceButton, event);
+      return;
+    }
     const operationButton = event.target.closest("[data-farm-ops-action]");
     if (operationButton && farmHost?.contains(operationButton)) {
       await operationsUI.handleClick(operationButton, event);
@@ -853,6 +888,12 @@ export function initFarmUI({ api, getCurrentUser, notify, escapeHtml }) {
     else if (action === "retry-command") loadCommandCenter();
   }
   function handleFarmSubmit(event) {
+    const commerceForm = event.target.closest("[data-farm-commerce-form]");
+    if (commerceForm && farmHost?.contains(commerceForm)) {
+      event.preventDefault();
+      void commerceUI.handleSubmit(commerceForm);
+      return;
+    }
     const operationsForm = event.target.closest("[data-farm-ops-form]");
     if (operationsForm && farmHost?.contains(operationsForm)) {
       event.preventDefault();
@@ -872,6 +913,7 @@ export function initFarmUI({ api, getCurrentUser, notify, escapeHtml }) {
   }
   function handleFarmChange(event) {
     const target = event.target;
+    void commerceUI.handleChange(target);
     operationsUI.handleChange(target);
     if (target.matches('[data-farm-form="animal"] [name="animal_type_id"]')) updateAnimalTracking(target.form);
     if (target.matches('[data-farm-form="settings"] [name="brand_color"]')) {
@@ -896,6 +938,7 @@ export function initFarmUI({ api, getCurrentUser, notify, escapeHtml }) {
     state.user = user || null;
     state.userKey = nextKey;
     void operationsUI.setUser(user || null);
+    void commerceUI.setUser(user || null);
     renderFarm();
     renderCommand();
     if (canViewFarmWorkspace()) {
@@ -908,6 +951,7 @@ export function initFarmUI({ api, getCurrentUser, notify, escapeHtml }) {
   renderFarm();
   renderCommand();
   void operationsUI.setUser(state.user);
+  void commerceUI.setUser(state.user);
   if (canViewFarmWorkspace()) {
     refreshTabData();
     if (isFarmAdmin()) void loadSettings();

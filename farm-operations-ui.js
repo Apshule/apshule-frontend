@@ -12,6 +12,10 @@ export function initFarmOperationsUI({
   notify,
   rerender,
   getCoreState,
+  renderCommercialActions = () => "",
+  renderCommercialSales = () => "",
+  hasCommercialSales = () => false,
+  onCommercialSalesTab = () => {},
 }) {
   const state = {
     scopeVersion: 0,
@@ -415,6 +419,7 @@ export function initFarmOperationsUI({
       ["attendance", "My attendance"],
       ["eggs", "Record eggs"],
     ];
+    if (hasCommercialSales()) tabs.push(["sales", "My sales"]);
     return `<main class="farm-worker-shell">
       <header class="farm-worker-header"><div><p class="farm-overline">FARM TEAM</p><h1>Welcome, ${esc(worker.name || "team member")}</h1><p>${esc(worker.location_name ? `Assigned location: ${worker.location_name}` : "Ask your farm manager to assign your work location.")}</p></div><span class="farm-operation-status">${esc(worker.employee_code || "Farm worker")}</span></header>
       ${resourceState("worker", "Loading your worker profile")}
@@ -426,6 +431,7 @@ export function initFarmOperationsUI({
   function workerPanel() {
     if (state.workerTab === "attendance") return workerAttendancePanel();
     if (state.workerTab === "eggs") return workerEggPanel();
+    if (state.workerTab === "sales") return renderCommercialSales();
     return workerTodayPanel();
   }
 
@@ -438,6 +444,7 @@ export function initFarmOperationsUI({
       <div class="farm-panel-heading"><div><p class="farm-overline">TODAY · ${esc(farmToday())}</p><h2>Your shift</h2><p class="farm-panel-copy">Check in with the camera assigned to this account, or ask a manager to add attendance manually.</p></div></div>
       ${resourceState("workerAttendance", "Loading your attendance")}
       <div class="farm-worker-shift-card"><div><small>Attendance status</small><strong>${checkedOut ? "Shift complete" : checkedIn ? "Checked in" : "Not checked in"}</strong></div><div><small>Check in</small><strong>${esc(displayTime(attendance?.check_in))}</strong></div><div><small>Check out</small><strong>${esc(displayTime(attendance?.check_out))}</strong></div></div>
+      ${renderCommercialActions()}
       ${needsEnrollment ? `<div class="farm-inline-note">Face check-in is not enrolled for your account. Ask a farm administrator to enroll you.</div>` : ""}
       <div class="farm-face-card">
         <div class="farm-face-copy"><span class="farm-face-icon" aria-hidden="true">◎</span><div><h3>Face check-in</h3><p>Your camera image is converted to a short hash for matching and is not saved.</p></div></div>
@@ -852,6 +859,7 @@ export function initFarmOperationsUI({
       rerender();
     } else if (action === "worker-tab") {
       state.workerTab = button.dataset.workerTab || "today";
+      if (state.workerTab === "sales") onCommercialSalesTab();
       rerender();
     } else if (action === "open-camera") {
       await openCamera();
