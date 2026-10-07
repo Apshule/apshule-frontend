@@ -31,7 +31,7 @@ export async function resolve(specifier, context, nextResolve) {
     ) ||
     (
       specifier === "../db.js" &&
-       /\/src\/routes\/(payments|platform-settings|ncdc-foundation|documents|clinic|clinic-workflows|clinic-pharmacy|clinic-billing|clinic-billing-shared|clinic-settlements|clinic-patient-portal|farm)\.ts$/u.test(
+       /\/src\/routes\/(payments|platform-settings|ncdc-foundation|documents|clinic|clinic-workflows|clinic-pharmacy|clinic-billing|clinic-billing-shared|clinic-settlements|clinic-patient-portal|farm|farm-operations)\.ts$/u.test(
         context.parentURL ?? "",
       )
     )
@@ -40,7 +40,7 @@ export async function resolve(specifier, context, nextResolve) {
   }
   if (
     specifier === "../auth.js" &&
-    context.parentURL?.endsWith("/src/routes/farm.ts")
+    /\/src\/routes\/farm(-operations)?\.ts$/u.test(context.parentURL ?? "")
   ) {
     return virtualModule(`
       export const authMiddleware = async (c, next) => {

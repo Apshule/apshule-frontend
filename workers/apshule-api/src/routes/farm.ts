@@ -15,6 +15,7 @@ import {
 } from "../http.js";
 import { sendEmail, welcomeEmailTemplate } from "../email.js";
 import type { AppEnv, AuthenticatedUser } from "../types.js";
+import farmOperations from "./farm-operations.js";
 
 const farm = new Hono<AppEnv>();
 const FARM_ROLES = new Set(["farm_admin", "farm_manager", "farm_worker"]);
@@ -268,6 +269,11 @@ function roleChoice(value: unknown): "farm_worker" | "farm_manager" {
   throw new ApiError(400, "VALIDATION_ERROR", "role must be farm_worker or farm_manager.");
 }
 
+function publicWorker(row: Record<string, unknown>): Record<string, unknown> {
+  const { face_hash: faceHash, ...worker } = row;
+  return { ...worker, face_enrolled: typeof faceHash === "string" && /^[01]{64}$/u.test(faceHash) };
+}
+
 farm.get(
   "/organizations",
   requireRole("superadmin", "farm_admin"),
@@ -285,7 +291,24 @@ farm.get(
         (SELECT COUNT(*)::int FROM farm_workers w
           WHERE w.organization_id = o.id AND w.active IS TRUE) AS workers_count,
         (SELECT COALESCE(SUM(a.quantity), 0)::int FROM farm_animals a
-          WHERE a.organization_id = o.id AND a.status <> 'deleted') AS animals_count
+          WHERE a.organization_id = o.id AND a.status <> 'deleted') AS animals_count,
+        (SELECT COALESCE(SUM(e.eggs_collected), 0)::int FROM farm_egg_records e
+          WHERE e.organization_id = o.id
+            AND e.record_date >= date_trunc('week', NOW() AT TIME ZONE COALESCE(
+              (SELECT s.timezone FROM farm_settings s WHERE s.organization_id = o.id LIMIT 1),
+              'Africa/Kampala'
+            ))::date
+            AND e.record_date <= (NOW() AT TIME ZONE COALESCE(
+              (SELECT s.timezone FROM farm_settings s WHERE s.organization_id = o.id LIMIT 1),
+              'Africa/Kampala'
+            ))::date) AS eggs_week,
+        (SELECT COUNT(DISTINCT a.worker_id)::int FROM farm_attendance a
+          WHERE a.organization_id = o.id
+            AND a.attendance_date = (NOW() AT TIME ZONE COALESCE(
+              (SELECT s.timezone FROM farm_settings s WHERE s.organization_id = o.id LIMIT 1),
+              'Africa/Kampala'
+            ))::date
+            AND a.check_in IS NOT NULL) AS workers_present_today
       FROM farm_organizations o
       WHERE ${ownOrganizationId === null} OR o.id = ${ownOrganizationId}
       ORDER BY o.created_at DESC
@@ -297,6 +320,8 @@ farm.get(
           locations: Number(org.locations_count || 0),
           workers: Number(org.workers_count || 0),
           animals: Number(org.animals_count || 0),
+          eggs_week: Number(org.eggs_week || 0),
+          workers_present_today: Number(org.workers_present_today || 0),
         },
       })),
     });
@@ -586,7 +611,7 @@ farm.get(
       WHERE w.organization_id = ${organizationId}
       ORDER BY w.active DESC, u.name
     `;
-    return c.json({ workers });
+    return c.json({ workers: (workers as Array<Record<string, unknown>>).map(publicWorker) });
   },
 );
 
@@ -649,8 +674,9 @@ farm.post(
             THEN substring(u.name FROM position(' ' IN u.name) + 1) ELSE '' END AS last_name
         FROM new_worker w JOIN new_user u ON u.id = w.user_id
       `;
-      const worker = created[0] as Record<string, unknown> | undefined;
-      if (!worker) throw new ApiError(500, "WORKER_CREATE_FAILED", "Worker account could not be created.");
+      const createdWorker = created[0] as Record<string, unknown> | undefined;
+      if (!createdWorker) throw new ApiError(500, "WORKER_CREATE_FAILED", "Worker account could not be created.");
+      const worker = publicWorker(createdWorker);
       const emailSent = await sendEmail(c.env, {
         to: email,
         subject: "Welcome to APSHULE Farm",
@@ -726,10 +752,10 @@ farm.patch(
         WHERE id = ${id} AND organization_id = ${organizationId}
         RETURNING *
       `;
-      const worker = rows[0] as Record<string, unknown> | undefined;
-      if (!worker) throw new ApiError(404, "WORKER_NOT_FOUND", "Worker was not found in this farm.");
+      const updatedWorker = rows[0] as Record<string, unknown> | undefined;
+      if (!updatedWorker) throw new ApiError(404, "WORKER_NOT_FOUND", "Worker was not found in this farm.");
       await auditMutation(sql, actor, organizationId, "farm.worker_updated", "farm_workers", id, { fields: Object.keys(body) }, requestIp(c));
-      return c.json({ worker });
+      return c.json({ worker: publicWorker(updatedWorker) });
     } catch (error) {
       if (isUniqueViolation(error)) {
         throw new ApiError(409, "EMAIL_OR_CODE_IN_USE", "The email or employee code is already in use.");
@@ -1220,5 +1246,7 @@ farm.patch(
     return c.json({ organization: updatedOrganizations[0], settings: settingsRows[0] });
   },
 );
+
+farm.route("/", farmOperations);
 
 export default farm;

@@ -1,3 +1,5 @@
+import { initFarmOperationsUI } from "./farm-operations-ui.js";
+
 const PHOTO_LIMIT = 200 * 1024;
 const IMAGE_TYPES = new Set(["image/jpeg", "image/png", "image/webp"]);
 const FARM_TABS = [
@@ -5,9 +7,12 @@ const FARM_TABS = [
   ["locations", "Locations"],
   ["animals", "Animals"],
   ["workers", "Workers"],
+  ["eggs", "Eggs"],
+  ["attendance", "Attendance"],
+  ["health", "Health"],
   ["settings", "Settings"],
 ];
-const PHASE_PLACEHOLDERS = ["Egg Collection", "Produce", "Sales", "Movements", "Egg records", "Health log"];
+const PHASE_PLACEHOLDERS = ["Produce", "Sales", "Expenses", "Cameras"];
 
 export function initFarmUI({ api, getCurrentUser, notify, escapeHtml }) {
   const farmHost = document.getElementById("farmDashboard");
@@ -32,6 +37,7 @@ export function initFarmUI({ api, getCurrentUser, notify, escapeHtml }) {
     detailAnimal: null,
     command: { organizations: [], loading: false, error: "", creating: false },
   };
+  let operationsUI = null;
 
   const esc = (value) => typeof escapeHtml === "function"
     ? escapeHtml(value == null ? "" : String(value))
@@ -44,6 +50,8 @@ export function initFarmUI({ api, getCurrentUser, notify, escapeHtml }) {
   const idOf = (user) => user?.id ?? user?.user_id ?? user?.email ?? "";
   const roleOf = (user) => String(user?.role || "").toLowerCase();
   const isFarmAdmin = () => roleOf(state.user) === "farm_admin";
+  const isFarmManager = () => roleOf(state.user) === "farm_manager";
+  const canViewFarmWorkspace = () => isFarmAdmin() || isFarmManager();
   const moneyless = (value) => value == null || value === "" ? "—" : esc(value);
   const initials = (value) => String(value || "Farm").trim().split(/\s+/).slice(0, 2).map((part) => part[0] || "").join("").toUpperCase();
   const fullName = (worker) => `${worker?.first_name || ""} ${worker?.last_name || ""}`.trim() || "Worker";
@@ -97,7 +105,7 @@ export function initFarmUI({ api, getCurrentUser, notify, escapeHtml }) {
     state.errors[key] = error ? errorMessage(error) : "";
   }
   async function loadStats() {
-    if (!isFarmAdmin()) return;
+    if (!canViewFarmWorkspace()) return;
     const scopeVersion = state.scopeVersion;
     state.loading.stats = true;
     state.errors.stats = "";
@@ -116,7 +124,7 @@ export function initFarmUI({ api, getCurrentUser, notify, escapeHtml }) {
     }
   }
   async function loadLocations() {
-    if (!isFarmAdmin()) return;
+    if (!canViewFarmWorkspace()) return;
     const scopeVersion = state.scopeVersion;
     state.loading.locations = true;
     state.errors.locations = "";
@@ -135,7 +143,7 @@ export function initFarmUI({ api, getCurrentUser, notify, escapeHtml }) {
     }
   }
   async function loadWorkers() {
-    if (!isFarmAdmin()) return;
+    if (!canViewFarmWorkspace()) return;
     const scopeVersion = state.scopeVersion;
     state.loading.workers = true;
     state.errors.workers = "";
@@ -154,7 +162,7 @@ export function initFarmUI({ api, getCurrentUser, notify, escapeHtml }) {
     }
   }
   async function loadAnimalTypes() {
-    if (!isFarmAdmin()) return;
+    if (!canViewFarmWorkspace()) return;
     const scopeVersion = state.scopeVersion;
     state.loading.animalTypes = true;
     state.errors.animalTypes = "";
@@ -172,7 +180,7 @@ export function initFarmUI({ api, getCurrentUser, notify, escapeHtml }) {
     }
   }
   async function loadAnimals() {
-    if (!isFarmAdmin()) return;
+    if (!canViewFarmWorkspace()) return;
     const scopeVersion = state.scopeVersion;
     state.loading.animals = true;
     state.errors.animals = "";
@@ -217,30 +225,36 @@ export function initFarmUI({ api, getCurrentUser, notify, escapeHtml }) {
   function titleForTab(tab) {
     return FARM_TABS.find(([key]) => key === tab)?.[1] || "Dashboard";
   }
+  function tabsForRole() {
+    return isFarmAdmin() ? FARM_TABS : FARM_TABS.filter(([key]) => key !== "settings");
+  }
   function shellMarkup() {
     const orgName = state.organization?.name || state.user?.organization_name || "Farm workspace";
     const displayName = state.user?.name || state.user?.full_name || state.user?.email || "Farm administrator";
+    const roleLabel = isFarmAdmin() ? "Farm administrator" : "Farm manager";
     const brandColor = validColor(state.organization?.brand_color) ? state.organization.brand_color : "#376b52";
     const logo = safeImage(state.organization?.logo_base64);
+    const tabs = tabsForRole();
     return `<div class="farm-shell" style="--farm-brand-color:${brandColor}">
       <aside class="farm-rail" aria-label="Farm workspace navigation">
         <div class="farm-brand"><div class="farm-brand-mark">${logo ? `<img src="${logo}" alt="">` : icon("farm", 21)}</div><div><strong>${esc(orgName)}</strong><span>FARM OPERATIONS</span></div></div>
         <div class="farm-org-switch"><span class="farm-org-mark">${initials(orgName)}</span><span><strong>${esc(orgName)}</strong><small>Farm organization</small></span></div>
-        <nav class="farm-nav" aria-label="Farm admin sections">${FARM_TABS.map(([key, label]) => `<button type="button" data-farm-action="tab" data-tab="${key}" aria-current="${state.tab === key ? "page" : "false"}">${icon(key === "dashboard" ? "dashboard" : key === "locations" ? "pin" : key === "animals" ? "animal" : key === "workers" ? "people" : "settings")}<span>${label}</span></button>`).join("")}</nav>
+        <nav class="farm-nav" aria-label="Farm workspace sections">${tabs.map(([key, label]) => `<button type="button" data-farm-action="tab" data-tab="${key}" aria-current="${state.tab === key ? "page" : "false"}">${icon(key === "dashboard" ? "dashboard" : key === "locations" ? "pin" : key === "animals" || key === "eggs" || key === "health" ? "animal" : key === "workers" || key === "attendance" ? "people" : "settings")}<span>${label}</span></button>`).join("")}</nav>
         <div class="farm-rail-note"><span class="farm-note-dot"></span><span>Organization records<br><strong>Private to your team</strong></span></div>
       </aside>
       <main class="farm-main">
-        <header class="farm-topbar"><div><p class="farm-overline">FARM ADMINISTRATION</p><h1>${titleForTab(state.tab)}</h1></div><div class="farm-user-chip"><span class="farm-avatar">${esc(initials(displayName))}</span><span><strong>${esc(displayName)}</strong><small>Farm administrator</small></span></div></header>
-        <div class="farm-mobile-nav">${FARM_TABS.map(([key, label]) => `<button type="button" data-farm-action="tab" data-tab="${key}" aria-current="${state.tab === key ? "page" : "false"}">${label}</button>`).join("")}</div>
+         <header class="farm-topbar"><div><p class="farm-overline">FARM OPERATIONS</p><h1>${titleForTab(state.tab)}</h1></div><div class="farm-user-chip"><span class="farm-avatar">${esc(initials(displayName))}</span><span><strong>${esc(displayName)}</strong><small>${roleLabel}</small></span></div></header>
+         <div class="farm-mobile-nav">${tabs.map(([key, label]) => `<button type="button" data-farm-action="tab" data-tab="${key}" aria-current="${state.tab === key ? "page" : "false"}">${label}</button>`).join("")}</div>
         <div class="farm-content">${tabMarkup()}</div>
       </main>
-      ${modalMarkup()}
+      ${modalMarkup()}${operationsUI?.modalMarkup?.() || ""}
     </div>`;
   }
   function tabMarkup() {
     if (state.tab === "locations") return locationsPanel();
     if (state.tab === "workers") return workersPanel();
     if (state.tab === "animals") return animalsPanel();
+    if (["eggs", "attendance", "health"].includes(state.tab)) return operationsUI?.render(state.tab) || "";
     if (state.tab === "settings") return settingsPanel();
     return dashboardPanel();
   }
@@ -267,27 +281,30 @@ export function initFarmUI({ api, getCurrentUser, notify, escapeHtml }) {
       </article>
       <article class="farm-alert-card"><div class="farm-alert-head"><span class="farm-alert-symbol">${icon("alert", 19)}</span><p class="farm-overline">ATTENTION</p></div><strong class="farm-alert-count">${esc(stats.health_alerts ?? 0)}</strong><h3>Health alerts</h3><p>Animals needing attention based on your records.</p><div class="farm-alert-foot"><span class="farm-alert-rule"></span><span>Health alert total</span></div></article>
     </section>
-    <section class="farm-panel farm-phase-panel"><div class="farm-panel-heading"><div><p class="farm-overline">ON THE ROADMAP</p><h3>More farm tools are coming</h3><p class="farm-panel-copy">These Phase 5B modules are not available yet.</p></div><span class="farm-phase-stamp">PHASE 5B</span></div><div class="farm-phase-list">${PHASE_PLACEHOLDERS.map((name) => `<div class="farm-phase-item" aria-disabled="true"><span>${esc(name)}</span><small>Coming later</small></div>`).join("")}</div></section>`;
+     <section class="farm-panel farm-phase-panel"><div class="farm-panel-heading"><div><p class="farm-overline">ON THE ROADMAP</p><h3>More farm tools are coming</h3><p class="farm-panel-copy">These Phase 5C tools are not available yet.</p></div><span class="farm-phase-stamp">PHASE 5C</span></div><div class="farm-phase-list">${PHASE_PLACEHOLDERS.map((name) => `<div class="farm-phase-item" aria-disabled="true"><span>${esc(name)}</span><small>Coming later</small></div>`).join("")}</div></section>`;
   }
 
   function locationsPanel() {
-    return `<section class="farm-panel"><div class="farm-panel-heading farm-panel-heading--actions"><div><p class="farm-overline">FARM SITES</p><h2>Locations</h2><p class="farm-panel-copy">Organize the places where your team works.</p></div><button type="button" class="farm-btn" data-farm-action="new-location">${icon("plus", 16)} Add location</button></div>
+    const canEdit = isFarmAdmin();
+    return `<section class="farm-panel"><div class="farm-panel-heading farm-panel-heading--actions"><div><p class="farm-overline">FARM SITES</p><h2>Locations</h2><p class="farm-panel-copy">Organize the places where your team works.</p></div>${canEdit ? `<button type="button" class="farm-btn" data-farm-action="new-location">${icon("plus", 16)} Add location</button>` : ""}</div>
       ${resourceState("locations", "Loading farm locations")}
-      ${!state.loading.locations && !state.errors.locations ? `<div class="farm-table-wrap"><table class="farm-table"><thead><tr><th>Location</th><th>Code</th><th>District</th><th>Size</th><th>Status</th><th>Actions</th></tr></thead><tbody>${state.locations.length ? state.locations.map((location) => `<tr><td><strong>${esc(location.name || "Unnamed location")}</strong><small>${esc(location.address || "")}</small></td><td>${moneyless(location.code)}</td><td>${moneyless(location.district)}</td><td>${location.size_acres == null || location.size_acres === "" ? "—" : `${esc(location.size_acres)} acres`}</td><td>${statusBadge(isActive(location.active))}</td><td><div class="farm-row-actions"><button type="button" class="farm-btn farm-btn--quiet farm-btn--small" data-farm-action="edit-location" data-id="${esc(location.id)}">Edit</button><button type="button" class="farm-btn farm-btn--danger-quiet farm-btn--small" data-farm-action="delete-location" data-id="${esc(location.id)}">Delete</button></div></td></tr>`).join("") : `<tr><td colspan="6"><div class="farm-empty-note">No locations have been added. Add your first farm site to organize workers and animal records.</div></td></tr>`}</tbody></table></div>` : ""}
+      ${!state.loading.locations && !state.errors.locations ? `<div class="farm-table-wrap"><table class="farm-table"><thead><tr><th>Location</th><th>Code</th><th>District</th><th>Size</th><th>Status</th>${canEdit ? "<th>Actions</th>" : ""}</tr></thead><tbody>${state.locations.length ? state.locations.map((location) => `<tr><td><strong>${esc(location.name || "Unnamed location")}</strong><small>${esc(location.address || "")}</small></td><td>${moneyless(location.code)}</td><td>${moneyless(location.district)}</td><td>${location.size_acres == null || location.size_acres === "" ? "—" : `${esc(location.size_acres)} acres`}</td><td>${statusBadge(isActive(location.active))}</td>${canEdit ? `<td><div class="farm-row-actions"><button type="button" class="farm-btn farm-btn--quiet farm-btn--small" data-farm-action="edit-location" data-id="${esc(location.id)}">Edit</button><button type="button" class="farm-btn farm-btn--danger-quiet farm-btn--small" data-farm-action="delete-location" data-id="${esc(location.id)}">Delete</button></div></td>` : ""}</tr>`).join("") : `<tr><td colspan="${canEdit ? 6 : 5}"><div class="farm-empty-note">No locations have been added. Add your first farm site to organize workers and animal records.</div></td></tr>`}</tbody></table></div>` : ""}
     </section>`;
   }
 
   function workersPanel() {
-    return `<section class="farm-panel"><div class="farm-panel-heading farm-panel-heading--actions"><div><p class="farm-overline">PEOPLE & ACCESS</p><h2>Workers</h2><p class="farm-panel-copy">Manage the team members assigned to your farm.</p></div><button type="button" class="farm-btn" data-farm-action="new-worker">${icon("plus", 16)} Add worker</button></div>
+    const canEdit = isFarmAdmin();
+    return `<section class="farm-panel"><div class="farm-panel-heading farm-panel-heading--actions"><div><p class="farm-overline">PEOPLE & ACCESS</p><h2>Workers</h2><p class="farm-panel-copy">Manage the team members assigned to your farm.</p></div>${canEdit ? `<button type="button" class="farm-btn" data-farm-action="new-worker">${icon("plus", 16)} Add worker</button>` : ""}</div>
       ${resourceState("workers", "Loading farm workers")}
-      ${!state.loading.workers && !state.errors.workers ? `<div class="farm-table-wrap"><table class="farm-table"><thead><tr><th>Worker</th><th>Role</th><th>Location</th><th>Employee code</th><th>Wage</th><th>Status</th><th>Actions</th></tr></thead><tbody>${state.workers.length ? state.workers.map((worker) => `<tr><td><strong>${esc(fullName(worker))}</strong><small>${esc(worker.email || worker.phone || "")}</small></td><td><span class="farm-role">${esc((worker.role || "").replace("farm_", ""))}</span></td><td>${esc(locationName(worker.location_id))}</td><td>${moneyless(worker.employee_code)}</td><td>${worker.wage_rate == null || worker.wage_rate === "" ? "—" : `${esc(worker.wage_rate)}${worker.wage_type ? ` / ${esc(worker.wage_type)}` : ""}`}</td><td>${statusBadge(isActive(worker.active))}</td><td><div class="farm-row-actions"><button type="button" class="farm-btn farm-btn--quiet farm-btn--small" data-farm-action="edit-worker" data-id="${esc(worker.id)}">Edit</button><button type="button" class="farm-btn farm-btn--danger-quiet farm-btn--small" data-farm-action="delete-worker" data-id="${esc(worker.id)}">Delete</button></div></td></tr>`).join("") : `<tr><td colspan="7"><div class="farm-empty-note">No workers have been added yet. Create a worker account to build your team.</div></td></tr>`}</tbody></table></div>` : ""}
+      ${!state.loading.workers && !state.errors.workers ? `<div class="farm-table-wrap"><table class="farm-table"><thead><tr><th>Worker</th><th>Role</th><th>Location</th><th>Employee code</th><th>Wage</th><th>Face enrollment</th><th>Status</th>${canEdit ? "<th>Actions</th>" : ""}</tr></thead><tbody>${state.workers.length ? state.workers.map((worker) => `<tr><td><strong>${esc(fullName(worker))}</strong><small>${esc(worker.email || worker.phone || "")}</small></td><td><span class="farm-role">${esc((worker.role || "").replace("farm_", ""))}</span></td><td>${esc(locationName(worker.location_id))}</td><td>${moneyless(worker.employee_code)}</td><td>${worker.wage_rate == null || worker.wage_rate === "" ? "—" : `${esc(worker.wage_rate)}${worker.wage_type ? ` / ${esc(worker.wage_type)}` : ""}`}</td><td><span class="farm-operation-status ${worker.face_enrolled ? "is-present" : ""}">${worker.face_enrolled ? "Enrolled" : "Not enrolled"}</span></td><td>${statusBadge(isActive(worker.active))}</td>${canEdit ? `<td><div class="farm-row-actions"><button type="button" class="farm-btn farm-btn--quiet farm-btn--small" data-farm-action="edit-worker" data-id="${esc(worker.id)}">Edit</button><button type="button" class="farm-btn farm-btn--danger-quiet farm-btn--small" data-farm-action="delete-worker" data-id="${esc(worker.id)}">Delete</button>${operationsUI?.workerActionMarkup?.(worker) || ""}</div></td>` : ""}</tr>`).join("") : `<tr><td colspan="${canEdit ? 8 : 7}"><div class="farm-empty-note">No workers have been added yet. Create a worker account to build your team.</div></td></tr>`}</tbody></table></div>` : ""}
     </section>`;
   }
 
   function animalsPanel() {
     const filters = state.filters;
+    const canEdit = isFarmAdmin();
     const typeLoading = state.loading.animalTypes;
-    return `<section class="farm-panel"><div class="farm-panel-heading farm-panel-heading--actions"><div><p class="farm-overline">LIVESTOCK REGISTER</p><h2>Animals</h2><p class="farm-panel-copy">Search animal records and keep each record connected to its location.</p></div><button type="button" class="farm-btn" data-farm-action="new-animal">${icon("plus", 16)} Add animal</button></div>
+    return `<section class="farm-panel"><div class="farm-panel-heading farm-panel-heading--actions"><div><p class="farm-overline">LIVESTOCK REGISTER</p><h2>Animals</h2><p class="farm-panel-copy">Search animal records and keep each record connected to its location.</p></div>${canEdit ? `<button type="button" class="farm-btn" data-farm-action="new-animal">${icon("plus", 16)} Add animal</button>` : ""}</div>
       <form class="farm-filters" data-farm-form="animal-filters">
         <label class="farm-field farm-search-field"><span>Search</span><span class="farm-input-icon">${icon("search", 16)}<input name="search" type="search" value="${esc(filters.search)}" placeholder="Tag number or name"></span></label>
         <label class="farm-field"><span>Location</span><select name="location_id"><option value="">All locations</option>${state.locations.map((item) => `<option value="${esc(item.id)}" ${String(filters.location_id) === String(item.id) ? "selected" : ""}>${esc(item.name)}</option>`).join("")}</select></label>
@@ -300,7 +317,7 @@ export function initFarmUI({ api, getCurrentUser, notify, escapeHtml }) {
       ${state.errors.animalTypes ? `<div class="farm-inline-error">Animal type list unavailable: ${esc(state.errors.animalTypes)} <button type="button" data-farm-action="load-types">Retry</button></div>` : ""}
       <div class="farm-tools-strip"><span>${esc(state.animals.length)} ${state.animals.length === 1 ? "record" : "records"} loaded</span></div>
       ${resourceState("animals", "Loading animal records")}
-      ${!state.loading.animals && !state.errors.animals ? `<div class="farm-table-wrap"><table class="farm-table farm-animal-table"><thead><tr><th>Animal</th><th>Type</th><th>Age</th><th>Location</th><th>Quantity / weight</th><th>Health</th><th>Status</th><th>Actions</th></tr></thead><tbody>${state.animals.length ? state.animals.map((animal) => `<tr><td><button type="button" class="farm-animal-link" data-farm-action="view-animal" data-id="${esc(animal.id)}"><strong>${esc(animal.name || animal.tag_number || "Animal record")}</strong><small>${esc(animal.tag_number || "No tag recorded")}</small></button></td><td>${esc(animal.type_name || state.animalTypes.find((item) => String(item.id) === String(animal.animal_type_id))?.name || "—")}</td><td>${animalAge(animal.date_of_birth)}</td><td>${esc(animal.location_name || locationName(animal.location_id))}</td><td>${animal.quantity != null && animal.quantity !== "" ? `${esc(animal.quantity)} count` : animal.weight_kg != null && animal.weight_kg !== "" ? `${esc(animal.weight_kg)} kg` : "—"}</td><td>${statusPill(animal.health_status || "not recorded")}</td><td>${statusPill(animal.status || "not recorded")}</td><td><div class="farm-row-actions"><button type="button" class="farm-btn farm-btn--quiet farm-btn--small" data-farm-action="edit-animal" data-id="${esc(animal.id)}">Edit</button><button type="button" class="farm-btn farm-btn--danger-quiet farm-btn--small" data-farm-action="delete-animal" data-id="${esc(animal.id)}">Delete</button></div></td></tr>`).join("") : `<tr><td colspan="8"><div class="farm-empty-note">No animal records match these filters. Add an animal or adjust the filters to see records.</div></td></tr>`}</tbody></table></div>` : ""}
+       ${!state.loading.animals && !state.errors.animals ? `<div class="farm-table-wrap"><table class="farm-table farm-animal-table"><thead><tr><th>Animal</th><th>Type</th><th>Age</th><th>Location</th><th>Quantity / weight</th><th>Health</th><th>Status</th>${canEdit ? "<th>Actions</th>" : ""}</tr></thead><tbody>${state.animals.length ? state.animals.map((animal) => `<tr><td><button type="button" class="farm-animal-link" data-farm-action="view-animal" data-id="${esc(animal.id)}"><strong>${esc(animal.name || animal.tag_number || "Animal record")}</strong><small>${esc(animal.tag_number || "No tag recorded")}</small></button></td><td>${esc(animal.type_name || state.animalTypes.find((item) => String(item.id) === String(animal.animal_type_id))?.name || "—")}</td><td>${animalAge(animal.date_of_birth)}</td><td>${esc(animal.location_name || locationName(animal.location_id))}</td><td>${animal.quantity != null && animal.quantity !== "" ? `${esc(animal.quantity)} count` : animal.weight_kg != null && animal.weight_kg !== "" ? `${esc(animal.weight_kg)} kg` : "—"}</td><td>${statusPill(animal.health_status || "not recorded")}</td><td>${statusPill(animal.status || "not recorded")}</td>${canEdit ? `<td><div class="farm-row-actions"><button type="button" class="farm-btn farm-btn--quiet farm-btn--small" data-farm-action="edit-animal" data-id="${esc(animal.id)}">Edit</button><button type="button" class="farm-btn farm-btn--danger-quiet farm-btn--small" data-farm-action="delete-animal" data-id="${esc(animal.id)}">Delete</button></div></td>` : ""}</tr>`).join("") : `<tr><td colspan="${canEdit ? 8 : 7}"><div class="farm-empty-note">No animal records match these filters. Add an animal or adjust the filters to see records.</div></td></tr>`}</tbody></table></div>` : ""}
     </section>`;
   }
 
@@ -440,10 +457,10 @@ export function initFarmUI({ api, getCurrentUser, notify, escapeHtml }) {
       ? Math.max(0, Math.floor((Date.now() - new Date(`${birthDate}T00:00:00`).getTime()) / 31_557_600_000))
       : null;
     return `<section class="farm-animal-detail">
-      <div class="farm-animal-detail-head">${photo ? `<img src="${photo}" alt="${esc(animal.name || animal.tag_number || "Animal")}">` : `<span class="farm-animal-detail-placeholder">${icon("animal", 28)}</span>`}<div><p class="farm-overline">${esc(animal.type_name || "Animal type")}</p><h3>${esc(animal.tag_number || animal.name || "Animal record")}</h3><p>${esc(animal.status || "active")} · ${esc(animal.tracking_mode === "batch" ? `${animal.quantity ?? 1} count` : animal.gender || "Individual")}</p></div></div>
+      <div class="farm-animal-detail-head">${photo ? `<img src="${photo}" alt="${esc(animal.name || animal.tag_number || "Animal")}">` : `<span class="farm-animal-detail-placeholder">${icon("animal", 28)}</span>`}<div><p class="farm-overline">${esc(animal.type_name || "Animal type")}</p><h3>${esc(animal.tag_number || animal.name || "Animal record")}</h3><p>${esc(animal.status || "active")} · ${esc(animal.tracking_mode === "batch" ? `${animal.quantity ?? 1} count` : animal.gender || "Individual")}${String(animal.health_status || "").toLowerCase() === "sick" ? ` · <span class="farm-operation-status is-sick">Sick</span>` : ""}</p></div></div>
       <dl class="farm-animal-facts"><div><dt>Name</dt><dd>${esc(animal.name || "Not recorded")}</dd></div><div><dt>Location</dt><dd>${esc(animal.location_name || locationName(animal.location_id))}</dd></div><div><dt>Gender</dt><dd>${esc(animal.gender || "Not recorded")}</dd></div><div><dt>Date of birth</dt><dd>${esc(birthDate || "Not recorded")}${ageYears === null ? "" : ` · ${ageYears} years`}</dd></div><div><dt>Weight</dt><dd>${animal.weight_kg == null ? "Not recorded" : `${esc(animal.weight_kg)} kg`}</dd></div><div><dt>Health status</dt><dd>${esc(animal.health_status || "Not recorded")}</dd></div><div class="farm-animal-fact-wide"><dt>Notes</dt><dd>${esc(animal.notes || "No notes")}</dd></div></dl>
-      <div class="farm-phase-detail"><strong>Phase 5B tools</strong><button type="button" disabled>Movements</button><button type="button" disabled>Egg records</button><button type="button" disabled>Health log</button></div>
-      <div class="farm-modal-footer"><button type="button" class="farm-btn farm-btn--quiet" data-farm-action="close-modal">Close</button><button type="button" class="farm-btn" data-farm-action="edit-detail-animal" data-id="${esc(animal.id)}">Edit animal</button></div>
+       ${operationsUI?.renderAnimalTools?.(animal) || ""}
+       <div class="farm-modal-footer"><button type="button" class="farm-btn farm-btn--quiet" data-farm-action="close-modal">Close</button>${isFarmAdmin() ? `<button type="button" class="farm-btn" data-farm-action="edit-detail-animal" data-id="${esc(animal.id)}">Edit animal</button>` : ""}</div>
     </section>`;
   }
   function organizationForm() {
@@ -464,15 +481,18 @@ export function initFarmUI({ api, getCurrentUser, notify, escapeHtml }) {
   function renderFarm() {
     if (!farmHost) return;
     if (!state.user || !["farm_admin", "farm_manager", "farm_worker"].includes(roleOf(state.user))) {
+      operationsUI?.stopCamera?.();
       farmHost.innerHTML = "";
       return;
     }
-    if (!isFarmAdmin()) {
-      const label = roleOf(state.user) === "farm_manager" ? "Farm manager" : "Farm worker";
-      farmHost.innerHTML = `<section class="farm-staff-welcome"><p class="farm-overline">FARM OPERATIONS</p><h1>Your farm account is active</h1><p>${esc(label)} tools are not part of the Phase 5A administrator workspace. Ask your farm administrator if you need access to another section.</p></section>`;
+    if (roleOf(state.user) === "farm_worker") {
+      farmHost.innerHTML = operationsUI?.renderWorkerWorkspace?.() || "";
+      operationsUI?.afterRender?.();
       return;
     }
+    if (!tabsForRole().some(([tab]) => tab === state.tab)) state.tab = "dashboard";
     farmHost.innerHTML = shellMarkup();
+    operationsUI?.afterRender?.();
   }
 
   function commandMarkup() {
@@ -483,15 +503,17 @@ export function initFarmUI({ api, getCurrentUser, notify, escapeHtml }) {
       result.farms += 1;
       result.animals += Number(org.counts?.animals ?? org.animals_count ?? 0);
       result.workers += Number(org.counts?.workers ?? org.workers_count ?? 0);
+      result.eggs += Number(org.counts?.eggs_week ?? org.eggs_week ?? 0);
+      result.present += Number(org.counts?.workers_present_today ?? org.workers_present_today ?? 0);
       return result;
-    }, { farms: 0, animals: 0, workers: 0 });
+    }, { farms: 0, animals: 0, workers: 0, eggs: 0, present: 0 });
     return `<section class="farm-command-panel">
       <div class="farm-command-heading"><div><p class="farm-overline">COMMAND CENTER / ORGANIZATIONS</p><h2>Farm organizations</h2><p>Review registered farms and set up new organizations.</p></div><button type="button" class="farm-btn" data-farm-action="new-organization">${icon("plus", 16)} Create organization</button></div>
-      ${!state.command.loading && !state.command.error ? `<section class="farm-command-stats"><article><small>Total farms</small><strong>${esc(totals.farms)}</strong></article><article><small>Registered animals</small><strong>${esc(totals.animals)}</strong></article><article><small>Active workers</small><strong>${esc(totals.workers)}</strong></article></section>` : ""}
+       ${!state.command.loading && !state.command.error ? `<section class="farm-command-stats"><article><small>Total farms</small><strong>${esc(totals.farms)}</strong></article><article><small>Registered animals</small><strong>${esc(totals.animals)}</strong></article><article><small>Active workers</small><strong>${esc(totals.workers)}</strong></article><article><small>Eggs this week</small><strong>${esc(totals.eggs)}</strong></article><article><small>Workers present today</small><strong>${esc(totals.present)}</strong></article></section>` : ""}
       ${state.command.loading ? `<section class="farm-panel farm-state-card"><div class="farm-skeleton-heading"></div><div class="farm-skeleton-row"></div><div class="farm-skeleton-row"></div><p>Loading farm organizations…</p></section>` : ""}
       ${state.command.error ? `<section class="farm-panel farm-resource-error"><span>${icon("alert", 18)} ${esc(state.command.error)}</span><button type="button" class="farm-btn farm-btn--quiet farm-btn--small" data-farm-action="retry-command">${icon("retry", 14)} Try again</button></section>` : ""}
       ${!state.command.loading && !state.command.error ? `<section class="farm-panel"><div class="farm-panel-heading"><div><p class="farm-overline">ORGANIZATION DIRECTORY</p><h3>${esc(state.command.organizations.length)} ${state.command.organizations.length === 1 ? "farm" : "farms"}</h3></div></div>
-        <div class="farm-table-wrap"><table class="farm-table farm-org-table"><thead><tr><th>Organization</th><th>Farm type</th><th>District</th><th>Contact</th><th>Locations</th><th>Workers</th><th>Animals</th></tr></thead><tbody>${state.command.organizations.length ? state.command.organizations.map((org) => `<tr><td><strong>${esc(org.name || "Unnamed organization")}</strong><small>${esc(org.registration_number || org.tin || "Registration not provided")}</small></td><td>${moneyless(org.farm_type)}</td><td>${moneyless(org.district)}</td><td>${esc(org.phone || org.email || "—")}</td><td>${esc(org.counts?.locations ?? org.locations_count ?? 0)}</td><td>${esc(org.counts?.workers ?? org.workers_count ?? 0)}</td><td>${esc(org.counts?.animals ?? org.animals_count ?? 0)}</td></tr>`).join("") : `<tr><td colspan="7"><div class="farm-empty-note">No farm organizations have been created. Create an organization to set up its first administrator.</div></td></tr>`}</tbody></table></div>
+         <div class="farm-table-wrap"><table class="farm-table farm-org-table"><thead><tr><th>Organization</th><th>Farm type</th><th>District</th><th>Contact</th><th>Locations</th><th>Workers</th><th>Animals</th><th>Eggs this week</th><th>Present today</th></tr></thead><tbody>${state.command.organizations.length ? state.command.organizations.map((org) => `<tr><td><strong>${esc(org.name || "Unnamed organization")}</strong><small>${esc(org.registration_number || org.tin || "Registration not provided")}</small></td><td>${moneyless(org.farm_type)}</td><td>${moneyless(org.district)}</td><td>${esc(org.phone || org.email || "—")}</td><td>${esc(org.counts?.locations ?? org.locations_count ?? 0)}</td><td>${esc(org.counts?.workers ?? org.workers_count ?? 0)}</td><td>${esc(org.counts?.animals ?? org.animals_count ?? 0)}</td><td>${esc(org.counts?.eggs_week ?? org.eggs_week ?? 0)}</td><td>${esc(org.counts?.workers_present_today ?? org.workers_present_today ?? 0)}</td></tr>`).join("") : `<tr><td colspan="9"><div class="farm-empty-note">No farm organizations have been created. Create an organization to set up its first administrator.</div></td></tr>`}</tbody></table></div>
       </section>` : ""}
       ${state.modal?.kind === "organization" ? modalMarkup() : ""}
     </section>`;
@@ -524,6 +546,7 @@ export function initFarmUI({ api, getCurrentUser, notify, escapeHtml }) {
   }
 
   function resetScopedState() {
+    operationsUI?.stopCamera?.();
     state.scopeVersion += 1;
     state.tab = "dashboard";
     state.stats = null;
@@ -543,12 +566,21 @@ export function initFarmUI({ api, getCurrentUser, notify, escapeHtml }) {
   }
 
   function refreshTabData() {
-    if (!isFarmAdmin()) return;
+    if (!canViewFarmWorkspace()) return;
     if (state.tab === "dashboard") loadStats();
     if (state.tab === "locations") loadLocations();
     if (state.tab === "workers") { loadLocations(); loadWorkers(); }
     if (state.tab === "animals") { loadLocations(); loadAnimalTypes().then(loadAnimals); }
     if (state.tab === "settings") loadSettings();
+    if (state.tab === "eggs") {
+      void loadLocations().finally(() => operationsUI?.loadTab("eggs"));
+    }
+    if (state.tab === "attendance") {
+      void Promise.all([loadLocations(), loadWorkers()]).then(() => operationsUI?.loadTab("attendance"));
+    }
+    if (state.tab === "health") {
+      void Promise.all([loadAnimals(), loadAnimalTypes()]).then(() => operationsUI?.loadTab("health"));
+    }
   }
 
   function formFields(form) {
@@ -735,7 +767,20 @@ export function initFarmUI({ api, getCurrentUser, notify, escapeHtml }) {
     }
   }
 
+  operationsUI = initFarmOperationsUI({
+    request,
+    escapeHtml: esc,
+    notify: announce,
+    rerender: renderFarm,
+    getCoreState: () => state,
+  });
+
   async function handleFarmClick(event) {
+    const operationButton = event.target.closest("[data-farm-ops-action]");
+    if (operationButton && farmHost?.contains(operationButton)) {
+      await operationsUI.handleClick(operationButton, event);
+      return;
+    }
     const button = event.target.closest("[data-farm-action]");
     if (!button || !farmHost?.contains(button)) return;
     const action = button.dataset.farmAction;
@@ -743,7 +788,7 @@ export function initFarmUI({ api, getCurrentUser, notify, escapeHtml }) {
     const scopeVersion = state.scopeVersion;
     if (action === "tab") {
       const next = button.dataset.tab;
-      if (!FARM_TABS.some(([key]) => key === next)) return;
+      if (!tabsForRole().some(([key]) => key === next)) return;
       state.tab = next;
       state.modal = null;
       renderFarm();
@@ -765,6 +810,7 @@ export function initFarmUI({ api, getCurrentUser, notify, escapeHtml }) {
         if (scopeVersion !== state.scopeVersion) return;
         state.modal = { kind: "animal-detail", record: payload?.animal || {} };
         renderFarm();
+        await operationsUI.selectAnimal(state.modal.record);
       } catch (error) {
         if (scopeVersion !== state.scopeVersion) return;
         announce(errorMessage(error), "error");
@@ -807,6 +853,12 @@ export function initFarmUI({ api, getCurrentUser, notify, escapeHtml }) {
     else if (action === "retry-command") loadCommandCenter();
   }
   function handleFarmSubmit(event) {
+    const operationsForm = event.target.closest("[data-farm-ops-form]");
+    if (operationsForm && farmHost?.contains(operationsForm)) {
+      event.preventDefault();
+      void operationsUI.handleSubmit(operationsForm);
+      return;
+    }
     const form = event.target.closest("[data-farm-form]");
     if (!form || !farmHost?.contains(form)) return;
     event.preventDefault();
@@ -820,16 +872,21 @@ export function initFarmUI({ api, getCurrentUser, notify, escapeHtml }) {
   }
   function handleFarmChange(event) {
     const target = event.target;
+    operationsUI.handleChange(target);
     if (target.matches('[data-farm-form="animal"] [name="animal_type_id"]')) updateAnimalTracking(target.form);
     if (target.matches('[data-farm-form="settings"] [name="brand_color"]')) {
       const label = target.closest(".farm-color-input")?.querySelector("span");
       if (label) label.textContent = target.value;
     }
   }
+  function handleFarmInput(event) {
+    operationsUI.handleInput(event.target);
+  }
 
   farmHost?.addEventListener("click", handleFarmClick);
   farmHost?.addEventListener("submit", handleFarmSubmit);
   farmHost?.addEventListener("change", handleFarmChange);
+  farmHost?.addEventListener("input", handleFarmInput);
   commandHost?.addEventListener("click", handleCommandClick);
   commandHost?.addEventListener("submit", handleCommandSubmit);
 
@@ -838,20 +895,22 @@ export function initFarmUI({ api, getCurrentUser, notify, escapeHtml }) {
     if (nextKey !== state.userKey) resetScopedState();
     state.user = user || null;
     state.userKey = nextKey;
+    void operationsUI.setUser(user || null);
     renderFarm();
     renderCommand();
-    if (isFarmAdmin()) {
+    if (canViewFarmWorkspace()) {
       refreshTabData();
-      void loadSettings();
+      if (isFarmAdmin()) void loadSettings();
     }
     if (roleOf(state.user) === "superadmin") loadCommandCenter();
   }
 
   renderFarm();
   renderCommand();
-  if (isFarmAdmin()) {
+  void operationsUI.setUser(state.user);
+  if (canViewFarmWorkspace()) {
     refreshTabData();
-    void loadSettings();
+    if (isFarmAdmin()) void loadSettings();
   }
   return { setUser, loadCommandCenter };
 }
