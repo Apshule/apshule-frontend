@@ -3,8 +3,6 @@ const PAYMENT_CHANNELS = [
   ["paypal", "PayPal"],
   ["bank", "Bank transfer"],
   ["card", "Card"],
-  ["cash_owner", "Cash received by owner"],
-  ["other", "Other"],
 ];
 const SALE_STATUSES = [
   ["pending_owner_review", "Pending owner review"],
@@ -242,13 +240,25 @@ export function initFarmCommerceUI({ request, escapeHtml, notify, rerender, getC
   }
 
   function renderSales() {
-    const canCreate = true;
-    const actions = `<button type="button" class="farm-btn" data-farm-commerce-action="new-sale">＋ Record sale</button>`;
+    const actions = isWorker()
+      ? `<button type="button" class="farm-btn" data-farm-commerce-action="new-sale">＋ Record sale</button>`
+      : "";
+    const filters = [["", "All statuses"], ...SALE_STATUSES].map(([key, label]) =>
+      `<button type="button" class="farm-status-chip ${state.statusFilter === key ? "is-active" : ""}" data-farm-commerce-action="filter-sales-status" data-status="${esc(key)}" aria-pressed="${state.statusFilter === key}">${esc(label)}</button>`
+    ).join("");
+    const saleActions = (sale) => {
+      const buttons = [];
+      if (canManage() && sale.status === "pending_owner_review") buttons.push(actionButton("open-payment", "Confirm payment", sale.id, "farm-btn"));
+      if (canManage() && sale.status === "payment_confirmed") buttons.push(actionButton("open-authorization", "Authorize release", sale.id, "farm-btn"));
+      if (canManage() && sale.status === "released") buttons.push(actionButton("close-sale", "Close sale", sale.id, "farm-btn farm-btn--quiet"));
+      buttons.push(actionButton("view-sale", "Details", sale.id, "farm-btn farm-btn--quiet farm-btn--small"));
+      return `<div class="farm-row-actions farm-sale-row-actions">${buttons.join("")}</div>`;
+    };
     return `<section class="farm-panel">
       ${panelHeader("THREE-STAGE RELEASE", isWorker() ? "My sales" : "Sales", "Review → confirm payment → authorize release → release goods → close.", actions)}
-      <div class="farm-commerce-toolbar"><label class="farm-field"><span>Filter status</span><select data-farm-commerce-filter="sales-status"><option value="">All statuses</option>${SALE_STATUSES.map(([key, label]) => `<option value="${key}" ${selected(state.statusFilter, key)}>${esc(label)}</option>`).join("")}</select></label><div class="farm-commerce-inline-note">Workers can record and release only their own sales. They cannot handle money.</div></div>
+      <div class="farm-commerce-toolbar"><div class="farm-status-chips" role="group" aria-label="Filter sales by status">${filters}</div><div class="farm-commerce-inline-note">${isWorker() ? "You can create sales and release only your own authorized sales. Do not receive or record buyer payment." : "Confirm buyer payment, authorize release, then close the sale after the worker releases goods."}</div></div>
       ${resourceError("sales")}
-      <div class="farm-table-wrap"><table class="farm-table"><thead><tr><th>Sale</th><th>Date</th><th>Buyer</th><th>Location</th><th>Items</th><th>Total</th><th>Paid</th><th>Balance</th><th>Status</th><th>Action</th></tr></thead><tbody>${state.sales.length ? state.sales.map((sale) => `<tr><td><strong>${esc(sale.sale_number)}</strong><small>${esc(sale.recorded_by_name || "Farm team")}</small></td><td>${esc(sale.sale_date)}</td><td>${esc(sale.buyer_name || "Walk-in buyer")}</td><td>${esc(sale.location_name || "—")}</td><td>${Number(sale.item_count || sale.items?.length || 0)}</td><td>${money(sale.total)}</td><td>${money(sale.amount_paid)}</td><td>${money(sale.balance_due)}</td><td>${badge(sale.status)}</td><td>${actionButton("view-sale", "Details", sale.id)}</td></tr>`).join("") : tableEmpty("No sales match this status filter.", 10)}</tbody></table></div>
+      <div class="farm-table-wrap"><table class="farm-table"><thead><tr><th>Sale</th><th>Date</th><th>Buyer</th><th>Location</th><th>Items</th><th>Total</th><th>Paid</th><th>Balance</th><th>Status</th><th>Action</th></tr></thead><tbody>${state.sales.length ? state.sales.map((sale) => `<tr><td><strong>${esc(sale.sale_number)}</strong><small>${esc(sale.recorded_by_name || "Farm team")}</small></td><td>${esc(sale.sale_date)}</td><td>${esc(sale.buyer_name || "Walk-in buyer")}</td><td>${esc(sale.location_name || "—")}</td><td>${Number(sale.item_count || sale.items?.length || 0)}</td><td>${money(sale.total)}</td><td>${money(sale.amount_paid)}</td><td>${money(sale.balance_due)}</td><td>${badge(sale.status)}</td><td>${saleActions(sale)}</td></tr>`).join("") : tableEmpty("No sales match this status filter.", 10)}</tbody></table></div>
     </section>`;
   }
 
@@ -333,7 +343,7 @@ export function initFarmCommerceUI({ request, escapeHtml, notify, rerender, getC
     return `<div class="farm-commerce-sale-line" data-sale-line>
       <label class="farm-field"><span>Produce</span><select name="produce_id" required>${productOptions(record.produce_id)}</select></label>
       <label class="farm-field"><span>Quantity</span><input name="quantity" type="number" min="0.001" step="0.001" required value="${esc(record.quantity || 1)}"></label>
-      ${canManage() ? `<label class="farm-field"><span>Unit price (UGX)</span><input name="unit_price" type="number" min="0" step="1" placeholder="Use catalog price" value="${esc(record.unit_price ?? "")}"></label>` : ""}
+      ${formField("Agreed unit price (UGX)", "unit_price", record.unit_price ?? "", "number", { min: 0, step: "1", placeholder: "Use catalog price" })}
       <button class="farm-btn farm-btn--danger-quiet farm-btn--small" type="button" data-farm-commerce-action="remove-sale-line" aria-label="Remove sale item">Remove</button>
     </div>`;
   }
@@ -385,13 +395,10 @@ export function initFarmCommerceUI({ request, escapeHtml, notify, rerender, getC
       ${formField("Sale date", "sale_date", today(), "date", { required: true })}
       ${formField("Buyer name", "buyer_name")}
       ${formField("Buyer phone", "buyer_phone", "", "tel")}
-      ${canManage() ? `<label class="farm-field"><span>Location</span><select name="location_id">${locationOptions()}</select></label>` : ""}
-      ${canManage() ? `<label class="farm-field"><span>Payment received via</span><select name="payment_channel" required>${PAYMENT_CHANNELS.map(([key, label]) => `<option value="${key}">${label}</option>`).join("")}</select></label>` : ""}
-      ${canManage() ? formField("Discount (UGX)", "discount", 0, "number", { min: 0, step: "1" }) : ""}
       <div class="farm-commerce-sale-lines farm-span-2" data-sale-lines>${saleLine()}</div>
       <button class="farm-btn farm-btn--quiet farm-btn--small" type="button" data-farm-commerce-action="add-sale-line">＋ Add another item</button>
       <label class="farm-field farm-span-2"><span>Notes</span><textarea name="notes" rows="2"></textarea></label>
-      <div class="farm-commerce-inline-note farm-span-2">${isWorker() ? "This sale will be sent for owner review. Do not accept or record payment." : "This manager/admin sale starts with payment confirmed; the goods still need release authorization."}</div>
+      <div class="farm-commerce-inline-note farm-span-2">This sale will be sent for owner review. The buyer pays the owner directly; do not accept or record payment.</div>
       <div class="farm-modal-footer"><button type="button" class="farm-btn farm-btn--quiet" data-farm-commerce-action="close-modal">Cancel</button><button type="submit" class="farm-btn">Save sale</button></div>
     </form>`;
     return modalFrame("Record farm sale", buyer, true);
@@ -402,7 +409,7 @@ export function initFarmCommerceUI({ request, escapeHtml, notify, rerender, getC
     const available = [];
     if (sale.status === "pending_owner_review" && canManage()) available.push(actionButton("open-payment", "Confirm payment", sale.id, "farm-btn"));
     if (sale.status === "payment_confirmed" && canManage()) available.push(actionButton("open-authorization", "Authorize release", sale.id, "farm-btn"));
-    if (sale.status === "release_authorized" && (canManage() || (isWorker() && String(sale.recorded_by) === String(state.user?.id || state.user?.user_id)))) {
+    if (sale.status === "release_authorized" && isWorker() && String(sale.recorded_by) === String(state.user?.id || state.user?.user_id)) {
       available.push(actionButton("mark-released", "Mark goods released", sale.id, "farm-btn"));
     }
     if (sale.status === "released" && canManage()) available.push(actionButton("close-sale", "Close sale", sale.id, "farm-btn"));
@@ -478,14 +485,22 @@ export function initFarmCommerceUI({ request, escapeHtml, notify, rerender, getC
     if (state.loading.sales) return `<div class="farm-commerce-loading">Loading your sales…</div>`;
     if (state.errors.sales) return `<div class="farm-inline-error">${esc(state.errors.sales)} <button type="button" data-farm-commerce-action="retry" data-resource="sales">Try again</button></div>`;
     const stageText = {
-      pending_owner_review: "⏳ Waiting for owner",
-      payment_confirmed: "💰 Payment received",
+      pending_owner_review: "⏳ Waiting for owner payment confirmation",
+      payment_confirmed: "💰 Payment confirmed — waiting for release authorization",
+      release_authorized: "✅ Owner authorized — release goods",
       released: "📦 Released — waiting for close",
       closed: "✅ Completed",
       rejected: "Sale rejected",
       cancelled: "Sale cancelled",
     };
-    return `<section class="farm-panel"><div class="farm-panel-heading"><div><p class="farm-overline">YOUR SALES</p><h2>My sales</h2><p class="farm-panel-copy">Only records entered by your account are shown.</p></div>${actionButton("worker-sale", "Record sale", "", "farm-btn")}</div><div class="farm-worker-sale-list">${state.sales.length ? state.sales.map((sale) => sale.status === "release_authorized" ? `<article class="farm-worker-sale-authorized"><div><span class="farm-overline">RELEASE APPROVED</span><h3>✅ Owner authorized — Release goods to ${esc(sale.buyer_name || "buyer")}</h3><p><strong>${esc(sale.release_authorized_by_name || "Farm owner")}</strong> · ${esc(sale.release_authorized_at ? new Date(sale.release_authorized_at).toLocaleString() : "Time not recorded")}</p><small>${esc(sale.sale_number)} · ${money(sale.total)} · Open details to play the recorded verbal note.</small></div><div class="farm-worker-authorized-actions">${actionButton("view-sale", "Play note / details", sale.id, "farm-btn farm-btn--quiet")}${actionButton("mark-released", "📦 Mark as Released", sale.id, "farm-btn")}</div></article>` : `<article><div><strong>${esc(sale.sale_number)}</strong><small>${esc(sale.sale_date)} · ${esc(sale.buyer_name || "Walk-in buyer")}</small><small>${esc(stageText[sale.status] || `Sale ${sale.status}`)}</small></div><div>${badge(sale.status)}<strong>${money(sale.total)}</strong></div>${actionButton("view-sale", "Details", sale.id)}</article>`).join("") : '<p class="farm-commerce-muted">You have not recorded a sale yet.</p>'}</div></section>`;
+    return `<section class="farm-panel"><div class="farm-panel-heading"><div><p class="farm-overline">YOUR SALES</p><h2>My sales</h2><p class="farm-panel-copy">Only records entered by your account are shown.</p></div>${actionButton("worker-sale", "Record sale", "", "farm-btn")}</div><div class="farm-worker-sale-list">${state.sales.length ? state.sales.map((sale) => {
+      const authorized = sale.status === "release_authorized";
+      const detailsLabel = authorized ? "View details & play voice note" : "View details";
+      return `<article class="farm-worker-sale-card farm-worker-sale-status-${esc(sale.status)}">
+        <div class="farm-worker-sale-card-main"><span class="farm-overline">${esc(sale.sale_number)}</span><h3>${esc(stageText[sale.status] || `Sale ${sale.status}`)}</h3><p>${esc(sale.sale_date)} · ${esc(sale.buyer_name || "Walk-in buyer")}</p>${authorized ? `<p class="farm-worker-sale-owner"><strong>${esc(sale.release_authorized_by_name || "Farm owner")}</strong> · ${esc(sale.release_authorized_at ? new Date(sale.release_authorized_at).toLocaleString() : "Time not recorded")}</p>` : ""}<small>${money(sale.total)} · ${authorized ? "The recorded verbal note is available in details." : "Sale status and items are available in details."}</small></div>
+        <div class="farm-worker-sale-card-actions">${badge(sale.status)}${actionButton("view-sale", detailsLabel, sale.id, "farm-btn farm-btn--quiet farm-btn--small")}${authorized ? actionButton("mark-released", "📦 Mark as Released", sale.id, "farm-btn") : ""}</div>
+      </article>`;
+    }).join("") : '<p class="farm-commerce-muted">You have not recorded a sale yet.</p>'}</div></section>`;
   }
 
   function readForm(form) {
@@ -558,18 +573,13 @@ export function initFarmCommerceUI({ request, escapeHtml, notify, rerender, getC
           sale_date: data.sale_date,
           buyer_name: data.buyer_name || null,
           buyer_phone: data.buyer_phone || null,
-          location_id: data.location_id || null,
           notes: data.notes || null,
           items,
         };
-        if (canManage()) {
-          body.payment_channel = data.payment_channel;
-          body.discount = Number(data.discount || 0);
-        }
         await request(`${base}/sales`, { method: "POST", body });
         state.modal = null;
-        notifyUser(isWorker() ? "Sale sent for owner review." : "Sale recorded; payment is confirmed and release still needs authorization.");
-        await Promise.all([loadSales(isWorker()), loadDashboard()]);
+        notifyUser("Sale sent for owner review. The buyer pays the owner directly.");
+        await Promise.all([loadSales(true), canManage() ? loadDashboard() : Promise.resolve()]);
       } else if (kind === "payment") {
         await request(`${base}/sales/${encodeURIComponent(state.modal.sale.id)}/confirm-payment`, {
           method: "POST",
@@ -639,6 +649,11 @@ export function initFarmCommerceUI({ request, escapeHtml, notify, rerender, getC
       rerenderUI();
       return;
     }
+    if (action === "filter-sales-status") {
+      state.statusFilter = button.dataset.status || "";
+      await loadSales(isWorker());
+      return;
+    }
     if (action === "retry") {
       const key = button.dataset.resource;
       if (key === "dashboard") await loadDashboard();
@@ -673,9 +688,8 @@ export function initFarmCommerceUI({ request, escapeHtml, notify, rerender, getC
       const produce = state.produce.find((item) => item.id === id);
       const payload = await request(`${base}/produce/${encodeURIComponent(id)}/movements`);
       state.modal = { kind: "produce-movements", produce: produce || {}, movements: payload.movements || [] };
-    } else if (action === "new-sale" || action === "worker-sale") {
+    } else if ((action === "new-sale" || action === "worker-sale") && isWorker()) {
       if (!state.produce.length) await loadProduce();
-      if (!core().locations?.length && canManage()) await requestLocations();
       state.modal = { kind: "sale", record: {} };
     } else if (action === "view-sale") {
       await openSale(id);
@@ -698,7 +712,8 @@ export function initFarmCommerceUI({ request, escapeHtml, notify, rerender, getC
       ]);
       return;
     } else if (action === "close-sale") {
-      const saleId = state.modal.sale.id;
+      const saleId = id || state.modal?.sale?.id;
+      if (!saleId) return;
       await request(`${base}/sales/${encodeURIComponent(saleId)}/close`, { method: "POST", body: {} });
       notifyUser("Sale closed.");
       await openSale(saleId);
