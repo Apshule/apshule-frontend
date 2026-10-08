@@ -679,8 +679,8 @@ export function initCommandCenterUI({ apiBase, getToken, getUser, notify, activa
           const appName = headerLeft.querySelector(".app-title");
           if (appLogo) { appLogo.style.width = `${appshuleSize}px`; appLogo.style.height = `${appshuleSize}px`; }
           if (appName) appName.hidden = brand.show_appshule_name === false;
-          if (brand.appshule_logo_position === "left") headerLeft.insertBefore(mark, appLogo || headerLeft.firstChild);
-          else headerLeft.append(mark);
+          if (brand.appshule_logo_position === "left") headerLeft.append(mark);
+          else headerLeft.insertBefore(mark, appLogo || appName || headerLeft.firstChild);
           if (brand.header_bg_color && /^#[0-9a-f]{6}$/iu.test(brand.header_bg_color)) document.querySelector("#appScreen .header").style.backgroundColor = brand.header_bg_color;
           if (brand.header_text_color && /^#[0-9a-f]{6}$/iu.test(brand.header_text_color)) document.querySelector("#appScreen .header").style.color = brand.header_text_color;
           if (brand.brand_color && /^#[0-9a-f]{6}$/iu.test(brand.brand_color)) document.documentElement.style.setProperty("--institution-brand-color", brand.brand_color);
