@@ -264,6 +264,24 @@
         .pdf-resolution-status { display:block; margin:6px 0 10px; color:#625d6e; font-size:12px; line-height:1.4; }
         .pdf-resolution-status[data-resolution="resolved"] { color:#247243; font-weight:700; }
         .pdf-resolution-status[data-resolution="failed"], .pdf-resolution-status[data-resolution="not_pdf"] { color:#a33737; font-weight:700; }
+        .pdf-resolution-status[data-resolution="unresolvable"] { color:#9a5b12; font-weight:700; }
+        .pdf-admin-resolve-bar { position:sticky; top:0; z-index:8; display:grid; grid-template-columns:minmax(0,1fr) auto; align-items:center; gap:8px 14px; margin:12px 0; padding:12px 14px; border:1px solid #ded8eb; border-radius:12px; background:#fff; box-shadow:0 4px 12px rgba(42,31,60,.10); }
+        .pdf-admin-resolve-bar strong { color:#302942; font-size:13px; }
+        .pdf-admin-resolve-bar button { padding:9px 12px; border:0; border-radius:9px; background:#4b2e9e; color:#fff; cursor:pointer; font-size:12px; font-weight:700; }
+        .pdf-admin-resolve-bar button:disabled { opacity:.55; cursor:wait; }
+        .pdf-admin-resolve-bar button[hidden], .pdf-admin-resolve-bar progress[hidden], .pdf-admin-resolve-bar span[hidden] { display:none; }
+        .pdf-admin-resolve-progress { grid-column:1 / -1; width:100%; height:8px; accent-color:#4b2e9e; }
+        .pdf-admin-resolve-status { grid-column:1 / -1; margin:0; }
+        .pdf-admin-auto-badge { margin-left:8px; padding:4px 7px; border-radius:999px; background:#fff0d6; color:#80550d; font-size:11px; font-weight:700; }
+        .pdf-admin-row .pdf-resolution-status { width:max-content; max-width:100%; margin:0; padding:4px 8px; border-radius:999px; background:#f0f1f3; color:#555b63; font-size:11px; }
+        .pdf-admin-row .pdf-resolution-status[data-resolution="resolved"] { background:#e6f4ea; color:#247243; }
+        .pdf-admin-row .pdf-resolution-status[data-resolution="unresolvable"] { background:#fff1dc; color:#9a5b12; }
+        .pdf-admin-row .pdf-resolution-status[data-resolution="failed"], .pdf-admin-row .pdf-resolution-status[data-resolution="not_pdf"] { background:#fde9e8; color:#a33737; }
+        .pdf-url-editor { flex:1 0 100%; display:grid; gap:7px; padding:10px; border-radius:9px; background:#f8f7fb; }
+        .pdf-url-editor[hidden] { display:none; }
+        .pdf-url-editor a { min-width:0; overflow-wrap:anywhere; }
+        .pdf-url-editor input { width:100%; box-sizing:border-box; padding:8px; border:1px solid #d9d4e2; border-radius:8px; }
+        @media (max-width:600px) { .pdf-admin-resolve-bar { grid-template-columns:1fr; } .pdf-admin-resolve-bar button { justify-self:start; } }
         .pdf-admin-row { flex-wrap:wrap; }
         .pdf-url-editor { flex-basis:100%; padding:10px; border:1px solid #e4dfeb; border-radius:10px; background:#faf9fc; }
         .pdf-url-editor[hidden] { display:none !important; }
@@ -1825,8 +1843,12 @@
                         <div id="pdfUrlResolutionBadge" class="pdf-resolution-status" role="status" aria-live="polite" hidden></div>
                         <small>Accepts PDF, Word, Excel, PowerPoint, ODT, images, video, audio, text, and other links.</small>
                         <button id="addPdfBtn" class="admin-toggle">➕ Add document</button>
-                        <button type="button" id="resolvePdfLinksBtn" class="admin-toggle">Resolve pending PDF links</button>
-                        <div id="pdfBatchResolveStatus" class="pdf-resolution-status" role="status" aria-live="polite"></div>
+                    </div>
+                    <div id="pdfAdminResolveBar" class="pdf-admin-resolve-bar" role="region" aria-label="PDF link resolution">
+                        <div><strong id="pdfAdminResolveCounts">0 pending · 0 resolved · 0 failed</strong><span id="pdfAutoResolveBadge" class="pdf-admin-auto-badge" hidden>Auto-resolving in background...</span></div>
+                        <button type="button" id="resolvePdfLinksBtn" hidden>🔄 Resolve All Pending</button>
+                        <progress id="pdfAdminResolveProgress" class="pdf-admin-resolve-progress" max="100" value="0" hidden></progress>
+                        <div id="pdfBatchResolveStatus" class="pdf-resolution-status pdf-admin-resolve-status" role="status" aria-live="polite"></div>
                     </div>
                     <div id="pdfUnresolvableSummary" class="pdf-resolution-status" role="status" aria-live="polite"></div>
                     <div id="pdfAdminList"></div>
@@ -4195,9 +4217,195 @@
         }, 120);
     });
     let pdfAdminUnresolvableOnly = false;
+    let pdfBatchResolveInProgress = false;
+    let pdfAutoResolveAttemptKey = null;
+    let pdfAutoResolveMode = false;
+
+    function isPdfPendingResolution(pdf) {
+        return !pdf.resolve_status ||
+            pdf.resolve_status === 'unresolved' ||
+            (pdf.resolve_status === 'not_pdf' && pdf.doc_kind === 'viewer');
+    }
+
+    function getPdfResolutionCounts() {
+        return pdfMaterials.reduce((counts, pdf) => {
+            const status = pdf.resolve_status || 'unresolved';
+            if (isPdfPendingResolution(pdf)) counts.pending += 1;
+            else if (status === 'resolved') counts.resolved += 1;
+            else if (status === 'failed') counts.failed += 1;
+            else if (status === 'unresolvable') counts.unresolvable += 1;
+            return counts;
+        }, { pending: 0, resolved: 0, failed: 0, unresolvable: 0 });
+    }
+
+    function updatePdfResolutionBar() {
+        const counts = getPdfResolutionCounts();
+        const countLabel = document.getElementById('pdfAdminResolveCounts');
+        if (countLabel) {
+            countLabel.textContent = `${counts.pending} pending · ${counts.resolved} resolved · ${counts.failed} failed${counts.unresolvable ? ` · ${counts.unresolvable} unresolvable` : ''}`;
+        }
+        const button = document.getElementById('resolvePdfLinksBtn');
+        if (button) {
+            button.hidden = counts.pending === 0;
+            button.disabled = pdfBatchResolveInProgress;
+        }
+        const badge = document.getElementById('pdfAutoResolveBadge');
+        if (badge) badge.hidden = !pdfAutoResolveMode;
+    }
+
+    async function requestPdfResolutionBatch(onEvent) {
+        const response = await fetch(`${API_BASE}/api/admin/resolve-pdf-links`, {
+            method: 'POST',
+            headers: {
+                Authorization: `Bearer ${AUTH_TOKEN}`,
+                'Content-Type': 'application/json',
+                Accept: 'text/event-stream'
+            },
+            body: JSON.stringify({ limit: 50 })
+        });
+        if (!response.ok) {
+            const errorBody = await response.json().catch(() => ({}));
+            throw new Error(errorBody?.error || 'Could not resolve pending PDF links.');
+        }
+        if (!response.body) throw new Error('The PDF resolver did not return progress data.');
+
+        const reader = response.body.getReader();
+        const decoder = new TextDecoder();
+        let buffer = '';
+        let result = null;
+        const dispatchFrame = frame => {
+            const dataLine = frame.split('\n').find(line => line.startsWith('data:'));
+            if (!dataLine) return;
+            const event = JSON.parse(dataLine.slice(5).trim());
+            onEvent?.(event);
+            if (event.type === 'error') throw new Error(event.message || 'Could not complete the PDF resolver batch.');
+            if (event.type === 'complete') result = event.result;
+        };
+        const dispatchBufferedFrames = () => {
+            let boundary = buffer.indexOf('\n\n');
+            while (boundary !== -1) {
+                const frame = buffer.slice(0, boundary);
+                buffer = buffer.slice(boundary + 2);
+                dispatchFrame(frame);
+                boundary = buffer.indexOf('\n\n');
+            }
+        };
+
+        while (true) {
+            const { value, done } = await reader.read();
+            if (done) break;
+            buffer = (buffer + decoder.decode(value, { stream: true })).replace(/\r\n/gu, '\n');
+            dispatchBufferedFrames();
+        }
+        buffer += decoder.decode();
+        if (buffer.trim()) dispatchFrame(buffer);
+        if (!result) throw new Error('The PDF resolver ended before returning its summary.');
+        return result;
+    }
+
+    async function resolvePendingPdfLinks({ automatic = false } = {}) {
+        if (pdfBatchResolveInProgress) return;
+        if (currentUser?.role !== 'superadmin' || currentUser?.impersonatedBy || currentUser?.impersonated_by) {
+            const status = document.getElementById('pdfBatchResolveStatus');
+            if (status) status.textContent = 'A real Super Admin session is required.';
+            return;
+        }
+        const initialPending = getPdfResolutionCounts().pending;
+        if (!initialPending) {
+            updatePdfResolutionBar();
+            return;
+        }
+
+        pdfBatchResolveInProgress = true;
+        pdfAutoResolveMode = automatic;
+        let runTotal = initialPending;
+        let processedTotal = 0;
+        const totals = { resolved: 0, failed: 0, not_pdf: 0, unresolvable: 0, remaining: initialPending };
+        const button = document.getElementById('resolvePdfLinksBtn');
+        const status = document.getElementById('pdfBatchResolveStatus');
+        const progress = document.getElementById('pdfAdminResolveProgress');
+        if (button) button.disabled = true;
+        if (progress) {
+            progress.hidden = false;
+            progress.max = 100;
+            progress.value = 0;
+        }
+        if (status) status.textContent = automatic ? 'Starting background PDF link checks…' : 'Starting PDF link checks…';
+        updatePdfResolutionBar();
+
+        try {
+            while (true) {
+                const batch = await requestPdfResolutionBatch(event => {
+                    if (event.type === 'start') {
+                        runTotal = Math.max(runTotal, processedTotal + (Number(event.total) || 0));
+                    } else if (event.type === 'processing') {
+                        const current = processedTotal + (Number(event.current) || 1);
+                        const done = processedTotal + (Number(event.done) || 0);
+                        if (status) status.textContent = `Resolving ${current} of ${runTotal}... (${done} done)`;
+                        if (progress) progress.value = runTotal ? Math.min(100, (done / runTotal) * 100) : 0;
+                    } else if (event.type === 'item' && event.result) {
+                        const pdf = pdfMaterials.find(item => String(item.id) === String(event.result.id));
+                        if (pdf) {
+                            pdf.resolve_status = event.result.status;
+                            pdf.resolve_reason = event.result.reason || null;
+                            if (event.result.status === 'resolved') pdf.doc_kind = 'pdf';
+                            renderPdfAdmin();
+                        }
+                        if (progress) {
+                            const done = processedTotal + (Number(event.current) || 0);
+                            progress.value = runTotal ? Math.min(100, (done / runTotal) * 100) : 0;
+                        }
+                    }
+                });
+
+                for (const key of ['resolved', 'failed', 'not_pdf', 'unresolvable']) {
+                    totals[key] += Number(batch[key]) || 0;
+                }
+                totals.remaining = Number(batch.remaining) || 0;
+                processedTotal += Number(batch.processed) || 0;
+                runTotal = Math.max(runTotal, processedTotal + totals.remaining);
+                updatePdfResolutionBar();
+
+                if (!batch.processed || totals.remaining === 0) break;
+                if (status) status.textContent = `Resolved ${processedTotal} of ${runTotal}; continuing in 1 second…`;
+                await new Promise(resolve => window.setTimeout(resolve, 1000));
+            }
+
+            await refreshAllData();
+            if (status) {
+                status.textContent = `✅ ${totals.resolved} resolved · ⚠️ ${totals.unresolvable} unresolvable · ❌ ${totals.failed} failed${totals.not_pdf ? ` · ${totals.not_pdf} not PDF` : ''}`;
+            }
+            if (progress) progress.value = 100;
+        } catch (error) {
+            if (status) status.textContent = error?.message || 'Could not resolve the pending PDF links.';
+        } finally {
+            pdfBatchResolveInProgress = false;
+            pdfAutoResolveMode = false;
+            if (progress) progress.hidden = true;
+            updatePdfResolutionBar();
+        }
+    }
+
+    function maybeAutoResolvePdfLinks(force = false) {
+        if (currentUser?.role !== 'superadmin' || currentUser?.impersonatedBy || currentUser?.impersonated_by) {
+            pdfAutoResolveAttemptKey = null;
+            return;
+        }
+        const section = document.getElementById('pdfManagementSection');
+        const panel = document.getElementById('adminPanel');
+        if (!section || section.style.display === 'none' || !panel?.classList.contains('show')) return;
+        const pendingIds = pdfMaterials.filter(isPdfPendingResolution).map(pdf => String(pdf.id)).sort();
+        if (!pendingIds.length) return;
+        const key = `${currentUser.id || 'superadmin'}:${pendingIds.join(',')}`;
+        if (!force && pdfAutoResolveAttemptKey === key) return;
+        pdfAutoResolveAttemptKey = key;
+        void resolvePendingPdfLinks({ automatic: true });
+    }
+
     function renderPdfAdmin() {
         const c = document.getElementById('pdfAdminList');
         if (!c) return;
+        updatePdfResolutionBar();
         const summary = document.getElementById('pdfUnresolvableSummary');
         const unresolvablePdfs = pdfMaterials.filter(pdf => pdf.resolve_status === 'unresolvable');
         if (!unresolvablePdfs.length) pdfAdminUnresolvableOnly = false;
@@ -4233,42 +4441,90 @@
             const options = classOptions.map(option => `<option value="${escapeHtml(option.value)}"${option.value === selectedClass ? ' selected' : ''}>${escapeHtml(option.label)}</option>`).join('');
             const resolveStatus = ['resolved', 'failed', 'not_pdf', 'unresolvable'].includes(p.resolve_status) ? p.resolve_status : 'unresolved';
             const resolveLabel = {
-                unresolved: 'Pending check',
-                resolved: 'Direct PDF ready',
-                failed: 'Check failed',
+                unresolved: '⏳ Pending check',
+                resolved: '✅ Direct PDF ready',
+                failed: '❌ Failed — needs manual URL',
                 not_pdf: 'Not a direct PDF',
-                unresolvable: 'Cannot extract a PDF'
+                unresolvable: '⚠️ Viewer page — tap to open in browser'
             }[resolveStatus];
             const reason = resolveStatus === 'unresolvable'
                 ? `<small class="pdf-unresolvable-reason">Reason: ${escapeHtml(p.resolve_reason || 'No direct PDF URL found')}</small>`
                 : '';
             const editLabel = pdfAdminUnresolvableOnly ? 'Edit' : 'Fix Link';
-            return `<div class="pdf-item pdf-admin-row"><a href="${escapeHtml(safeUrl)}" target="_blank" rel="noopener noreferrer">📄 ${escapeHtml(p.title)}</a><span class="pdf-class-badge">${escapeHtml(getPdfClassLabel(selectedClass))}</span><span class="pdf-resolution-status" data-resolution="${resolveStatus}">PDF link: ${resolveLabel}</span>${reason}<button type="button" class="edit-pdf-url" data-id="${escapeHtml(p.id)}">${editLabel}</button><div class="pdf-url-editor" hidden><input type="url" class="pdf-url-input" value="${escapeHtml(p.url || '')}" maxlength="2048" placeholder="Paste a direct HTTPS .pdf URL" aria-label="Correct URL for ${escapeHtml(p.title)}"><button type="button" class="save-pdf-url" data-id="${escapeHtml(p.id)}">Save URL</button><button type="button" class="cancel-pdf-url">Cancel</button></div><button type="button" class="edit-pdf-class" data-id="${escapeHtml(p.id)}">Edit class</button><select class="pdf-class-edit hidden" data-id="${escapeHtml(p.id)}" aria-label="Assign ${escapeHtml(p.title)} to a class">${options}</select><button type="button" class="save-pdf-class hidden" data-id="${escapeHtml(p.id)}">Save class</button><button type="button" class="cancel-pdf-class hidden" data-id="${escapeHtml(p.id)}">Cancel</button><button type="button" class="delete-pdf" data-id="${escapeHtml(p.id)}">Delete</button></div>`;
+            return `<div class="pdf-item pdf-admin-row" data-pdf-id="${escapeHtml(p.id)}"><a href="${escapeHtml(safeUrl)}" target="_blank" rel="noopener noreferrer">📄 ${escapeHtml(p.title)}</a><span class="pdf-class-badge">${escapeHtml(getPdfClassLabel(selectedClass))}</span><span class="pdf-resolution-status" data-resolution="${resolveStatus}">PDF link: ${resolveLabel}</span>${reason}<button type="button" class="edit-pdf-url" data-id="${escapeHtml(p.id)}">${editLabel}</button><div class="pdf-url-editor" hidden><div><strong>Current URL:</strong> <a class="current-pdf-url" href="${escapeHtml(safeUrl)}" target="_blank" rel="noopener noreferrer">${escapeHtml(p.url || 'Unavailable')}</a></div><div><strong>Resolved URL:</strong> <span class="resolved-pdf-url-empty">Load when opened.</span><a class="resolved-pdf-url" href="#" target="_blank" rel="noopener noreferrer" hidden></a></div><label>New direct HTTPS PDF URL<input type="url" class="pdf-url-input" value="" maxlength="2048" placeholder="Paste a new direct HTTPS .pdf URL" aria-label="New direct PDF URL for ${escapeHtml(p.title)}"></label><small class="pdf-url-save-status" role="status" aria-live="polite"></small><button type="button" class="save-pdf-url" data-id="${escapeHtml(p.id)}">Save and resolve URL</button><button type="button" class="cancel-pdf-url">Cancel</button></div><button type="button" class="edit-pdf-class" data-id="${escapeHtml(p.id)}">Edit class</button><select class="pdf-class-edit hidden" data-id="${escapeHtml(p.id)}" aria-label="Assign ${escapeHtml(p.title)} to a class">${options}</select><button type="button" class="save-pdf-class hidden" data-id="${escapeHtml(p.id)}">Save class</button><button type="button" class="cancel-pdf-class hidden" data-id="${escapeHtml(p.id)}">Cancel</button><button type="button" class="delete-pdf" data-id="${escapeHtml(p.id)}">Delete</button></div>`;
         }).join('');
-        document.querySelectorAll('.edit-pdf-url').forEach(btn => btn.addEventListener('click', () => {
-            const editor = btn.closest('.pdf-admin-row')?.querySelector('.pdf-url-editor');
-            if (editor) editor.hidden = false;
+        document.querySelectorAll('.edit-pdf-url').forEach(btn => btn.addEventListener('click', async () => {
+            const row = btn.closest('.pdf-admin-row');
+            const editor = row?.querySelector('.pdf-url-editor');
+            if (!row || !editor) return;
+            editor.hidden = !editor.hidden;
+            if (editor.hidden) return;
+
+            const id = btn.getAttribute('data-id');
+            const currentLink = row.querySelector('.current-pdf-url');
+            const resolvedLink = row.querySelector('.resolved-pdf-url');
+            const resolvedPlaceholder = row.querySelector('.resolved-pdf-url-empty');
+            const saveStatus = row.querySelector('.pdf-url-save-status');
+            const input = row.querySelector('.pdf-url-input');
+            const pdf = pdfMaterials.find(item => String(item.id) === String(id));
+            if (input) input.value = '';
+            if (saveStatus) saveStatus.textContent = '';
+            if (resolvedLink) resolvedLink.hidden = true;
+            if (resolvedPlaceholder) resolvedPlaceholder.textContent = 'Loading current resolution…';
+
+            try {
+                const details = await api(`/api/pdfs/${encodeURIComponent(id)}`);
+                const record = details?.pdf || {};
+                const currentUrl = safeReaderDocumentUrl(record.url || pdf?.url);
+                if (currentLink) {
+                    currentLink.textContent = currentUrl || 'Unavailable';
+                    currentLink.href = currentUrl || '#';
+                }
+                const resolvedUrl = safeReaderDocumentUrl(record.resolved_pdf_url);
+                if (resolvedUrl && resolvedLink) {
+                    resolvedLink.href = resolvedUrl;
+                    resolvedLink.textContent = resolvedUrl;
+                    resolvedLink.hidden = false;
+                    if (resolvedPlaceholder) resolvedPlaceholder.hidden = true;
+                } else if (resolvedPlaceholder) {
+                    resolvedPlaceholder.hidden = false;
+                    resolvedPlaceholder.textContent = 'No resolved PDF URL cached.';
+                }
+            } catch (error) {
+                if (resolvedPlaceholder) {
+                    resolvedPlaceholder.hidden = false;
+                    resolvedPlaceholder.textContent = error?.message || 'Could not load the current resolution.';
+                }
+            }
         }));
         document.querySelectorAll('.cancel-pdf-url').forEach(btn => btn.addEventListener('click', () => {
             const row = btn.closest('.pdf-admin-row');
             const input = row?.querySelector('.pdf-url-input');
-            const pdf = pdfMaterials.find(item => item.id === row?.querySelector('.save-pdf-url')?.getAttribute('data-id'));
-            if (input && pdf) input.value = pdf.url;
             const editor = row?.querySelector('.pdf-url-editor');
+            if (input) input.value = '';
             if (editor) editor.hidden = true;
         }));
         document.querySelectorAll('.save-pdf-url').forEach(btn => btn.addEventListener('click', async () => {
             const row = btn.closest('.pdf-admin-row');
             const url = row?.querySelector('.pdf-url-input')?.value.trim();
-            if (!isDirectPdfUrl(url)) { showNotification('Enter a direct HTTPS URL ending in .pdf', 'error'); return; }
+            const status = row?.querySelector('.pdf-url-save-status');
+            if (!isDirectPdfUrl(url)) {
+                if (status) status.textContent = 'Enter an HTTPS URL ending in .pdf.';
+                return;
+            }
             btn.disabled = true;
+            if (status) status.textContent = 'Saving and resolving this document…';
             try {
-                await api(`/api/pdfs/${encodeURIComponent(btn.getAttribute('data-id'))}`, { method: 'PATCH', body: { url } });
-                await api('/api/pdf-prefetch', { method: 'POST', body: { url } }).catch(() => null);
-                showNotification('Document link updated');
+                const response = await api(`/api/pdfs/${encodeURIComponent(btn.getAttribute('data-id'))}`, { method: 'PATCH', body: { url } });
                 await refreshAllData();
+                if (response?.pdf?.resolve_status === 'resolved') {
+                    showNotification('Direct PDF URL saved and resolved');
+                } else {
+                    showNotification('URL saved, but the PDF is not marked resolved.', 'error');
+                }
             } catch (error) {
-                showNotification(error.message, 'error');
+                if (status) status.textContent = error?.message || 'Could not save this URL.';
+                showNotification(error?.message || 'Could not save this URL.', 'error');
             } finally {
                 btn.disabled = false;
             }
@@ -6364,6 +6620,7 @@
             }
             if (document.getElementById('elibrarySearchInput').value.trim()) renderELibrarySearchResults();
             renderPdfAdmin();
+            maybeAutoResolvePdfLinks();
             populateVideoMappingDropdowns();
             renderExistingMappings();
             renderClasses();
@@ -6750,6 +7007,7 @@
         AUTH_TOKEN = null;
         localStorage.removeItem('apshule_token');
         currentUser = null;
+        pdfAutoResolveAttemptKey = null;
         commandCenterUI?.setUser(null);
         settingsUI?.setUser(null);
         videoStudioUI?.setUser(null);
@@ -7183,6 +7441,8 @@
             if (!ap) return;
             if (currentUser?.role === 'superadmin') {
                 activateCommandTab('education');
+                renderPdfAdmin();
+                maybeAutoResolvePdfLinks(true);
                 document.getElementById('ccEducationView')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
                 document.getElementById('moreDropdown')?.classList.remove('show');
                 return;
@@ -7291,34 +7551,8 @@
                 await refreshAllData();
             } catch(e) { showNotification(e.message, "error"); }
         });
-        document.getElementById('resolvePdfLinksBtn')?.addEventListener('click', async (event) => {
-            if (currentUser?.role !== 'superadmin' || currentUser?.impersonatedBy) {
-                showNotification('A real Super Admin session is required.', 'error');
-                return;
-            }
-            const button = event.currentTarget;
-            const status = document.getElementById('pdfBatchResolveStatus');
-            button.disabled = true;
-            status.textContent = 'Processing existing PDF links…';
-            let totals = { processed: 0, resolved: 0, failed: 0, not_pdf: 0, unresolvable: 0, remaining: 0 };
-            try {
-                do {
-                    const batch = await api('/api/admin/resolve-pdf-links', {
-                        method: 'POST',
-                        body: { limit: 20 }
-                    });
-                    for (const key of ['processed', 'resolved', 'failed', 'not_pdf', 'unresolvable']) totals[key] += Number(batch[key]) || 0;
-                    totals.remaining = Number(batch.remaining) || 0;
-                    status.textContent = `Processed ${totals.processed}: ${totals.resolved} resolved, ${totals.unresolvable} need manual URL replacement, ${totals.failed} failed, ${totals.not_pdf} not PDF. ${totals.remaining} pending.`;
-                    await refreshAllData();
-                    if (!batch.processed || totals.remaining === 0) break;
-                } while (totals.remaining > 0);
-                status.textContent = `Done: ${totals.resolved} resolved, ${totals.unresolvable} need manual URL replacement, ${totals.failed} failed, ${totals.not_pdf} not PDF; ${totals.remaining} pending.`;
-            } catch (error) {
-                status.textContent = error.message || 'Could not resolve the pending PDF links.';
-            } finally {
-                button.disabled = false;
-            }
+        document.getElementById('resolvePdfLinksBtn')?.addEventListener('click', () => {
+            void resolvePendingPdfLinks();
         });
         document.getElementById('addNewSubjectBtn')?.addEventListener('click', async () => {
             const newName = document.getElementById('newSubjectName').value.trim();

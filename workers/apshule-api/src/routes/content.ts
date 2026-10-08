@@ -53,6 +53,16 @@ function validatePdfUrl(url: string): string {
   return url;
 }
 
+function isDirectHttpsPdfUrl(url: string | null): url is string {
+  if (!url) return false;
+  try {
+    const parsedUrl = new URL(url);
+    return parsedUrl.protocol === "https:" && parsedUrl.pathname.toLowerCase().endsWith(".pdf");
+  } catch {
+    return false;
+  }
+}
+
 content.get("/pdfs", async (c) => {
   const sql = getDb(c.env);
   const requestedClassLevel = c.req.query("class_level")?.trim();
@@ -98,6 +108,19 @@ content.post("/pdfs", authMiddleware, requireRole("superadmin"), async (c) => {
   return c.json({ pdf: rows[0] }, 201);
 });
 
+content.get("/pdfs/:id", authMiddleware, requireRealSuperAdmin(), async (c) => {
+  const sql = getDb(c.env);
+  const rows = await sql`
+    SELECT id, title, url, resolved_pdf_url, doc_kind, class_level, cover_color,
+           display_order, resolve_status, resolve_reason, resolved_at, created_at
+    FROM pdfs
+    WHERE id = ${c.req.param("id")}
+    LIMIT 1
+  `;
+  if (!rows[0]) throw new ApiError(404, "PDF_NOT_FOUND", "Document was not found.");
+  return c.json({ pdf: rows[0] });
+});
+
 content.patch("/pdfs/:id", authMiddleware, requireRole("superadmin"), async (c) => {
   const body = await readJson(c);
   const editableFields = ["title", "url", "class_level", "cover_color", "display_order"] as const;
@@ -113,6 +136,7 @@ content.patch("/pdfs/:id", authMiddleware, requireRole("superadmin"), async (c) 
   const title = hasTitle ? requiredString(body, "title", { max: 200 }) : null;
   const url = hasUrl ? validatePdfUrl(requiredString(body, "url", { max: 2048 })) : null;
   const docKind = hasUrl ? detectDocKind(url) : null;
+  const directPdf = hasUrl && isDirectHttpsPdfUrl(url);
   const classLevel = hasClassLevel
     ? normalizePdfClassLevel(optionalString(body, "class_level", { max: 30, allowNull: true }))
     : null;
@@ -125,16 +149,16 @@ content.patch("/pdfs/:id", authMiddleware, requireRole("superadmin"), async (c) 
     UPDATE pdfs
     SET title = CASE WHEN ${hasTitle} THEN ${title} ELSE title END,
         url = CASE WHEN ${hasUrl} THEN ${url} ELSE url END,
-        doc_kind = CASE WHEN ${hasUrl} THEN ${docKind} ELSE doc_kind END,
-        resolved_pdf_url = CASE WHEN ${hasUrl} THEN NULL ELSE resolved_pdf_url END,
-        resolve_status = CASE WHEN ${hasUrl} THEN 'unresolved' ELSE resolve_status END,
+        doc_kind = CASE WHEN ${directPdf} THEN 'pdf' WHEN ${hasUrl} THEN ${docKind} ELSE doc_kind END,
+        resolved_pdf_url = CASE WHEN ${hasUrl} THEN ${directPdf ? url : null} ELSE resolved_pdf_url END,
+        resolve_status = CASE WHEN ${hasUrl} THEN ${directPdf ? "resolved" : "unresolved"} ELSE resolve_status END,
         resolve_reason = CASE WHEN ${hasUrl} THEN NULL ELSE resolve_reason END,
-        resolved_at = CASE WHEN ${hasUrl} THEN NULL ELSE resolved_at END,
+        resolved_at = CASE WHEN ${hasUrl} THEN CASE WHEN ${directPdf} THEN NOW() ELSE NULL END ELSE resolved_at END,
         class_level = CASE WHEN ${hasClassLevel} THEN ${classLevel} ELSE class_level END,
         cover_color = CASE WHEN ${hasCoverColor} THEN ${coverColor} ELSE cover_color END,
         display_order = CASE WHEN ${hasDisplayOrder} THEN ${displayOrder} ELSE display_order END
     WHERE id = ${c.req.param("id")}
-    RETURNING id, title, url, doc_kind, class_level, cover_color, display_order,
+    RETURNING id, title, url, resolved_pdf_url, doc_kind, class_level, cover_color, display_order,
               resolve_status, resolve_reason, resolved_at, created_at
   `;
   if (!rows[0]) throw new ApiError(404, "PDF_NOT_FOUND", "Document was not found.");

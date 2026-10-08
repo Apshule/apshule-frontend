@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import { Hono } from "hono";
 import { cors } from "hono/cors";
+import contentRoutes from "../src/routes/content.ts";
 import documentRoutes from "../src/routes/documents.ts";
 
 const app = new Hono();
@@ -13,6 +14,7 @@ app.onError((error, c) =>
   ),
 );
 app.route("/api", documentRoutes);
+app.route("/api", contentRoutes);
 
 const authHeaders = { authorization: "Bearer test-token" };
 
@@ -104,6 +106,8 @@ test("Super Admin PDF batch resolves direct files and reports remaining work", a
     not_pdf: 0,
     unresolvable: 0,
     remaining: 0,
+    processed_ids: ["pdf-1"],
+    processed_results: [{ id: "pdf-1", status: "resolved", reason: null }],
   });
 });
 
@@ -140,6 +144,12 @@ test("Super Admin PDF batch marks unsupported publisher viewers for manual repla
       not_pdf: 0,
       unresolvable: 1,
       remaining: 0,
+      processed_ids: ["pdf-2"],
+      processed_results: [{
+        id: "pdf-2",
+        status: "unresolvable",
+        reason: "unsupported_viewer_issuu_com",
+      }],
     });
     assert.equal(fetchCalled, false);
     assert.ok(database.calls.some(({ query, values }) =>
@@ -148,6 +158,111 @@ test("Super Admin PDF batch marks unsupported publisher viewers for manual repla
   } finally {
     globalThis.fetch = originalFetch;
   }
+});
+
+test("Super Admin PDF batch streams per-document progress and final results", async () => {
+  const database = createPdfResolverSql({
+    pdfRows: [
+      { id: "pdf-1", url: "https://files.example.com/one.pdf" },
+      { id: "pdf-2", url: "https://files.example.com/two.pdf" },
+    ],
+    remaining: 0,
+  });
+  const response = await app.request(
+    "/api/admin/resolve-pdf-links",
+    {
+      method: "POST",
+      headers: {
+        ...authHeaders,
+        "content-type": "application/json",
+        accept: "text/event-stream",
+        "x-test-role": "superadmin",
+      },
+      body: JSON.stringify({ limit: 50 }),
+    },
+    { __sql: database.sql },
+  );
+
+  assert.equal(response.status, 200);
+  assert.match(response.headers.get("content-type") ?? "", /text\/event-stream/u);
+  const events = (await response.text())
+    .trim()
+    .split("\n\n")
+    .map((frame) => JSON.parse(frame.replace(/^data:\s*/u, "")));
+  assert.deepEqual(events.map((event) => event.type), [
+    "start",
+    "processing",
+    "item",
+    "processing",
+    "item",
+    "complete",
+  ]);
+  assert.deepEqual(events.at(-1).result.processed_ids, ["pdf-1", "pdf-2"]);
+  assert.deepEqual(events.filter((event) => event.type === "item").map((event) => event.result.status), [
+    "resolved",
+    "resolved",
+  ]);
+});
+
+test("resolved PDF URLs are available only through the real Super Admin detail route", async () => {
+  const resolvedUrl = "https://files.example.com/private/signed.pdf?expires=123";
+  const sql = async (strings) => {
+    const query = strings.join(" ").replace(/\s+/gu, " ").trim();
+    if (query.includes("FROM pdfs") && query.includes("WHERE id")) {
+      return [{
+        id: "pdf-1",
+        title: "Lesson",
+        url: "https://viewer.example.com/book",
+        resolved_pdf_url: resolvedUrl,
+      }];
+    }
+    return [];
+  };
+  const denied = await app.request("/api/pdfs/pdf-1", {}, { __sql: sql });
+  assert.equal(denied.status, 401);
+
+  const allowed = await app.request(
+    "/api/pdfs/pdf-1",
+    { headers: { ...authHeaders, "x-test-role": "superadmin" } },
+    { __sql: sql },
+  );
+  assert.equal(allowed.status, 200);
+  const body = await allowed.json();
+  assert.equal(body.pdf.resolved_pdf_url, resolvedUrl);
+});
+
+test("saving a direct HTTPS PDF URL resolves only the edited record immediately", async () => {
+  const directUrl = "https://files.example.com/updated.pdf";
+  let updateQuery = "";
+  let updateValues = [];
+  const sql = async (strings, ...values) => {
+    updateQuery = strings.join(" ").replace(/\s+/gu, " ").trim();
+    updateValues = values;
+    return [{
+      id: "pdf-1",
+      title: "Lesson",
+      url: directUrl,
+      resolved_pdf_url: directUrl,
+      resolve_status: "resolved",
+    }];
+  };
+  const response = await app.request(
+    "/api/pdfs/pdf-1",
+    {
+      method: "PATCH",
+      headers: {
+        ...authHeaders,
+        "content-type": "application/json",
+        "x-test-role": "superadmin",
+      },
+      body: JSON.stringify({ url: directUrl }),
+    },
+    { __sql: sql },
+  );
+  assert.equal(response.status, 200);
+  assert.match(updateQuery, /resolved_pdf_url = CASE WHEN/u);
+  assert.ok(updateValues.includes(directUrl));
+  assert.equal((await response.json()).pdf.resolve_status, "resolved");
 });
 
 test("POST detect-doc-kind returns the server classification for authenticated users", async () => {

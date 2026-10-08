@@ -31,7 +31,7 @@ export async function resolve(specifier, context, nextResolve) {
     ) ||
     (
       specifier === "../db.js" &&
-       /\/src\/routes\/(payments|platform-settings|ncdc-foundation|documents|clinic|clinic-workflows|clinic-pharmacy|clinic-billing|clinic-billing-shared|clinic-settlements|clinic-patient-portal|farm|farm-operations|farm-commerce|farm-facilities|farm-reports|video-studio|virtual-lab)\.ts$/u.test(
+       /\/src\/routes\/(payments|platform-settings|ncdc-foundation|documents|content|clinic|clinic-workflows|clinic-pharmacy|clinic-billing|clinic-billing-shared|clinic-settlements|clinic-patient-portal|farm|farm-operations|farm-commerce|farm-facilities|farm-reports|video-studio|virtual-lab)\.ts$/u.test(
         context.parentURL ?? "",
       )
     )
@@ -129,7 +129,7 @@ export async function resolve(specifier, context, nextResolve) {
   }
   if (
     specifier === "../auth.js" &&
-    context.parentURL?.endsWith("/src/routes/documents.ts")
+    /\/src\/routes\/(documents|content)\.ts$/u.test(context.parentURL ?? "")
   ) {
     return virtualModule(`
       export const authMiddleware = async (c, next) => {
@@ -148,6 +148,14 @@ export async function resolve(specifier, context, nextResolve) {
         return async (c, next) => {
           const user = c.get("user");
           if (user?.role !== "superadmin" || user.impersonatedBy) {
+            return c.json({ error: "FORBIDDEN" }, 403);
+          }
+          await next();
+        };
+      }
+      export function requireRole(...roles) {
+        return async (c, next) => {
+          if (!roles.includes(c.get("user")?.role)) {
             return c.json({ error: "FORBIDDEN" }, 403);
           }
           await next();

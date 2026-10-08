@@ -626,44 +626,104 @@ documents.post(
     const rows = await sql`
       SELECT id, url
       FROM pdfs
-      WHERE COALESCE(resolve_status, 'unresolved') IN ('unresolved', 'failed')
+      WHERE COALESCE(resolve_status, 'unresolved') = 'unresolved'
          OR (resolve_status = 'not_pdf' AND doc_kind = 'viewer')
       ORDER BY created_at ASC, id ASC
       LIMIT ${limit}
     ` as Array<{ id: string; url: string }>;
 
-    let resolved = 0;
-    let failed = 0;
-    let notPdf = 0;
-    let unresolvable = 0;
-    for (const [index, row] of rows.entries()) {
-      if (index > 0) await new Promise((resolve) => setTimeout(resolve, 200));
-      try {
-        const result = await resolveAndCachePdfUrl(c.env, row.url);
+    const runBatch = async (reportProgress?: (event: Record<string, unknown>) => void) => {
+      let resolved = 0;
+      let failed = 0;
+      let notPdf = 0;
+      let unresolvable = 0;
+      const processedResults: Array<{
+        id: string;
+        status: PdfResolutionStatus;
+        reason: string | null;
+      }> = [];
+
+      for (const [index, row] of rows.entries()) {
+        reportProgress?.({
+          type: "processing",
+          current: index + 1,
+          total: rows.length,
+          done: index,
+        });
+        if (index > 0) await new Promise((resolve) => setTimeout(resolve, 200));
+
+        let result: Awaited<ReturnType<typeof resolveAndCachePdfUrl>>;
+        try {
+          result = await resolveAndCachePdfUrl(c.env, row.url);
+        } catch {
+          result = { status: "unresolvable", reason: "resolver_exception" };
+          await persistPdfResolution(sql, row.url, "unresolvable", null, "resolver_exception");
+        }
+
         if (result.status === "resolved") resolved += 1;
         else if (result.status === "not_pdf") notPdf += 1;
         else if (result.status === "unresolvable") unresolvable += 1;
         else failed += 1;
-      } catch {
-        unresolvable += 1;
-        await persistPdfResolution(sql, row.url, "unresolvable", null, "resolver_exception");
+
+        const processedResult = {
+          id: row.id,
+          status: result.status,
+          reason: result.reason ?? null,
+        };
+        processedResults.push(processedResult);
+        reportProgress?.({
+          type: "item",
+          current: index + 1,
+          total: rows.length,
+          result: processedResult,
+        });
       }
+
+      const remainingRows = await sql`
+        SELECT COUNT(*)::int AS count
+        FROM pdfs
+        WHERE COALESCE(resolve_status, 'unresolved') = 'unresolved'
+           OR (resolve_status = 'not_pdf' AND doc_kind = 'viewer')
+      `;
+      return {
+        processed: rows.length,
+        resolved,
+        failed,
+        not_pdf: notPdf,
+        unresolvable,
+        remaining: Number((remainingRows[0] as { count?: number } | undefined)?.count ?? 0),
+        processed_ids: processedResults.map((result) => result.id),
+        processed_results: processedResults,
+      };
+    };
+
+    if (c.req.header("accept")?.includes("text/event-stream")) {
+      const stream = new ReadableStream<Uint8Array>({
+        start(controller) {
+          const encoder = new TextEncoder();
+          const send = (event: Record<string, unknown>) => {
+            controller.enqueue(encoder.encode(`data: ${JSON.stringify(event)}\n\n`));
+          };
+          send({ type: "start", total: rows.length });
+          void runBatch(send)
+            .then((result) => {
+              send({ type: "complete", result });
+              controller.close();
+            })
+            .catch(() => {
+              send({ type: "error", message: "Could not complete the PDF resolver batch." });
+              controller.close();
+            });
+        },
+      });
+      return c.body(stream, 200, {
+        "Cache-Control": "no-cache, no-transform",
+        "Content-Type": "text/event-stream; charset=utf-8",
+        "X-Accel-Buffering": "no",
+      });
     }
 
-    const remainingRows = await sql`
-      SELECT COUNT(*)::int AS count
-      FROM pdfs
-      WHERE COALESCE(resolve_status, 'unresolved') IN ('unresolved', 'failed')
-         OR (resolve_status = 'not_pdf' AND doc_kind = 'viewer')
-    `;
-    return c.json({
-      processed: rows.length,
-      resolved,
-      failed,
-      not_pdf: notPdf,
-      unresolvable,
-      remaining: Number((remainingRows[0] as { count?: number } | undefined)?.count ?? 0),
-    });
+    return c.json(await runBatch());
   },
 );
 
