@@ -1962,6 +1962,7 @@
     import { initVideoStudioUI } from "./video-studio-ui.js";
     import { initFarmUI } from "./farm-ui.js";
     import { initCommandCenterUI } from "./command-center-ui.js";
+    import { initVirtualLabUI } from "./virtual-lab-ui.js";
     import { createOfflineDataLayer } from "./offline-data.js";
 
     const API_BASE = "https://apshule-api.apshule-migration.workers.dev";
@@ -2027,6 +2028,7 @@
     let settingsUI = null;
     let videoStudioUI = null;
     let commandCenterUI = null;
+    let virtualLabUI = null;
     const MFI_USER_ROLES = new Set(["mfi_admin", "loan_officer", "loan_manager", "loan_director", "borrower"]);
     const CLINIC_USER_ROLES = new Set(["clinic_admin", "doctor", "nurse", "receptionist", "pharmacist"]);
     const FARM_USER_ROLES = new Set(["farm_admin", "farm_manager", "farm_worker"]);
@@ -4251,6 +4253,7 @@
     async function showAppFor(user) {
         currentUser = user;
         commandCenterUI?.setUser(user);
+        void Promise.resolve(virtualLabUI?.setUser(user)).catch(() => {});
         settingsUI?.setUser(user);
         videoStudioUI?.setUser(user);
         const isMfiAccount = currentUser?.sector === "mfi" || MFI_USER_ROLES.has(String(currentUser?.role || "").toLowerCase());
@@ -5915,6 +5918,7 @@
     }
 
     async function logoutCurrentUser(successMessage = null) {
+        await Promise.resolve(virtualLabUI?.setUser(null)).catch(() => {});
         const impersonationSession = sessionStorage.getItem(IMPERSONATION_TOKEN_KEY) === AUTH_TOKEN || isImpersonating();
         if (!successMessage) {
             try {
@@ -6042,6 +6046,13 @@
             notify: showNotification,
             activateSectorPanel: (sector) => activateCommandTab(sector),
             startImpersonation: (user) => startImpersonation(user),
+        });
+        virtualLabUI = initVirtualLabUI({
+            api,
+            getCurrentUser: () => currentUser,
+            notify: showNotification,
+            escapeHtml,
+            t: (key) => String(key).replace(/^lab_/, "").replaceAll("_", " "),
         });
         void loadSubscriptionPlans();
         wireTeacherDashboardEvents();
