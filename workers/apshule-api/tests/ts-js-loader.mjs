@@ -25,13 +25,13 @@ export async function resolve(specifier, context, nextResolve) {
   if (
     (
       specifier === "./db.js" &&
-      /\/src\/(idempotency|yopayments|yo-platform-settings|platform-settings-crypto|ncdc-helpers|http)\.ts$/u.test(
+      /\/src\/(idempotency|yopayments|yo-platform-settings|platform-settings-crypto|ncdc-helpers|http|farm-commerce-shared)\.ts$/u.test(
         context.parentURL ?? "",
       )
     ) ||
     (
       specifier === "../db.js" &&
-       /\/src\/routes\/(payments|platform-settings|ncdc-foundation|documents|clinic|clinic-workflows|clinic-pharmacy|clinic-billing|clinic-billing-shared|clinic-settlements|clinic-patient-portal|farm|farm-operations)\.ts$/u.test(
+       /\/src\/routes\/(payments|platform-settings|ncdc-foundation|documents|clinic|clinic-workflows|clinic-pharmacy|clinic-billing|clinic-billing-shared|clinic-settlements|clinic-patient-portal|farm|farm-operations|farm-commerce|farm-facilities|farm-reports|video-studio)\.ts$/u.test(
         context.parentURL ?? "",
       )
     )
@@ -40,7 +40,29 @@ export async function resolve(specifier, context, nextResolve) {
   }
   if (
     specifier === "../auth.js" &&
-    /\/src\/routes\/farm(-operations)?\.ts$/u.test(context.parentURL ?? "")
+    context.parentURL?.endsWith("/src/routes/video-studio.ts")
+  ) {
+    return virtualModule(`
+      export const authMiddleware = async (c, next) => {
+        if (c.req.header("authorization") !== "Bearer test-token") {
+          return c.json({ error: "UNAUTHORIZED" }, 401);
+        }
+        c.set("user", {
+          id: "00000000-0000-4000-8000-000000000123",
+          name: "Video test user",
+          email: "video-test@example.test",
+          role: c.req.header("x-test-role") || "teacher",
+          sector: c.req.header("x-test-sector") || "education",
+          schoolId: c.req.header("x-test-school") || null,
+          impersonatedBy: null
+        });
+        await next();
+      };
+    `);
+  }
+  if (
+    specifier === "../auth.js" &&
+    /\/src\/routes\/farm(-operations|-commerce|-facilities|-reports)?\.ts$/u.test(context.parentURL ?? "")
   ) {
     return virtualModule(`
       export const authMiddleware = async (c, next) => {
@@ -99,6 +121,44 @@ export async function resolve(specifier, context, nextResolve) {
         });
         await next();
       };
+    `);
+  }
+  if (
+    specifier === "../db.js" &&
+    context.parentURL?.endsWith("/src/routes/user-settings.ts")
+  ) {
+    return virtualModule(`
+      export function getDb(env) {
+        if (typeof env?.__sql !== "function") throw new Error("Missing test SQL stub.");
+        return env.__sql;
+      }
+    `);
+  }
+  if (
+    specifier === "../auth.js" &&
+    context.parentURL?.endsWith("/src/routes/user-settings.ts")
+  ) {
+    return virtualModule(`
+      export const authMiddleware = async (c, next) => {
+        c.set("user", {
+          id: "00000000-0000-4000-8000-000000000123",
+          name: "Test User",
+          email: "test@example.test",
+          role: c.req.header("x-test-role") || "farm_admin",
+          sector: c.req.header("x-test-sector") || "farm",
+          impersonatedBy: c.req.header("x-test-impersonated") || null
+        });
+        await next();
+      };
+      export function requireRealSuperAdmin() {
+        return async (c, next) => {
+          const user = c.get("user");
+          if (user.role !== "superadmin" || user.impersonatedBy) {
+            return c.json({ error: "FORBIDDEN" }, 403);
+          }
+          await next();
+        };
+      }
     `);
   }
   if (

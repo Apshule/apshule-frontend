@@ -5,6 +5,7 @@ export interface Env {
   RESEND_FROM_EMAIL?: string;
   RESEND_FROM_NAME?: string;
   APP_URL?: string;
+  PIXABAY_API_KEY?: string;
   YO_API_USERNAME?: string;
   YO_API_PASSWORD?: string;
   YO_BASE_URL?: string;

@@ -31,15 +31,15 @@ test("GET returns masked credentials and only exposes non-secret URLs", async ()
   const serialized = JSON.stringify(body);
 
   assert.equal(response.status, 200);
-  assert.equal(body.api_username, "wo***");
-  assert.equal(body.api_password, "***");
-  assert.equal(body.configured.api_username, true);
-  assert.equal(body.configured.api_password, true);
+  assert.equal(body.api_username, "");
+  assert.equal(body.api_password, "");
+  assert.equal(body.configured.api_username, false);
+  assert.equal(body.configured.api_password, false);
   assert.equal(body.base_url, "https://payments.yo.co.ug");
-  assert.equal(body.ipn_url, "https://example.test/api/yopayments/ipn");
+  assert.equal(body.ipn_url, "https://apshule-api.apshule-migration.workers.dev/api/yopayments/ipn");
   assert.equal(serialized.includes("worker-account"), false);
   assert.equal(serialized.includes("worker-password"), false);
-  assert.equal(queryCount, 0);
+  assert.equal(queryCount, 1);
 });
 
 test("POST encrypts saved values and records an audit entry without credential values", async () => {
@@ -47,6 +47,7 @@ test("POST encrypts saved values and records an audit entry without credential v
   const sql = async (parts, ...values) => {
     const text = parts.join("?");
     statements.push({ text, values });
+    if (text.includes("FROM platform_settings")) return [];
     if (text.includes("INSERT INTO platform_settings")) {
       return [
         { key: "yo_api_username" },
@@ -75,7 +76,7 @@ test("POST encrypts saved values and records an audit entry without credential v
     configuredEnv(sql),
   );
   const body = await response.json();
-  const statement = statements[0];
+  const statement = statements.find(({ text }) => text.includes("INSERT INTO platform_settings"));
   const valuesText = JSON.stringify(statement.values);
 
   assert.equal(response.status, 200);

@@ -1950,6 +1950,7 @@
     import { initMfiUI } from "./mfi-ui.js";
     import { initClinicUI } from "./clinic-ui.js";
     import { initSettingsUI } from "./settings-ui.js";
+    import { initVideoStudioUI } from "./video-studio-ui.js";
     import { initFarmUI } from "./farm-ui.js";
     import { createOfflineDataLayer } from "./offline-data.js";
 
@@ -2014,6 +2015,7 @@
     let clinicUI = null;
     let farmUI = null;
     let settingsUI = null;
+    let videoStudioUI = null;
     const MFI_USER_ROLES = new Set(["mfi_admin", "loan_officer", "loan_manager", "loan_director", "borrower"]);
     const CLINIC_USER_ROLES = new Set(["clinic_admin", "doctor", "nurse", "receptionist", "pharmacist"]);
     const FARM_USER_ROLES = new Set(["farm_admin", "farm_manager", "farm_worker"]);
@@ -4238,6 +4240,7 @@
     async function showAppFor(user) {
         currentUser = user;
         settingsUI?.setUser(user);
+        videoStudioUI?.setUser(user);
         const isMfiAccount = currentUser?.sector === "mfi" || MFI_USER_ROLES.has(String(currentUser?.role || "").toLowerCase());
         const appScreen = document.getElementById('appScreen');
         appScreen.classList.remove('is-clinic-portal');
@@ -5912,6 +5915,7 @@
         localStorage.removeItem('apshule_token');
         currentUser = null;
         settingsUI?.setUser(null);
+        videoStudioUI?.setUser(null);
         await reportCardsUI?.setUser(null);
         await bulkImportUI?.setUser(null);
         await profileUI?.setUser(null);
@@ -5966,6 +5970,7 @@
             setCurrentUser: (user) => {
                 currentUser = user;
                 settingsUI?.setUser(user);
+                videoStudioUI?.setUser(user);
                 void offlineData.saveSession(user);
                 updateGreeting();
                 renderImpersonationBanner(user);
@@ -6004,6 +6009,12 @@
             idb: window.idb,
             offlineData,
             notify: showNotification,
+        });
+        videoStudioUI = initVideoStudioUI({
+            api,
+            getCurrentUser: () => currentUser,
+            notify: showNotification,
+            escapeHtml,
         });
         farmUI = initFarmUI({
             api,

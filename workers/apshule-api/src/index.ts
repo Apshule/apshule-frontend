@@ -10,6 +10,7 @@ import platformSettingsRoutes from "./routes/platform-settings.js";
 import subscriptionPlansRoutes from "./routes/subscription-plans.js";
 import schoolsRoutes from "./routes/schools.js";
 import settingsRoutes from "./routes/settings.js";
+import userSettingsRoutes from "./routes/user-settings.js";
 import platformRoutes from "./routes/platform.js";
 import impersonationRoutes from "./routes/impersonation.js";
 import usersRoutes from "./routes/users.js";
@@ -32,6 +33,7 @@ import mfiLoanActionsRoutes from "./routes/mfi-loan-actions.js";
 import mfiCustomerPortalRoutes from "./routes/mfi-customer-portal.js";
 import clinicRoutes from "./routes/clinic.js";
 import clinicPatientPortalRoutes from "./routes/clinic-patient-portal.js";
+import videoStudioRoutes from "./routes/video-studio.js";
 import farmRoutes from "./routes/farm.js";
 import documentRoutes from "./routes/documents.js";
 import type { AppEnv, Env } from "./types.js";
@@ -109,7 +111,7 @@ app.use(
   cors({
     origin: "*",
     allowMethods: ["GET", "POST", "PATCH", "PUT", "DELETE", "OPTIONS"],
-    allowHeaders: ["Content-Type", "Authorization", "Idempotency-Key", "Range"],
+    allowHeaders: ["Content-Type", "Authorization", "Idempotency-Key", "Range", "Save-Data"],
     exposeHeaders: ["Content-Length", "Content-Type"],
   }),
 );
@@ -118,7 +120,7 @@ app.use(
   cors({
     origin: "*",
     allowMethods: ["GET", "POST", "PATCH", "PUT", "DELETE", "OPTIONS"],
-    allowHeaders: ["Content-Type", "Authorization", "Idempotency-Key", "Range"],
+    allowHeaders: ["Content-Type", "Authorization", "Idempotency-Key", "Range", "Save-Data"],
     exposeHeaders: ["Content-Length", "Content-Type"],
   }),
 );
@@ -135,6 +137,7 @@ app.route("/api/events", eventsRoutes);
 app.route("/api", contentRoutes);
 app.route("/api", documentRoutes);
 app.route("/api/settings", settingsRoutes);
+app.route("/api", userSettingsRoutes);
 app.route("/api", platformRoutes);
 app.route("/api", impersonationRoutes);
 app.route("/api", ncdcFoundationRoutes);
@@ -154,6 +157,7 @@ app.route("/api", mfiLoanActionsRoutes);
 app.route("/api", mfiCustomerPortalRoutes);
 app.route("/api", clinicRoutes);
 app.route("/api", clinicPatientPortalRoutes);
+app.route("/api/video-studio", videoStudioRoutes);
 app.route("/api/farm", farmRoutes);
 app.route("/api/yopayments", paymentsRoutes);
 app.route("/api/superadmin/platform-settings", platformSettingsRoutes);

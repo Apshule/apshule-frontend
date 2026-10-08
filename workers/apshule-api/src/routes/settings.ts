@@ -3,8 +3,26 @@ import { getDb } from "../db.js";
 import { authMiddleware, requireRole } from "../auth.js";
 import { readJson } from "../http.js";
 import type { AppEnv } from "../types.js";
+import en from "../i18n/en.json";
+import lg from "../i18n/lg.json";
+import xog from "../i18n/xog.json";
+import nyn from "../i18n/nyn.json";
+import nyo from "../i18n/nyo.json";
+import ach from "../i18n/ach.json";
+import sw from "../i18n/sw.json";
 
 const settings = new Hono<AppEnv>();
+const i18nStrings: Record<string, Record<string, string>> = {
+  en, lg, xog, nyn, nyo, ach, sw,
+};
+
+settings.get("/i18n/strings", async (c) => {
+  const language = c.req.query("lang") || "en";
+  const strings = i18nStrings[language];
+  if (!strings) return c.json({ error: "Unsupported language." }, 400);
+  c.header("Cache-Control", "public, max-age=3600");
+  return c.json(strings);
+});
 
 settings.get("/brand", async (c) => {
   const sql = getDb(c.env);

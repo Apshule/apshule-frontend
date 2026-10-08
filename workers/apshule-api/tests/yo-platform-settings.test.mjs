@@ -9,7 +9,7 @@ import {
 
 const encryptionKey = "0123456789abcdef".repeat(4);
 
-test("Worker secrets take precedence and database fallbacks are cached per request", async () => {
+test("Admin Panel settings take precedence over Worker variables and are cached per request", async () => {
   const rows = await Promise.all([
     ["yo_api_username", "database-user"],
     ["yo_api_password", "database-password"],
@@ -25,7 +25,13 @@ test("Worker secrets take precedence and database fallbacks are cached per reque
     return rows.filter((row) => requestedKeys.includes(row.key));
   };
   const resolve = createYoPaymentSettingsResolver(
-    { YO_API_USERNAME: "worker-user", SETTINGS_ENCRYPTION_KEY: encryptionKey },
+    {
+      YO_API_USERNAME: "worker-user",
+      YO_API_PASSWORD: "worker-password",
+      YO_API_URL: "https://worker.example",
+      YO_IPN_URL: "https://worker.example/ipn",
+      SETTINGS_ENCRYPTION_KEY: encryptionKey,
+    },
     sql,
   );
 
@@ -34,12 +40,12 @@ test("Worker secrets take precedence and database fallbacks are cached per reque
 
   assert.equal(queryCount, 1);
   assert.equal(first, second);
-  assert.equal(first.api_username, "worker-user");
+  assert.equal(first.api_username, "database-user");
   assert.equal(first.api_password, "database-password");
   assert.equal(first.base_url, "https://stored.example/api");
   assert.equal(first.ipn_url, "https://stored.example/ipn");
   assert.deepEqual(first.sources, {
-    api_username: "worker_secret",
+    api_username: "platform_settings",
     api_password: "platform_settings",
     base_url: "platform_settings",
     ipn_url: "platform_settings",

@@ -160,12 +160,6 @@ platformSettings.post(
     return c.json({
       saved: true,
       updated_keys: rows.map((row) => (row as { key: string }).key),
-      environment_overrides: {
-        api_username: Boolean(c.env.YO_API_USERNAME?.trim()),
-        api_password: Boolean(c.env.YO_API_PASSWORD?.trim()),
-        base_url: Boolean(c.env.YO_BASE_URL?.trim() || c.env.YO_API_URL?.trim()),
-        ipn_url: Boolean(c.env.YO_IPN_URL?.trim()),
-      },
     });
   },
 );

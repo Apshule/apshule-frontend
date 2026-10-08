@@ -16,6 +16,9 @@ import {
 import { sendEmail, welcomeEmailTemplate } from "../email.js";
 import type { AppEnv, AuthenticatedUser } from "../types.js";
 import farmOperations from "./farm-operations.js";
+import farmCommerce from "./farm-commerce.js";
+import farmFacilities from "./farm-facilities.js";
+import farmReports from "./farm-reports.js";
 
 const farm = new Hono<AppEnv>();
 const FARM_ROLES = new Set(["farm_admin", "farm_manager", "farm_worker"]);
@@ -309,6 +312,19 @@ farm.get(
               'Africa/Kampala'
             ))::date
             AND a.check_in IS NOT NULL) AS workers_present_today
+        ,
+        (SELECT COALESCE(SUM(s.total), 0)::numeric FROM farm_sales s
+          WHERE s.organization_id = o.id AND s.status IN ('released', 'closed')
+            AND date_trunc('month', s.sale_date) = date_trunc('month', NOW() AT TIME ZONE COALESCE(
+              (SELECT z.timezone FROM farm_settings z WHERE z.organization_id = o.id LIMIT 1),
+              'Africa/Kampala'
+            ))) AS sales_month,
+        (SELECT COALESCE(SUM(e.amount), 0)::numeric FROM farm_expenses e
+          WHERE e.organization_id = o.id AND e.active IS TRUE
+            AND date_trunc('month', e.expense_date) = date_trunc('month', NOW() AT TIME ZONE COALESCE(
+              (SELECT z.timezone FROM farm_settings z WHERE z.organization_id = o.id LIMIT 1),
+              'Africa/Kampala'
+            ))) AS expenses_month
       FROM farm_organizations o
       WHERE ${ownOrganizationId === null} OR o.id = ${ownOrganizationId}
       ORDER BY o.created_at DESC
@@ -322,6 +338,9 @@ farm.get(
           animals: Number(org.animals_count || 0),
           eggs_week: Number(org.eggs_week || 0),
           workers_present_today: Number(org.workers_present_today || 0),
+          sales_month: Number(org.sales_month || 0),
+          expenses_month: Number(org.expenses_month || 0),
+          profit_month: Number(org.sales_month || 0) - Number(org.expenses_month || 0),
         },
       })),
     });
@@ -1248,5 +1267,8 @@ farm.patch(
 );
 
 farm.route("/", farmOperations);
+farm.route("/", farmCommerce);
+farm.route("/", farmFacilities);
+farm.route("/", farmReports);
 
 export default farm;

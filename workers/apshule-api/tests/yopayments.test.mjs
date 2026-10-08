@@ -133,7 +133,7 @@ test("status checks use PrivateTransactionReference and support YO_API_URL alias
   }
 });
 
-test("Yo client uses encrypted-settings fallback only where Worker secrets are absent", async () => {
+test("Yo client uses Admin Panel settings even when Worker variables are present", async () => {
   const originalFetch = globalThis.fetch;
   let capturedUrl;
   let capturedAuth;
@@ -173,8 +173,8 @@ test("Yo client uses encrypted-settings fallback only where Worker secrets are a
 
     assert.equal(result.ok, true);
     assert.equal(fallbackCalls, 1);
-    assert.equal(capturedUrl, "https://worker-payments.example/acdepositfunds");
-    assert.equal(capturedAuth, `Basic ${btoa("worker-user:database-password")}`);
+    assert.equal(capturedUrl, "https://database-payments.example/acdepositfunds");
+    assert.equal(capturedAuth, `Basic ${btoa("database-user:database-password")}`);
   } finally {
     globalThis.fetch = originalFetch;
   }

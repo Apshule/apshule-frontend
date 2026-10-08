@@ -143,27 +143,18 @@ async function sendYoRequest(
   fields: Record<string, string | number>,
   resolveFallback?: YoSettingsFallbackResolver,
 ): Promise<YoApiResponse> {
-  const environmentUsername = env.YO_API_USERNAME?.trim();
-  const environmentPassword = env.YO_API_PASSWORD?.trim();
-  const environmentBaseUrl = env.YO_BASE_URL?.trim() || env.YO_API_URL?.trim();
-  let fallback: YoSettingsFallback = {};
-  if (
-    resolveFallback &&
-    (!environmentUsername || !environmentPassword || !environmentBaseUrl)
-  ) {
-    fallback = await resolveFallback();
-  }
+  const settings = resolveFallback ? await resolveFallback() : undefined;
 
   const username = requireEnv(
-    environmentUsername || fallback.api_username,
+    settings ? settings.api_username : env.YO_API_USERNAME?.trim(),
     "YO_API_USERNAME",
   );
   const password = requireEnv(
-    environmentPassword || fallback.api_password,
+    settings ? settings.api_password : env.YO_API_PASSWORD?.trim(),
     "YO_API_PASSWORD",
   );
   const baseUrl = requireEnv(
-    environmentBaseUrl || fallback.base_url,
+    settings ? settings.base_url : env.YO_BASE_URL?.trim() || env.YO_API_URL?.trim(),
     "YO_BASE_URL or YO_API_URL",
   );
 
