@@ -185,8 +185,10 @@ test("document reader uses Microsoft viewer, authenticated downloads, and viewer
   assert.match(reader, /\/api\/detect-doc-kind/u);
   assert.match(reader, /isPdfToLinkViewerUrl\(originalUrl \|\| directUrl\)/u);
   assert.match(html, /This link opens a webpage instead of a PDF\. Ask an admin to replace it with a direct PDF link\./u);
-  assert.match(reader, /Could not load\. Try again\./u);
-  assert.match(reader, /10000/u);
+  assert.match(reader, /Nothing rendered within 25 seconds/u);
+  assert.match(reader, /25000/u);
+  assert.match(reader, /api\/doc-proxy-direct/u);
+  assert.match(reader, /Rendering page/u);
   assert.match(reader, /await appendMicrosoftOfficeViewer\(media/u);
   assert.match(reader, /appendReaderFileActions\(actions, directUrl/u);
   assert.match(reader, /readerViewerSourceUrl\(directUrl\)/u);
@@ -198,11 +200,18 @@ test("document reader uses Microsoft viewer, authenticated downloads, and viewer
   assert.match(officeViewer, /readerId !== activeBookReaderId/u);
   assert.match(reader, /\['pdf', 'image', 'document', 'spreadsheet', 'presentation', 'video', 'audio', 'text'\]/u);
   assert.doesNotMatch(html, /docs\.google\.com\/gview/u);
-  assert.match(fileActions, /link\.download = fileName/u);
-  assert.match(fileActions, /Preparing your file/u);
+  assert.match(html, /link\.download = fileName/u);
+  assert.match(html, /Preparing your file/u);
   assert.match(fileActions, /Open original link/u);
   assert.match(blobFetcher, /\/api\/doc-proxy/u);
   assert.match(blobFetcher, /&download=1/u);
+  assert.match(html, /PDF_PREFETCH_MAX_CONCURRENT = 3/u);
+  assert.match(html, /PDF_PREFETCH_START_INTERVAL_MS = 500/u);
+  assert.match(html, /root: null/u);
+  assert.match(html, /slice\(0, 10\)/u);
+  assert.match(html, /localStorage\.setItem\(PDF_RESOLVER_CACHE_KEY/u);
+  assert.match(html, /expiry <= nowSeconds \+ 300/u);
+  assert.match(html, /clearStoredPdfResolverCache/u);
   assert.match(viewerFallback, /This is an external viewer page\. It will open in a new tab\./u);
   assert.match(viewerFallback, /book-reader-open-page/u);
   assert.match(reader, /kind === 'pdf'/u);
@@ -217,11 +226,12 @@ test("document reader uses Microsoft viewer, authenticated downloads, and viewer
   assert.match(viewerFallback, /host === 'pdftolink\.app'/u);
   assert.match(viewerFallback, /iframe\.src = safeUrl/u);
   assert.equal((html.match(/openBookReader\(\{\s*\.\.\.pdf, source_table: 'pdfs', original_url: pdf\.url \}\)/gu) || []).length, 2);
-  assert.match(reader, /disableStream: false/u);
+  assert.match(reader, /disableStream: true/u);
+  assert.match(reader, /disableAutoFetch: true/u);
 });
 
-test("the service worker uses cache v24 and claims clients on activation", async () => {
+test("the service worker uses cache v25 and claims clients on activation", async () => {
   const sw = await readFile(new URL("../sw.js", import.meta.url), "utf8");
-  assert.match(sw, /const CACHE_NAME = "apshule-cache-v24"/u);
+  assert.match(sw, /const CACHE_NAME = "apshule-cache-v25"/u);
   assert.match(sw, /await self\.clients\.claim\(\)/u);
 });

@@ -534,6 +534,15 @@
         .book-reader-center { flex:1; min-height:0; display:flex; align-items:center; justify-content:center; padding:12px; overflow:hidden; }
         .book-reader-content { width:100%; height:100%; display:flex; flex-direction:column; align-items:center; justify-content:center; }
         .book-reader-loading, .book-reader-error { max-width:440px; padding:22px; border-radius:15px; background:#292733; color:#eee; text-align:center; line-height:1.5; }
+        .book-reader-loading { display:flex; flex-direction:column; align-items:center; gap:12px; }
+        .book-reader-loading[data-state="resolving"] { border:1px solid #6b6877; color:#d6d2df; }
+        .book-reader-loading[data-state="downloading"], .book-reader-loading[data-state="rendering"] { border:1px solid #4b9ad3; background:#18354b; color:#e4f4ff; }
+        .book-reader-loading progress { width:min(100%,360px); height:12px; accent-color:#ff8c42; }
+        .book-reader-cancel-loading { padding:8px 14px; border:1px solid #777282; border-radius:999px; background:transparent; color:#eee; font:inherit; font-size:13px; font-weight:700; cursor:pointer; }
+        .book-reader-first-page-preview { width:min(100%,700px); max-height:48vh; display:flex; justify-content:center; overflow:hidden; }
+        .book-reader-first-page-preview[hidden] { display:none !important; }
+        .book-reader-first-page-preview img { max-width:100%; max-height:48vh; object-fit:contain; box-shadow:0 4px 22px rgba(0,0,0,.35); }
+        .book-reader-error { border:1px solid #d96a44; background:#35242b; }
         .book-reader-error button { display:block; margin:14px auto 0; padding:10px 18px; border:0; border-radius:9px; background:#ff8c42; color:#fff; font-weight:700; cursor:pointer; }
         .book-reader-error a, .book-reader-media a { color:#ffd0a8; text-decoration:underline; overflow-wrap:anywhere; }
         .book-flipbook { width:min(100%,1000px); height:min(100%,760px); }
@@ -1944,8 +1953,13 @@
     </header>
     <div class="book-reader-center">
         <div class="book-reader-content">
-            <div class="book-reader-loading" id="bookReaderLoading">📖 Loading...</div>
+            <div class="book-reader-loading" id="bookReaderLoading" role="status" aria-live="polite">
+                <span id="bookReaderLoadingText">🔍 Resolving link…</span>
+                <progress id="bookReaderProgress" max="100" hidden></progress>
+                <button type="button" class="book-reader-cancel-loading" id="cancelBookReaderLoading">Cancel loading</button>
+            </div>
             <div class="book-reader-error" id="bookReaderError" hidden></div>
+            <div class="book-reader-first-page-preview" id="bookReaderFirstPagePreview" hidden></div>
             <div class="book-flipbook" id="bookFlipbook" hidden></div>
             <div class="book-reader-media" id="bookReaderMedia" hidden></div>
         </div>
@@ -1992,6 +2006,20 @@
     const IMPERSONATION_TOKEN_KEY = 'apshule_impersonation_token';
     const ORIGINAL_SUPERADMIN_TOKEN_KEY = 'original_superadmin_token';
     let AUTH_TOKEN = sessionStorage.getItem(IMPERSONATION_TOKEN_KEY) || localStorage.getItem('apshule_token') || null;
+    function clearStoredPdfResolverCache() {
+        try { localStorage.removeItem('apshule_pdf_resolver_cache_v1'); } catch (_) {}
+        try { pdfResolverCache?.clear(); } catch (_) {}
+        try { pdfResolverCacheGeneration += 1; } catch (_) {}
+        try {
+            pendingPdfLinkPrefetches?.forEach(task => {
+                task.resolve?.({ status: 'failed', error: new Error('PDF cache cleared after account change.') });
+            });
+            pendingPdfLinkPrefetches?.clear();
+            pdfPrefetchQueue?.splice(0);
+            if (pdfPrefetchPumpTimer) window.clearTimeout(pdfPrefetchPumpTimer);
+            pdfPrefetchPumpTimer = null;
+        } catch (_) {}
+    }
     let currentUser = null;
 
     const offlineData = createOfflineDataLayer({
@@ -1999,6 +2027,7 @@
         idb: window.idb,
         getToken: () => AUTH_TOKEN,
         setToken: (token) => {
+            if (token !== AUTH_TOKEN) clearStoredPdfResolverCache();
             AUTH_TOKEN = token;
             try {
                 if (token) localStorage.setItem('apshule_token', token);
@@ -2019,6 +2048,7 @@
                 await logoutCurrentUser("Your session expired. Please sign in again.");
                 return;
             }
+            clearStoredPdfResolverCache();
             AUTH_TOKEN = null;
             try { localStorage.removeItem('apshule_token'); } catch (_) {}
             sessionStorage.removeItem(IMPERSONATION_TOKEN_KEY);
@@ -3031,6 +3061,23 @@
     let activeReaderObjectUrl = null;
     const pendingPdfLinkPrefetches = new Map();
     const pdfResolverCache = new Map();
+    const PDF_RESOLVER_CACHE_KEY = 'apshule_pdf_resolver_cache_v1';
+    const PDF_PREFETCH_MAX_CONCURRENT = 3;
+    const PDF_PREFETCH_START_INTERVAL_MS = 500;
+    let pdfResolverCacheGeneration = 0;
+    const pdfPrefetchQueue = [];
+    let pdfPrefetchActiveCount = 0;
+    let pdfPrefetchLastStartAt = 0;
+    let pdfPrefetchPumpTimer = null;
+    let activeBookReaderTimeoutId = null;
+    try {
+        const storedPdfCache = JSON.parse(localStorage.getItem(PDF_RESOLVER_CACHE_KEY) || '{}');
+        if (storedPdfCache && typeof storedPdfCache === 'object' && !Array.isArray(storedPdfCache)) {
+            Object.entries(storedPdfCache).slice(-100).forEach(([sourceUrl, entry]) => {
+                pdfResolverCache.set(sourceUrl, entry);
+            });
+        }
+    } catch (_) {}
     function isPdfToLinkViewerUrl(value) {
         try {
             const parsed = new URL(value);
@@ -3050,6 +3097,12 @@
         for (const [sourceUrl, entry] of Object.entries(cache).slice(-100)) {
             pdfResolverCache.set(sourceUrl, entry);
         }
+        try {
+            localStorage.setItem(PDF_RESOLVER_CACHE_KEY, JSON.stringify(Object.fromEntries(pdfResolverCache)));
+        } catch (_) {}
+    }
+    function clearPdfResolverCache() {
+        clearStoredPdfResolverCache();
     }
     function getPdfResolverCacheEntry(sourceUrl) {
         const cache = readPdfResolverCache();
@@ -3059,19 +3112,102 @@
         if (entry.status === 'resolved') {
             const directUrl = safeReaderDocumentUrl(entry.directUrl);
             const expiry = Number(entry.expiresAt) || null;
-            if (!directUrl || (expiry && expiry <= nowSeconds + 300)) {
+            const cacheUntil = Number(entry.cacheUntil) || null;
+            if (!directUrl || (expiry && expiry <= nowSeconds + 300) || (cacheUntil && cacheUntil <= nowSeconds)) {
                 delete cache[sourceUrl];
                 writePdfResolverCache(cache);
                 return null;
             }
             return { status: 'resolved', directUrl };
         }
+        if (entry.errorCode === 'TIMEOUT') {
+            delete cache[sourceUrl];
+            writePdfResolverCache(cache);
+            return null;
+        }
         const checkedAt = Number(entry.checkedAt) || 0;
         const retryAfterSeconds = entry.status === 'not_pdf' ? 300 : 60;
-        if (checkedAt && nowSeconds - checkedAt < retryAfterSeconds) return { status: entry.status };
+        if (checkedAt && nowSeconds - checkedAt < retryAfterSeconds) {
+            return {
+                status: entry.status,
+                ...(entry.errorCode === 'TIMEOUT'
+                    ? { error: { message: 'The PDF link took too long to resolve.' } }
+                    : {})
+            };
+        }
         delete cache[sourceUrl];
         writePdfResolverCache(cache);
         return null;
+    }
+    function pumpPdfPrefetchQueue() {
+        if (pdfPrefetchPumpTimer || pdfPrefetchActiveCount >= PDF_PREFETCH_MAX_CONCURRENT || !pdfPrefetchQueue.length) return;
+        const delay = Math.max(0, pdfPrefetchLastStartAt + PDF_PREFETCH_START_INTERVAL_MS - Date.now());
+        pdfPrefetchPumpTimer = window.setTimeout(() => {
+            pdfPrefetchPumpTimer = null;
+            if (pdfPrefetchActiveCount >= PDF_PREFETCH_MAX_CONCURRENT) return;
+            const task = pdfPrefetchQueue.shift();
+            if (!task) return;
+            task.started = true;
+            pdfPrefetchActiveCount += 1;
+            pdfPrefetchLastStartAt = Date.now();
+            void (async () => {
+                let normalized;
+                try {
+                    const result = await api('/api/pdf-prefetch', {
+                        method: 'POST',
+                        body: { url: task.sourceUrl }
+                    });
+                    const status = ['resolved', 'failed', 'not_pdf'].includes(result?.status)
+                        ? result.status
+                        : 'failed';
+                    const directUrl = status === 'resolved' ? safeReaderDocumentUrl(result.direct_url) : null;
+                    const finalStatus = status === 'resolved' && directUrl ? 'resolved' : (status === 'resolved' ? 'failed' : status);
+                    const nowSeconds = Math.floor(Date.now() / 1000);
+                    const expiresAt = Number(result?.expires_at) || null;
+                    if (
+                        task.cacheGeneration === pdfResolverCacheGeneration &&
+                        result?.error_code !== 'TIMEOUT'
+                    ) {
+                        const cache = readPdfResolverCache();
+                        cache[task.sourceUrl] = finalStatus === 'resolved'
+                            ? {
+                                status: finalStatus,
+                                directUrl,
+                                expiresAt,
+                                cacheUntil: expiresAt ? null : nowSeconds + 3600
+                            }
+                            : {
+                                status: finalStatus,
+                                checkedAt: nowSeconds,
+                                ...(result?.error_code === 'TIMEOUT' ? { errorCode: 'TIMEOUT' } : {})
+                            };
+                        writePdfResolverCache(cache);
+                    }
+                    normalized = {
+                        status: finalStatus,
+                        ...(directUrl && finalStatus === 'resolved' ? { directUrl } : {}),
+                        ...(result?.error_code === 'TIMEOUT'
+                            ? { error: { message: 'The PDF link took too long to resolve.' } }
+                            : {})
+                    };
+                } catch (error) {
+                    if (task.cacheGeneration === pdfResolverCacheGeneration) {
+                        const cache = readPdfResolverCache();
+                        cache[task.sourceUrl] = { status: 'failed', checkedAt: Math.floor(Date.now() / 1000) };
+                        writePdfResolverCache(cache);
+                    }
+                    normalized = { status: 'failed', error };
+                }
+                task.resolve(normalized);
+            })().finally(() => {
+                pdfPrefetchActiveCount = Math.max(0, pdfPrefetchActiveCount - 1);
+                if (pendingPdfLinkPrefetches.get(task.sourceUrl) === task) {
+                    pendingPdfLinkPrefetches.delete(task.sourceUrl);
+                }
+                pumpPdfPrefetchQueue();
+            });
+            pumpPdfPrefetchQueue();
+        }, delay);
     }
     async function prefetchPdfLink(sourceUrl, options = {}) {
         const safeSourceUrl = safeReaderDocumentUrl(sourceUrl);
@@ -3087,45 +3223,42 @@
             if (cached) return cached;
         }
         if (pendingPdfLinkPrefetches.has(safeSourceUrl)) {
-            return pendingPdfLinkPrefetches.get(safeSourceUrl);
-        }
-        const request = (async () => {
-            try {
-                const result = await api('/api/pdf-prefetch', {
-                    method: 'POST',
-                    body: { url: safeSourceUrl }
-                });
-                const status = ['resolved', 'failed', 'not_pdf'].includes(result?.status)
-                    ? result.status
-                    : 'failed';
-                const directUrl = status === 'resolved'
-                    ? safeReaderDocumentUrl(result.direct_url)
-                    : null;
-                const normalizedStatus = status === 'resolved' && directUrl ? 'resolved' : (status === 'resolved' ? 'failed' : status);
-                const cache = readPdfResolverCache();
-                cache[safeSourceUrl] = normalizedStatus === 'resolved'
-                    ? { status: normalizedStatus, directUrl, expiresAt: Number(result.expires_at) || null }
-                    : { status: normalizedStatus, checkedAt: Math.floor(Date.now() / 1000) };
-                writePdfResolverCache(cache);
-                return { status: normalizedStatus, ...(directUrl && normalizedStatus === 'resolved' ? { directUrl } : {}) };
-            } catch (error) {
-                const cache = readPdfResolverCache();
-                cache[safeSourceUrl] = { status: 'failed', checkedAt: Math.floor(Date.now() / 1000) };
-                writePdfResolverCache(cache);
-                return { status: 'failed', error };
-            } finally {
-                pendingPdfLinkPrefetches.delete(safeSourceUrl);
+            const existingTask = pendingPdfLinkPrefetches.get(safeSourceUrl);
+            if (options.priority && existingTask && !existingTask.started) {
+                const queuedIndex = pdfPrefetchQueue.indexOf(existingTask);
+                if (queuedIndex >= 0) {
+                    pdfPrefetchQueue.splice(queuedIndex, 1);
+                    pdfPrefetchQueue.unshift(existingTask);
+                    if (pdfPrefetchPumpTimer) {
+                        window.clearTimeout(pdfPrefetchPumpTimer);
+                        pdfPrefetchPumpTimer = null;
+                    }
+                    pumpPdfPrefetchQueue();
+                }
             }
-        })();
-        pendingPdfLinkPrefetches.set(safeSourceUrl, request);
-        return request;
+            return existingTask.promise;
+        }
+        let resolveTask;
+        const promise = new Promise(resolve => { resolveTask = resolve; });
+        const task = {
+            sourceUrl: safeSourceUrl,
+            promise,
+            resolve: resolveTask,
+            started: false,
+            cacheGeneration: pdfResolverCacheGeneration
+        };
+        pendingPdfLinkPrefetches.set(safeSourceUrl, task);
+        if (options.priority) pdfPrefetchQueue.unshift(task);
+        else pdfPrefetchQueue.push(task);
+        pumpPdfPrefetchQueue();
+        return promise;
     }
     function prefetchVisiblePdfLinks(container, items) {
         if (!container || !Array.isArray(items) || !items.length) return;
         const rowById = new Map(items.map(item => [String(item.id), item]));
         const targets = [...container.querySelectorAll('[data-library-pdf-id]')];
         if (!('IntersectionObserver' in window)) {
-            targets.slice(0, 8).forEach(target => {
+            targets.slice(0, 10).forEach(target => {
                 const item = rowById.get(target.getAttribute('data-library-pdf-id'));
                 if (item) void prefetchPdfLink(item.url);
             });
@@ -3138,7 +3271,7 @@
                 if (item) void prefetchPdfLink(item.url);
                 observer.unobserve(entry.target);
             });
-        }, { root: container, rootMargin: '120px 0px' });
+        }, { root: null, rootMargin: '120px 0px' });
         targets.forEach(target => observer.observe(target));
     }
     function safeReaderDocumentUrl(value) {
@@ -3341,7 +3474,7 @@
         }
         return fileName || 'document';
     }
-    function appendReaderFileActions(container, url, title) {
+    function createReaderDownloadAction(url, title) {
         const download = document.createElement('button');
         download.type = 'button';
         download.className = 'book-reader-download';
@@ -3377,13 +3510,22 @@
                 download.textContent = 'Download file';
             }
         });
+        return { download, status };
+    }
+    function appendReaderFileActions(container, url, title) {
+        const { download, status } = createReaderDownloadAction(url, title);
         container.replaceChildren(download);
         appendReaderDirectLink(container, url, 'Open original link', 'book-reader-original-link');
         container.appendChild(status);
         container.hidden = false;
     }
     async function fetchReaderDocumentBlob(url) {
-        const proxyUrl = `${API_BASE}/api/doc-proxy?url=${encodeURIComponent(url)}&download=1`;
+        const isPdf = (() => {
+            try { return new URL(url).pathname.toLowerCase().endsWith('.pdf'); }
+            catch (_) { return false; }
+        })();
+        const proxyPath = isPdf ? '/api/doc-proxy-direct' : '/api/doc-proxy';
+        const proxyUrl = `${API_BASE}${proxyPath}?url=${encodeURIComponent(url)}&download=1`;
         const response = await fetch(proxyUrl, {
             headers: AUTH_TOKEN ? { Authorization: `Bearer ${AUTH_TOKEN}` } : {}
         });
@@ -3395,11 +3537,16 @@
     }
     function showReaderError(error, url) {
         const panel = document.getElementById('bookReaderError');
+        document.getElementById('bookReaderLoading').dataset.state = 'error';
         panel.replaceChildren();
         const message = document.createElement('p');
         message.textContent = error?.message || 'Could not load this document.';
         panel.appendChild(message);
-        appendReaderDirectLink(panel, url);
+        if (safeReaderDocumentUrl(url)) {
+            appendReaderDirectLink(panel, url, 'Open original link');
+            const { download, status } = createReaderDownloadAction(url, currentReaderPdf?.title || 'document');
+            panel.append(download, status);
+        }
         const retry = document.createElement('button');
         retry.type = 'button';
         retry.id = 'retryBookReader';
@@ -3407,9 +3554,35 @@
         panel.appendChild(retry);
         panel.hidden = false;
     }
+    function setBookReaderStatus(message, progress = null) {
+        const loading = document.getElementById('bookReaderLoading');
+        const label = document.getElementById('bookReaderLoadingText');
+        const bar = document.getElementById('bookReaderProgress');
+        if (loading) {
+            loading.dataset.state = message.includes('Resolving')
+                ? 'resolving'
+                : (message.includes('Downloading') ? 'downloading' : 'rendering');
+        }
+        if (label) label.textContent = message;
+        if (!bar) return;
+        if (progress === null || progress === undefined) {
+            bar.hidden = true;
+            bar.removeAttribute('value');
+            return;
+        }
+        bar.hidden = false;
+        if (Number.isFinite(progress)) {
+            bar.max = 100;
+            bar.value = Math.max(0, Math.min(100, progress));
+        } else {
+            bar.removeAttribute('value');
+        }
+    }
     function showPdfResolutionError(error, url) {
         const panel = document.getElementById('bookReaderError');
-        document.getElementById('bookReaderLoading').hidden = true;
+        const loading = document.getElementById('bookReaderLoading');
+        loading.hidden = true;
+        loading.dataset.state = 'error';
         document.getElementById('bookFlipbook').hidden = true;
         document.getElementById('bookReaderMedia').hidden = true;
         panel.replaceChildren();
@@ -3513,6 +3686,7 @@
         const errorPanel = document.getElementById('bookReaderError');
         const flipbook = document.getElementById('bookFlipbook');
         const media = document.getElementById('bookReaderMedia');
+        const firstPagePreview = document.getElementById('bookReaderFirstPagePreview');
         const actions = document.getElementById('bookReaderActions');
         const controls = document.getElementById('bookReaderControls');
         let directUrl = safeReaderDocumentUrl(pdf?.resolved_pdf_url || pdf?.url);
@@ -3526,18 +3700,24 @@
         document.getElementById('bookReaderNightToggle').setAttribute('aria-pressed', 'false');
         document.getElementById('bookReaderNightToggle').hidden = true;
         loading.hidden = false;
+        setBookReaderStatus('🔍 Resolving link…');
         errorPanel.hidden = true;
         errorPanel.replaceChildren();
         flipbook.hidden = true;
         flipbook.innerHTML = '';
+        firstPagePreview.hidden = true;
+        firstPagePreview.replaceChildren();
+        reader.dataset.firstPageReady = 'false';
         media.hidden = true;
         media.replaceChildren();
         actions.hidden = true;
         actions.replaceChildren();
         controls.hidden = true;
         updateBookReaderPages();
+        if (activeBookReaderTimeoutId !== null) window.clearTimeout(activeBookReaderTimeoutId);
         const loadTimeout = window.setTimeout(() => {
-            if (readerId !== activeBookReaderId || loading.hidden) return;
+            if (readerId !== activeBookReaderId || reader.dataset.firstPageReady === 'true' || loading.hidden) return;
+            activeBookReaderTimeoutId = null;
             activeBookReaderId += 1;
             const pendingPdf = activePdfLoadingTask;
             activePdfLoadingTask = null;
@@ -3545,8 +3725,9 @@
             loading.hidden = true;
             flipbook.hidden = true;
             media.hidden = true;
-            showReaderError(new Error('Could not load. Try again.'), directUrl);
-        }, 10000);
+            showReaderError(new Error('Nothing rendered within 25 seconds. Retry, open the original link, or download the file.'), directUrl || originalUrl);
+        }, 25000);
+        activeBookReaderTimeoutId = loadTimeout;
         try {
             if (!directUrl) throw new Error('This document does not have a valid HTTP or HTTPS link.');
             let kind = pdf?.doc_kind;
@@ -3557,7 +3738,8 @@
                 kind = result?.kind;
             }
             if (kind === 'viewer' && isPdfToLinkViewerUrl(originalUrl || directUrl)) {
-                const resolution = await prefetchPdfLink(originalUrl || directUrl);
+                setBookReaderStatus('🔍 Resolving PDF link…');
+                const resolution = await prefetchPdfLink(originalUrl || directUrl, { priority: true });
                 if (readerId !== activeBookReaderId) return;
                 if (resolution.status !== 'resolved' || !resolution.directUrl) {
                     showPdfResolutionError(
@@ -3618,13 +3800,30 @@
                 if (!window.St?.PageFlip) throw new Error('The page-flip library did not load.');
                 window.pdfjsLib.GlobalWorkerOptions.workerSrc =
                     'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
+                setBookReaderStatus('📥 Downloading PDF…');
                 const loadingTask = window.pdfjsLib.getDocument({
-                    url: `${API_BASE}/api/doc-proxy?url=${encodeURIComponent(directUrl)}`,
+                    url: `${API_BASE}/api/doc-proxy-direct?url=${encodeURIComponent(directUrl)}`,
                     httpHeaders: AUTH_TOKEN ? { Authorization: `Bearer ${AUTH_TOKEN}` } : {},
                     disableRange: false,
-                    disableStream: false
+                    disableStream: true,
+                    disableAutoFetch: true,
+                    rangeChunkSize: 65536
                 });
                 activePdfLoadingTask = loadingTask;
+                loadingTask.onProgress = ({ loaded, total } = {}) => {
+                    if (readerId !== activeBookReaderId) return;
+                    const loadedBytes = Number(loaded) || 0;
+                    const totalBytes = Number(total) || 0;
+                    const percent = totalBytes > 0 ? (loadedBytes / totalBytes) * 100 : null;
+                    const loadedMb = (loadedBytes / (1024 * 1024)).toFixed(1);
+                    const totalLabel = totalBytes > 0
+                        ? ` of ${(totalBytes / (1024 * 1024)).toFixed(1)} MB`
+                        : '';
+                    setBookReaderStatus(
+                        `📥 Downloading PDF… ${loadedMb} MB${totalLabel}`,
+                        percent
+                    );
+                };
                 const documentProxy = await loadingTask.promise;
                 if (readerId !== activeBookReaderId) return;
                 activePdfDocument = documentProxy;
@@ -3632,6 +3831,10 @@
                 const images = [];
                 for (let pageNumber = 1; pageNumber <= documentProxy.numPages; pageNumber += 1) {
                     if (readerId !== activeBookReaderId) return;
+                    setBookReaderStatus(
+                        `📖 Rendering page ${pageNumber} of ${documentProxy.numPages}…`,
+                        ((pageNumber - 1) / documentProxy.numPages) * 100
+                    );
                     const page = await documentProxy.getPage(pageNumber);
                     const baseViewport = page.getViewport({ scale: 1 });
                     const scale = Math.min(1.5, 1000 / baseViewport.width);
@@ -3642,7 +3845,29 @@
                     const context = canvas.getContext('2d');
                     if (!context) throw new Error(`Could not create a canvas for page ${pageNumber}.`);
                     await page.render({ canvasContext: context, viewport }).promise;
-                    images.push(canvas.toDataURL('image/jpeg', 0.88));
+                    const imageUrl = canvas.toDataURL('image/jpeg', 0.88);
+                    images.push(imageUrl);
+                    if (pageNumber === 1) {
+                        const previewImage = document.createElement('img');
+                        previewImage.src = imageUrl;
+                        previewImage.alt = `${pdf.title || 'PDF'} — first page preview`;
+                        firstPagePreview.replaceChildren(previewImage);
+                        firstPagePreview.hidden = false;
+                        reader.dataset.firstPageReady = 'true';
+                        if (activeBookReaderTimeoutId === loadTimeout) {
+                            window.clearTimeout(loadTimeout);
+                            activeBookReaderTimeoutId = null;
+                        }
+                        setBookReaderStatus(
+                            `📖 Page 1 of ${documentProxy.numPages} is ready. Preparing the reader…`,
+                            (1 / documentProxy.numPages) * 100
+                        );
+                    } else {
+                        setBookReaderStatus(
+                            `📖 Rendering page ${pageNumber} of ${documentProxy.numPages}…`,
+                            (pageNumber / documentProxy.numPages) * 100
+                        );
+                    }
                     page.cleanup();
                     canvas.width = 0;
                     canvas.height = 0;
@@ -3662,6 +3887,8 @@
                     maxHeight: 1500
                 });
                 loading.hidden = true;
+                firstPagePreview.hidden = true;
+                firstPagePreview.replaceChildren();
                 flipbook.hidden = false;
                 controls.hidden = false;
                 document.getElementById('bookReaderNightToggle').hidden = false;
@@ -3713,13 +3940,18 @@
             loading.hidden = true;
             flipbook.hidden = true;
             media.hidden = true;
-            showReaderError(error, directUrl);
+            showReaderError(error, directUrl || originalUrl);
         } finally {
             window.clearTimeout(loadTimeout);
+            if (activeBookReaderTimeoutId === loadTimeout) activeBookReaderTimeoutId = null;
         }
     }
     function closeBookReader() {
         activeBookReaderId += 1;
+        if (activeBookReaderTimeoutId !== null) {
+            window.clearTimeout(activeBookReaderTimeoutId);
+            activeBookReaderTimeoutId = null;
+        }
         if (pageFlipInstance) {
             try { pageFlipInstance.destroy(); } catch (error) { console.warn('Page-flip cleanup failed:', error); }
             pageFlipInstance = null;
@@ -3747,6 +3979,11 @@
         if (media) {
             media.hidden = true;
             media.replaceChildren();
+        }
+        const preview = document.getElementById('bookReaderFirstPagePreview');
+        if (preview) {
+            preview.hidden = true;
+            preview.replaceChildren();
         }
         const actions = document.getElementById('bookReaderActions');
         if (actions) {
@@ -4362,6 +4599,7 @@
         const originalToken = sessionStorage.getItem(ORIGINAL_SUPERADMIN_TOKEN_KEY) || localStorage.getItem('apshule_token');
         sessionStorage.removeItem(IMPERSONATION_TOKEN_KEY);
         sessionStorage.removeItem(ORIGINAL_SUPERADMIN_TOKEN_KEY);
+        clearStoredPdfResolverCache();
         AUTH_TOKEN = originalToken || null;
         if (!originalToken) localStorage.removeItem('apshule_token');
         if (auditFailed) alert('You were returned to the Super Admin account, but the exit audit event could not be recorded.');
@@ -4387,6 +4625,7 @@
                 sessionStorage.removeItem(ORIGINAL_SUPERADMIN_TOKEN_KEY);
                 throw new Error('This browser could not store the temporary session safely.');
             }
+            clearStoredPdfResolverCache();
             AUTH_TOKEN = result.token;
             window.location.reload();
         } catch (error) {
@@ -4505,6 +4744,7 @@
         }
         if (!navigator.onLine && !offlineData.isTokenLocallyUsable(tokenAtStart)) {
             await offlineData.clearSession();
+            clearStoredPdfResolverCache();
             AUTH_TOKEN = null;
             localStorage.removeItem('apshule_token');
             sessionStorage.removeItem(IMPERSONATION_TOKEN_KEY);
@@ -4545,6 +4785,7 @@
                 sessionStorage.removeItem(IMPERSONATION_TOKEN_KEY);
                 sessionStorage.removeItem(ORIGINAL_SUPERADMIN_TOKEN_KEY);
                 if (originalToken && originalToken !== tokenAtStart) {
+                    clearStoredPdfResolverCache();
                     AUTH_TOKEN = originalToken;
                     try {
                         return await requestCurrentUser();
@@ -4578,6 +4819,7 @@
             }
 
             if (error?.status === 401 || error?.status === 403) return null;
+            clearStoredPdfResolverCache();
             AUTH_TOKEN = null;
             sessionStorage.removeItem(IMPERSONATION_TOKEN_KEY);
             sessionStorage.removeItem(ORIGINAL_SUPERADMIN_TOKEN_KEY);
@@ -6278,6 +6520,7 @@
             } catch (error) {}
         }
         await offlineData.clearSession();
+        clearPdfResolverCache();
         AUTH_TOKEN = null;
         localStorage.removeItem('apshule_token');
         currentUser = null;
@@ -6662,6 +6905,7 @@
         });
         document.getElementById('elibraryBackToShelf')?.addEventListener('click', returnToELibraryShelf);
         document.getElementById('closeBookReader')?.addEventListener('click', closeBookReader);
+        document.getElementById('cancelBookReaderLoading')?.addEventListener('click', closeBookReader);
         document.getElementById('bookReaderPrev')?.addEventListener('click', () => pageFlipInstance?.flipPrev());
         document.getElementById('bookReaderNext')?.addEventListener('click', () => pageFlipInstance?.flipNext());
         document.getElementById('bookReaderNightToggle')?.addEventListener('click', event => {
@@ -6843,7 +7087,7 @@
                     await refreshAllData();
                     if (!batch.processed || totals.remaining === 0) break;
                 } while (totals.remaining > 0);
-                status.textContent = `Done: ${totals.resolved} resolved, ${totals.failed} failed, ${totals.not_pdf} not PDF; ${totals.remaining} pending.`;
+                status.textContent = `Done: ${totals.resolved} resolved, ${totals.failed} failed, ${totals.not_pdf} not PDF; ${totals.remaining} pending.${totals.remaining === 0 ? ' If the old PDF loading page still appears, run “Purge Everything” in Cloudflare.' : ''}`;
             } catch (error) {
                 status.textContent = error.message || 'Could not resolve the pending PDF links.';
             } finally {
@@ -6998,6 +7242,7 @@
                     errorBox.innerText = `Thanks! You're on the waitlist. We'll email you when ${sectorName} launches.`;
                     return;
                 }
+                clearStoredPdfResolverCache();
                 AUTH_TOKEN = data.token; localStorage.setItem('apshule_token', AUTH_TOKEN);
                 showNotification("Account created!");
                 await showAppFor(data.user);
@@ -7019,6 +7264,7 @@
             }
             try {
                 const data = await api('/api/auth/login', { method: 'POST', body: { email, password }, auth: false });
+                clearStoredPdfResolverCache();
                 AUTH_TOKEN = data.token; localStorage.setItem('apshule_token', AUTH_TOKEN);
                 if (data.user?.role === 'superadmin') {
                     api('/api/audit', { method: 'POST', body: { action: 'login', sector: 'global', metadata: { ua: navigator.userAgent } } }).catch(() => {});
