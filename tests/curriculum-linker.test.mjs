@@ -145,7 +145,7 @@ test("Curriculum Linker opens documents in the reader and keeps direct-link fall
 
 test("document reader uses Microsoft viewer, authenticated downloads, and viewer fallbacks", () => {
   const reader = html.match(
-    /^    async function openBookReader\(pdf\) \{[\s\S]*?^    \}/mu,
+    /^    async function openBookReader\(urlOrPdf, title = '', docKind = null\) \{[\s\S]*?^    \}/mu,
   )?.[0];
   assert.ok(reader, "openBookReader should exist in index.html");
   const officeViewer = html.match(
@@ -153,7 +153,10 @@ test("document reader uses Microsoft viewer, authenticated downloads, and viewer
   )?.[0];
   assert.ok(officeViewer, "appendMicrosoftOfficeViewer should exist in index.html");
   const fileActions = sourceFunction("appendReaderFileActions", "container, url, title");
-  const viewerFallback = sourceFunction("renderViewerWithFallback", "container, url");
+  const viewerFallback = sourceFunction(
+    "renderViewerWithFallback",
+    "container, url, title = 'Document viewer'",
+  );
   const safeReaderUrl = sourceFunction("safeReaderDocumentUrl", "value");
   const viewerSource = sourceFunction("readerViewerSourceUrl", "viewerUrl");
   const blobFetcher = html.match(
@@ -180,6 +183,10 @@ test("document reader uses Microsoft viewer, authenticated downloads, and viewer
   );
   assert.equal(viewerSourceContext.extractViewerSource("https://elearn.ncdc.go.ug/viewer/lesson"), null);
   assert.match(reader, /\/api\/detect-doc-kind/u);
+  assert.match(reader, /isPdfToLinkViewerUrl\(originalUrl \|\| directUrl\)/u);
+  assert.match(html, /This link opens a webpage instead of a PDF\. Ask an admin to replace it with a direct PDF link\./u);
+  assert.match(reader, /Could not load\. Try again\./u);
+  assert.match(reader, /10000/u);
   assert.match(reader, /await appendMicrosoftOfficeViewer\(media/u);
   assert.match(reader, /appendReaderFileActions\(actions, directUrl/u);
   assert.match(reader, /readerViewerSourceUrl\(directUrl\)/u);
@@ -206,11 +213,15 @@ test("document reader uses Microsoft viewer, authenticated downloads, and viewer
   assert.match(reader, /A preview is not available for this link/u);
   assert.match(reader, /kind === 'text'/u);
   assert.match(reader, /kind === 'viewer'/u);
-  assert.match(reader, /renderViewerWithFallback\(media, directUrl\)/u);
+  assert.match(reader, /renderViewerWithFallback\(media, directUrl, pdf\.title \|\| kindInfo\.label\)/u);
+  assert.match(viewerFallback, /host === 'pdftolink\.app'/u);
+  assert.match(viewerFallback, /iframe\.src = safeUrl/u);
+  assert.equal((html.match(/openBookReader\(\{\s*\.\.\.pdf, source_table: 'pdfs', original_url: pdf\.url \}\)/gu) || []).length, 2);
+  assert.match(reader, /disableStream: false/u);
 });
 
-test("the service worker uses cache v8 and claims clients on activation", async () => {
+test("the service worker uses cache v24 and claims clients on activation", async () => {
   const sw = await readFile(new URL("../sw.js", import.meta.url), "utf8");
-  assert.match(sw, /const CACHE_NAME = "apshule-cache-v8"/u);
+  assert.match(sw, /const CACHE_NAME = "apshule-cache-v24"/u);
   assert.match(sw, /await self\.clients\.claim\(\)/u);
 });

@@ -31,7 +31,7 @@ export async function resolve(specifier, context, nextResolve) {
     ) ||
     (
       specifier === "../db.js" &&
-       /\/src\/routes\/(payments|platform-settings|ncdc-foundation|documents|clinic|clinic-workflows|clinic-pharmacy|clinic-billing|clinic-billing-shared|clinic-settlements|clinic-patient-portal|farm|farm-operations|farm-commerce|farm-facilities|farm-reports|video-studio)\.ts$/u.test(
+       /\/src\/routes\/(payments|platform-settings|ncdc-foundation|documents|clinic|clinic-workflows|clinic-pharmacy|clinic-billing|clinic-billing-shared|clinic-settlements|clinic-patient-portal|farm|farm-operations|farm-commerce|farm-facilities|farm-reports|video-studio|virtual-lab)\.ts$/u.test(
         context.parentURL ?? "",
       )
     )
@@ -53,6 +53,28 @@ export async function resolve(specifier, context, nextResolve) {
           email: "video-test@example.test",
           role: c.req.header("x-test-role") || "teacher",
           sector: c.req.header("x-test-sector") || "education",
+          schoolId: c.req.header("x-test-school") || null,
+          impersonatedBy: null
+        });
+        await next();
+      };
+    `);
+  }
+  if (
+    specifier === "../auth.js" &&
+    context.parentURL?.endsWith("/src/routes/virtual-lab.ts")
+  ) {
+    return virtualModule(`
+      export const authMiddleware = async (c, next) => {
+        if (c.req.header("authorization") !== "Bearer test-token") {
+          return c.json({ error: "UNAUTHORIZED" }, 401);
+        }
+        c.set("user", {
+          id: "00000000-0000-4000-8000-000000000123",
+          name: "Lab test user",
+          email: "lab-test@example.test",
+          role: c.req.header("x-test-role") || "teacher",
+          sector: "education",
           schoolId: c.req.header("x-test-school") || null,
           impersonatedBy: null
         });
@@ -117,10 +139,20 @@ export async function resolve(specifier, context, nextResolve) {
         c.set("user", {
           id: "00000000-0000-4000-8000-000000000123",
           role: c.req.header("x-test-role") || "teacher",
-          sector: "education"
+          sector: "education",
+          impersonatedBy: c.req.header("x-test-impersonated") || null
         });
         await next();
       };
+      export function requireRealSuperAdmin() {
+        return async (c, next) => {
+          const user = c.get("user");
+          if (user?.role !== "superadmin" || user.impersonatedBy) {
+            return c.json({ error: "FORBIDDEN" }, 403);
+          }
+          await next();
+        };
+      }
     `);
   }
   if (

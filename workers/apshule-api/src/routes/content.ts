@@ -61,13 +61,15 @@ content.get("/pdfs", async (c) => {
   }
   const rows = requestedClassLevel
     ? await sql`
-        SELECT id, title, url, doc_kind, class_level, cover_color, display_order, created_at
+        SELECT id, title, url, doc_kind, class_level, cover_color, display_order,
+               resolve_status, resolved_at, created_at
         FROM pdfs
         WHERE class_level = ${requestedClassLevel}
         ORDER BY display_order ASC, created_at DESC
       `
     : await sql`
-        SELECT id, title, url, doc_kind, class_level, cover_color, display_order, created_at
+        SELECT id, title, url, doc_kind, class_level, cover_color, display_order,
+               resolve_status, resolved_at, created_at
         FROM pdfs
         ORDER BY display_order ASC, created_at DESC
       `;
@@ -90,7 +92,8 @@ content.post("/pdfs", authMiddleware, requireRole("superadmin"), async (c) => {
   const rows = await sql`
     INSERT INTO pdfs (title, url, doc_kind, class_level, cover_color, display_order)
     VALUES (${title}, ${url}, ${docKind}, ${classLevel}, ${coverColor}, ${displayOrder})
-    RETURNING id, title, url, doc_kind, class_level, cover_color, display_order, created_at
+    RETURNING id, title, url, doc_kind, class_level, cover_color, display_order,
+              resolve_status, resolved_at, created_at
   `;
   return c.json({ pdf: rows[0] }, 201);
 });
@@ -123,11 +126,15 @@ content.patch("/pdfs/:id", authMiddleware, requireRole("superadmin"), async (c) 
     SET title = CASE WHEN ${hasTitle} THEN ${title} ELSE title END,
         url = CASE WHEN ${hasUrl} THEN ${url} ELSE url END,
         doc_kind = CASE WHEN ${hasUrl} THEN ${docKind} ELSE doc_kind END,
+        resolved_pdf_url = CASE WHEN ${hasUrl} THEN NULL ELSE resolved_pdf_url END,
+        resolve_status = CASE WHEN ${hasUrl} THEN 'unresolved' ELSE resolve_status END,
+        resolved_at = CASE WHEN ${hasUrl} THEN NULL ELSE resolved_at END,
         class_level = CASE WHEN ${hasClassLevel} THEN ${classLevel} ELSE class_level END,
         cover_color = CASE WHEN ${hasCoverColor} THEN ${coverColor} ELSE cover_color END,
         display_order = CASE WHEN ${hasDisplayOrder} THEN ${displayOrder} ELSE display_order END
     WHERE id = ${c.req.param("id")}
-    RETURNING id, title, url, doc_kind, class_level, cover_color, display_order, created_at
+    RETURNING id, title, url, doc_kind, class_level, cover_color, display_order,
+              resolve_status, resolved_at, created_at
   `;
   if (!rows[0]) throw new ApiError(404, "PDF_NOT_FOUND", "Document was not found.");
   return c.json({ pdf: rows[0] });

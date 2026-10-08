@@ -16,6 +16,22 @@ app.route("/api", documentRoutes);
 
 const authHeaders = { authorization: "Bearer test-token" };
 
+function createPdfResolverSql({ pdfRows = [], remaining = 0 } = {}) {
+  const calls = [];
+  const sql = async (strings, ...values) => {
+    const query = strings.join(" ").replace(/\s+/gu, " ").trim();
+    calls.push({ query, values });
+    if (query.includes("SELECT id, url") && query.includes("resolve_status")) {
+      return pdfRows;
+    }
+    if (query.includes("SELECT COUNT(*)::int AS count")) {
+      return [{ count: remaining }];
+    }
+    return [];
+  };
+  return { sql, calls };
+}
+
 test("document routes require an authenticated user", async () => {
   const response = await app.request(
     "/api/detect-doc-kind",
@@ -27,6 +43,67 @@ test("document routes require an authenticated user", async () => {
     `/api/doc-proxy?url=${encodeURIComponent("https://files.example.com/book.pdf")}`,
   );
   assert.equal(proxyResponse.status, 401);
+});
+
+test("PDF prefetch is authenticated and caches direct PDF mappings", async () => {
+  const database = createPdfResolverSql();
+  const response = await app.request(
+    "/api/pdf-prefetch",
+    {
+      method: "POST",
+      headers: { ...authHeaders, "content-type": "application/json" },
+      body: JSON.stringify({ url: "https://files.example.com/lesson.pdf" }),
+    },
+    { __sql: database.sql },
+  );
+  assert.equal(response.status, 200);
+  assert.deepEqual(await response.json(), {
+    status: "resolved",
+    direct_url: "https://files.example.com/lesson.pdf",
+    expires_at: null,
+  });
+  assert.equal(database.calls.filter(({ query }) => query.startsWith("UPDATE")).length, 2);
+});
+
+test("PDF batch resolution requires an unimpersonated Super Admin", async () => {
+  const response = await app.request(
+    "/api/admin/resolve-pdf-links",
+    {
+      method: "POST",
+      headers: { ...authHeaders, "content-type": "application/json" },
+      body: JSON.stringify({ limit: 20 }),
+    },
+    { __sql: createPdfResolverSql().sql },
+  );
+  assert.equal(response.status, 403);
+});
+
+test("Super Admin PDF batch resolves direct files and reports remaining work", async () => {
+  const database = createPdfResolverSql({
+    pdfRows: [{ id: "pdf-1", url: "https://files.example.com/lesson.pdf" }],
+    remaining: 0,
+  });
+  const response = await app.request(
+    "/api/admin/resolve-pdf-links",
+    {
+      method: "POST",
+      headers: {
+        ...authHeaders,
+        "content-type": "application/json",
+        "x-test-role": "superadmin",
+      },
+      body: JSON.stringify({ limit: 20 }),
+    },
+    { __sql: database.sql },
+  );
+  assert.equal(response.status, 200);
+  assert.deepEqual(await response.json(), {
+    processed: 1,
+    resolved: 1,
+    failed: 0,
+    not_pdf: 0,
+    remaining: 0,
+  });
 });
 
 test("POST detect-doc-kind returns the server classification for authenticated users", async () => {
@@ -47,6 +124,12 @@ test("doc-proxy returns a CORS-enabled, one-hour cached response and pdf-proxy i
   const originalCaches = Object.getOwnPropertyDescriptor(globalThis, "caches");
   const entries = new Map();
   let fetchCount = 0;
+  const pendingBackgroundTasks = [];
+  const executionContext = {
+    waitUntil(promise) {
+      pendingBackgroundTasks.push(promise);
+    },
+  };
   Object.defineProperty(globalThis, "caches", {
     configurable: true,
     value: {
@@ -70,7 +153,8 @@ test("doc-proxy returns a CORS-enabled, one-hour cached response and pdf-proxy i
   try {
     const url = "https://files.example.com/book.pdf";
     const path = `/api/doc-proxy?url=${encodeURIComponent(url)}`;
-    const first = await app.request(path, { headers: authHeaders });
+    const first = await app.request(path, { headers: authHeaders }, undefined, executionContext);
+    await Promise.all(pendingBackgroundTasks.splice(0));
     const second = await app.request(path, { headers: authHeaders });
     assert.equal(first.status, 200);
     assert.equal(first.headers.get("Access-Control-Allow-Origin"), "*");
@@ -83,7 +167,10 @@ test("doc-proxy returns a CORS-enabled, one-hour cached response and pdf-proxy i
     const alias = await app.request(
       `/api/pdf-proxy?url=${encodeURIComponent("https://files.example.com/legacy.pdf")}`,
       { headers: authHeaders },
+      undefined,
+      executionContext,
     );
+    await Promise.all(pendingBackgroundTasks.splice(0));
     assert.equal(alias.status, 200);
     assert.equal(fetchCount, 2);
   } finally {

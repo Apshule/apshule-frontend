@@ -262,6 +262,13 @@
         .pdf-item button { background: #dc3545; color: white; border: none; padding: 5px 10px; border-radius: 20px; cursor: pointer; }
         .add-pdf-form { background: #f0f0f0; padding: 15px; border-radius: 16px; margin-top: 20px; }
         .add-pdf-form input { margin: 5px 0; padding: 8px; width: 100%; border-radius: 20px; border: 1px solid #ccc; }
+        .pdf-resolution-status { display:block; margin:6px 0 10px; color:#625d6e; font-size:12px; line-height:1.4; }
+        .pdf-resolution-status[data-resolution="resolved"] { color:#247243; font-weight:700; }
+        .pdf-resolution-status[data-resolution="failed"], .pdf-resolution-status[data-resolution="not_pdf"] { color:#a33737; font-weight:700; }
+        .pdf-admin-row { flex-wrap:wrap; }
+        .pdf-url-editor { flex-basis:100%; padding:10px; border:1px solid #e4dfeb; border-radius:10px; background:#faf9fc; }
+        .pdf-url-editor[hidden] { display:none !important; }
+        .pdf-url-editor input { width:100%; margin:4px 0 8px; padding:8px; border:1px solid #ccc; border-radius:8px; }
         .add-subject-form { background: #f0f0f0; padding: 15px; border-radius: 16px; margin-top: 20px; }
         .add-subject-form input, .add-subject-form select { margin: 5px 0; padding: 8px; width: 100%; border-radius: 20px; border: 1px solid #ccc; }
         .analytics-table { width: 100%; border-collapse: collapse; margin-top: 15px; font-size: 12px; }
@@ -1800,7 +1807,20 @@
                     <div id="eventsAdminList"></div>
                 </div>
                 <div class="admin-section" id="addSubjectSection" style="display:none;"><h4>➕ Add New Subject</h4><div class="add-subject-form"><input type="text" id="newSubjectName" placeholder="Subject name"><select id="newSubjectLevel"><option value="primary">Primary</option><option value="secondary">Secondary</option></select><input type="text" id="newSubjectVideo" placeholder="YouTube URL or Video ID"><button id="addNewSubjectBtn" class="admin-toggle">➕ Add Subject</button></div></div>
-                <div class="admin-section" id="pdfManagementSection" style="display:none;"><h4>📄 Manage Documents</h4><div class="add-pdf-form"><input type="text" id="pdfTitle" placeholder="Document title"><select id="pdfClassLevel" aria-label="Assign document to a class"><option value="">Select class (optional)</option><option value="unassigned">General / Unassigned</option><option value="Baby">Baby Class</option><option value="Middle">Middle Class</option><option value="Top">Top Class</option><option value="Primary 1">Primary 1</option><option value="Primary 2">Primary 2</option><option value="Primary 3">Primary 3</option><option value="Primary 4">Primary 4</option><option value="Primary 5">Primary 5</option><option value="Primary 6">Primary 6</option><option value="Primary 7">Primary 7</option><option value="Senior 1">Senior 1</option><option value="Senior 2">Senior 2</option><option value="Senior 3">Senior 3</option><option value="Senior 4">Senior 4</option><option value="Senior 5">Senior 5</option><option value="Senior 6">Senior 6</option></select><input type="url" id="pdfUrl" placeholder="Document URL"><small>Accepts PDF, Word, Excel, PowerPoint, ODT, images, video, audio, text, and other links.</small><button id="addPdfBtn" class="admin-toggle">➕ Add document</button></div><div id="pdfAdminList"></div></div>
+                <div class="admin-section" id="pdfManagementSection" style="display:none;">
+                    <h4>📄 Manage Documents</h4>
+                    <div class="add-pdf-form">
+                        <input type="text" id="pdfTitle" placeholder="Document title">
+                        <select id="pdfClassLevel" aria-label="Assign document to a class"><option value="">Select class (optional)</option><option value="unassigned">General / Unassigned</option><option value="Baby">Baby Class</option><option value="Middle">Middle Class</option><option value="Top">Top Class</option><option value="Primary 1">Primary 1</option><option value="Primary 2">Primary 2</option><option value="Primary 3">Primary 3</option><option value="Primary 4">Primary 4</option><option value="Primary 5">Primary 5</option><option value="Primary 6">Primary 6</option><option value="Primary 7">Primary 7</option><option value="Senior 1">Senior 1</option><option value="Senior 2">Senior 2</option><option value="Senior 3">Senior 3</option><option value="Senior 4">Senior 4</option><option value="Senior 5">Senior 5</option><option value="Senior 6">Senior 6</option></select>
+                        <input type="url" id="pdfUrl" placeholder="Document URL">
+                        <div id="pdfUrlResolutionBadge" class="pdf-resolution-status" role="status" aria-live="polite" hidden></div>
+                        <small>Accepts PDF, Word, Excel, PowerPoint, ODT, images, video, audio, text, and other links.</small>
+                        <button id="addPdfBtn" class="admin-toggle">➕ Add document</button>
+                        <button type="button" id="resolvePdfLinksBtn" class="admin-toggle">Resolve pending PDF links</button>
+                        <div id="pdfBatchResolveStatus" class="pdf-resolution-status" role="status" aria-live="polite"></div>
+                    </div>
+                    <div id="pdfAdminList"></div>
+                </div>
             </div>
         </div>
         <div id="myListPage" class="page"><div class="section-title">❤️ My Saved Lessons</div><div id="myListContainer" style="background:white; border-radius:20px; padding:20px; text-align:center; color:#999;">Coming soon – save your favourite lessons!</div></div>
@@ -2896,6 +2916,7 @@
             return;
         }
         results.innerHTML = matches.map(pdf => `<button type="button" class="elibrary-search-result" data-library-pdf-id="${escapeHtml(pdf.id)}"><span class="elibrary-document-icon" aria-hidden="true">📄</span><span><strong>${escapeHtml(pdf.title)}</strong><small>${escapeHtml(getPdfClassLabel(getPdfClassLevel(pdf)))}</small></span><i class="fas fa-chevron-right" aria-hidden="true"></i></button>`).join('');
+        prefetchVisiblePdfLinks(results, matches);
     }
     function renderELibraryPDFItems() {
         const container = document.getElementById('elibraryPDFItems');
@@ -2908,6 +2929,7 @@
             const color = /^#[0-9a-f]{6}$/iu.test(pdf.cover_color || '') ? pdf.cover_color : '#FF8C42';
             return `<button type="button" class="elibrary-pdf-row" data-library-pdf-id="${escapeHtml(pdf.id)}"><span class="elibrary-pdf-cover" style="background:${color}" aria-hidden="true">📄</span><span>${escapeHtml(pdf.title)}</span><i class="fas fa-chevron-right" aria-hidden="true"></i></button>`;
         }).join('');
+        prefetchVisiblePdfLinks(container, currentLibraryPdfs);
     }
     async function openELibraryScreen() {
         const screen = document.getElementById('elibraryScreen');
@@ -3007,6 +3029,118 @@
         other: { icon: '📄', label: 'Document' }
     };
     let activeReaderObjectUrl = null;
+    const pendingPdfLinkPrefetches = new Map();
+    const pdfResolverCache = new Map();
+    function isPdfToLinkViewerUrl(value) {
+        try {
+            const parsed = new URL(value);
+            return parsed.protocol === 'https:' &&
+                (parsed.hostname.toLowerCase() === 'pdftolink.app' ||
+                    parsed.hostname.toLowerCase().endsWith('.pdftolink.app')) &&
+                /^\/view\/[^/]+\/?$/u.test(parsed.pathname);
+        } catch (_) {
+            return false;
+        }
+    }
+    function readPdfResolverCache() {
+        return Object.fromEntries(pdfResolverCache);
+    }
+    function writePdfResolverCache(cache) {
+        pdfResolverCache.clear();
+        for (const [sourceUrl, entry] of Object.entries(cache).slice(-100)) {
+            pdfResolverCache.set(sourceUrl, entry);
+        }
+    }
+    function getPdfResolverCacheEntry(sourceUrl) {
+        const cache = readPdfResolverCache();
+        const entry = cache[sourceUrl];
+        if (!entry || typeof entry !== 'object') return null;
+        const nowSeconds = Math.floor(Date.now() / 1000);
+        if (entry.status === 'resolved') {
+            const directUrl = safeReaderDocumentUrl(entry.directUrl);
+            const expiry = Number(entry.expiresAt) || null;
+            if (!directUrl || (expiry && expiry <= nowSeconds + 300)) {
+                delete cache[sourceUrl];
+                writePdfResolverCache(cache);
+                return null;
+            }
+            return { status: 'resolved', directUrl };
+        }
+        const checkedAt = Number(entry.checkedAt) || 0;
+        const retryAfterSeconds = entry.status === 'not_pdf' ? 300 : 60;
+        if (checkedAt && nowSeconds - checkedAt < retryAfterSeconds) return { status: entry.status };
+        delete cache[sourceUrl];
+        writePdfResolverCache(cache);
+        return null;
+    }
+    async function prefetchPdfLink(sourceUrl, options = {}) {
+        const safeSourceUrl = safeReaderDocumentUrl(sourceUrl);
+        const directPdfUrl = (() => {
+            try { return new URL(safeSourceUrl).pathname.toLowerCase().endsWith('.pdf'); }
+            catch (_) { return false; }
+        })();
+        if (!safeSourceUrl || (!isPdfToLinkViewerUrl(safeSourceUrl) && !directPdfUrl)) {
+            return { status: 'not_pdf' };
+        }
+        if (!options.force) {
+            const cached = getPdfResolverCacheEntry(safeSourceUrl);
+            if (cached) return cached;
+        }
+        if (pendingPdfLinkPrefetches.has(safeSourceUrl)) {
+            return pendingPdfLinkPrefetches.get(safeSourceUrl);
+        }
+        const request = (async () => {
+            try {
+                const result = await api('/api/pdf-prefetch', {
+                    method: 'POST',
+                    body: { url: safeSourceUrl }
+                });
+                const status = ['resolved', 'failed', 'not_pdf'].includes(result?.status)
+                    ? result.status
+                    : 'failed';
+                const directUrl = status === 'resolved'
+                    ? safeReaderDocumentUrl(result.direct_url)
+                    : null;
+                const normalizedStatus = status === 'resolved' && directUrl ? 'resolved' : (status === 'resolved' ? 'failed' : status);
+                const cache = readPdfResolverCache();
+                cache[safeSourceUrl] = normalizedStatus === 'resolved'
+                    ? { status: normalizedStatus, directUrl, expiresAt: Number(result.expires_at) || null }
+                    : { status: normalizedStatus, checkedAt: Math.floor(Date.now() / 1000) };
+                writePdfResolverCache(cache);
+                return { status: normalizedStatus, ...(directUrl && normalizedStatus === 'resolved' ? { directUrl } : {}) };
+            } catch (error) {
+                const cache = readPdfResolverCache();
+                cache[safeSourceUrl] = { status: 'failed', checkedAt: Math.floor(Date.now() / 1000) };
+                writePdfResolverCache(cache);
+                return { status: 'failed', error };
+            } finally {
+                pendingPdfLinkPrefetches.delete(safeSourceUrl);
+            }
+        })();
+        pendingPdfLinkPrefetches.set(safeSourceUrl, request);
+        return request;
+    }
+    function prefetchVisiblePdfLinks(container, items) {
+        if (!container || !Array.isArray(items) || !items.length) return;
+        const rowById = new Map(items.map(item => [String(item.id), item]));
+        const targets = [...container.querySelectorAll('[data-library-pdf-id]')];
+        if (!('IntersectionObserver' in window)) {
+            targets.slice(0, 8).forEach(target => {
+                const item = rowById.get(target.getAttribute('data-library-pdf-id'));
+                if (item) void prefetchPdfLink(item.url);
+            });
+            return;
+        }
+        const observer = new IntersectionObserver(entries => {
+            entries.forEach(entry => {
+                if (!entry.isIntersecting) return;
+                const item = rowById.get(entry.target.getAttribute('data-library-pdf-id'));
+                if (item) void prefetchPdfLink(item.url);
+                observer.unobserve(entry.target);
+            });
+        }, { root: container, rootMargin: '120px 0px' });
+        targets.forEach(target => observer.observe(target));
+    }
     function safeReaderDocumentUrl(value) {
         if (typeof value !== 'string') return null;
         try {
@@ -3273,13 +3407,107 @@
         panel.appendChild(retry);
         panel.hidden = false;
     }
+    function showPdfResolutionError(error, url) {
+        const panel = document.getElementById('bookReaderError');
+        document.getElementById('bookReaderLoading').hidden = true;
+        document.getElementById('bookFlipbook').hidden = true;
+        document.getElementById('bookReaderMedia').hidden = true;
+        panel.replaceChildren();
+        const message = document.createElement('p');
+        message.textContent = 'This link opens a webpage instead of a PDF. Ask an admin to replace it with a direct PDF link.';
+        panel.appendChild(message);
+        const browserLink = document.createElement('a');
+        browserLink.href = safeReaderDocumentUrl(url) || '#';
+        browserLink.target = '_blank';
+        browserLink.rel = 'noopener noreferrer';
+        browserLink.referrerPolicy = 'no-referrer';
+        browserLink.textContent = 'Open in Browser';
+        panel.appendChild(browserLink);
+        if (error?.error || error?.message) {
+            const detail = document.createElement('small');
+            detail.textContent = error.error || error.message;
+            detail.style.display = 'block';
+            detail.style.marginTop = '8px';
+            panel.appendChild(detail);
+        }
+
+        const record = currentReaderPdf || {};
+        const sourceTable = record.source_table;
+        const sourceField = record.source_url_field || (sourceTable === 'pdfs' ? 'url' : '');
+        const canFix = currentUser?.role === 'superadmin' &&
+            record.id &&
+            ((sourceTable === 'pdfs' && sourceField === 'url') ||
+                (sourceTable === 'curriculum_links' && ['syllabus_url', 'learner_book_url', 'teacher_guide_url'].includes(sourceField)));
+        if (canFix) {
+            const details = document.createElement('details');
+            details.style.marginTop = '14px';
+            const summary = document.createElement('summary');
+            summary.textContent = 'Fix Link';
+            const form = document.createElement('form');
+            form.style.marginTop = '8px';
+            const input = document.createElement('input');
+            input.type = 'url';
+            input.required = true;
+            input.maxLength = 2048;
+            input.value = safeReaderDocumentUrl(url) || '';
+            input.placeholder = 'https://…/document.pdf';
+            input.setAttribute('aria-label', 'Correct direct document URL');
+            input.style.width = '100%';
+            input.style.padding = '9px';
+            input.style.border = '1px solid #d8d2df';
+            input.style.borderRadius = '8px';
+            const save = document.createElement('button');
+            save.type = 'submit';
+            save.textContent = 'Save corrected link';
+            save.style.marginTop = '8px';
+            const status = document.createElement('small');
+            status.setAttribute('role', 'status');
+            status.style.display = 'block';
+            status.style.marginTop = '7px';
+            form.append(input, save, status);
+            form.addEventListener('submit', async (event) => {
+                event.preventDefault();
+                const correctedUrl = safeReaderDocumentUrl(input.value.trim());
+                if (!correctedUrl) {
+                    status.textContent = 'Enter a valid HTTP or HTTPS link.';
+                    return;
+                }
+                save.disabled = true;
+                status.textContent = 'Saving…';
+                try {
+                    const endpoint = sourceTable === 'pdfs'
+                        ? `/api/pdfs/${encodeURIComponent(record.id)}`
+                        : `/api/curriculum-links/${encodeURIComponent(record.id)}`;
+                    await api(endpoint, { method: 'PATCH', body: { [sourceField]: correctedUrl } });
+                    const updatedRecord = { ...record, url: correctedUrl, original_url: correctedUrl, resolved_pdf_url: null, doc_kind: null };
+                    currentReaderPdf = updatedRecord;
+                    status.textContent = 'Link saved. Checking the new document…';
+                    await openBookReader(updatedRecord);
+                } catch (saveError) {
+                    status.textContent = saveError?.message || 'Could not save this link.';
+                    save.disabled = false;
+                }
+            });
+            details.append(summary, form);
+            panel.appendChild(details);
+        }
+
+        const retry = document.createElement('button');
+        retry.type = 'button';
+        retry.textContent = 'Try again';
+        retry.addEventListener('click', () => void openBookReader(currentReaderPdf || { url }));
+        panel.appendChild(retry);
+        panel.hidden = false;
+    }
+
     async function openBookReader(urlOrPdf, title = '', docKind = null) {
         const pdf = typeof urlOrPdf === 'string'
             ? { url: urlOrPdf, title, doc_kind: docKind }
             : urlOrPdf;
         closeBookReader();
         const readerId = ++activeBookReaderId;
-        currentReaderPdf = pdf;
+        const originalUrl = safeReaderDocumentUrl(pdf?.original_url || pdf?.url);
+        currentReaderPdf = { ...pdf, original_url: originalUrl };
         const reader = document.getElementById('bookReader');
         const loading = document.getElementById('bookReaderLoading');
         const errorPanel = document.getElementById('bookReaderError');
@@ -3287,7 +3515,7 @@
         const media = document.getElementById('bookReaderMedia');
         const actions = document.getElementById('bookReaderActions');
         const controls = document.getElementById('bookReaderControls');
-        const directUrl = safeReaderDocumentUrl(pdf?.url);
+        let directUrl = safeReaderDocumentUrl(pdf?.resolved_pdf_url || pdf?.url);
         reader.classList.add('show');
         reader.setAttribute('aria-hidden', 'false');
         reader.classList.remove('night-mode');
@@ -3322,12 +3550,30 @@
         try {
             if (!directUrl) throw new Error('This document does not have a valid HTTP or HTTPS link.');
             let kind = pdf?.doc_kind;
-            if (new URL(directUrl).hostname.toLowerCase() === 'pdftolink.app' &&
-                /^\/view\/[^/]+\/?$/u.test(new URL(directUrl).pathname)) {
+            if (isPdfToLinkViewerUrl(originalUrl || directUrl)) {
                 kind = 'viewer';
             } else if (!Object.hasOwn(documentReaderKinds, kind) || kind === 'other') {
                 const result = await api('/api/detect-doc-kind', { method: 'POST', body: { url: directUrl } });
                 kind = result?.kind;
+            }
+            if (kind === 'viewer' && isPdfToLinkViewerUrl(originalUrl || directUrl)) {
+                const resolution = await prefetchPdfLink(originalUrl || directUrl);
+                if (readerId !== activeBookReaderId) return;
+                if (resolution.status !== 'resolved' || !resolution.directUrl) {
+                    showPdfResolutionError(
+                        resolution.error || new Error('The viewer did not provide a direct PDF file.'),
+                        originalUrl || directUrl
+                    );
+                    return;
+                }
+                directUrl = resolution.directUrl;
+                currentReaderPdf = {
+                    ...currentReaderPdf,
+                    url: directUrl,
+                    resolved_pdf_url: directUrl,
+                    doc_kind: 'pdf'
+                };
+                kind = 'pdf';
             }
             if (!Object.hasOwn(documentReaderKinds, kind)) throw new Error('The document type could not be detected.');
             const kindInfo = documentReaderKinds[kind];
@@ -3527,8 +3773,43 @@
             const selectedClass = getPdfClassLevel(p);
             const safeUrl = /^https?:\/\//iu.test(p.url || '') ? p.url : '#';
             const options = classOptions.map(option => `<option value="${escapeHtml(option.value)}"${option.value === selectedClass ? ' selected' : ''}>${escapeHtml(option.label)}</option>`).join('');
-            return `<div class="pdf-item pdf-admin-row"><a href="${escapeHtml(safeUrl)}" target="_blank" rel="noopener noreferrer">📄 ${escapeHtml(p.title)}</a><span class="pdf-class-badge">${escapeHtml(getPdfClassLabel(selectedClass))}</span><button type="button" class="edit-pdf-class" data-id="${escapeHtml(p.id)}">Edit</button><select class="pdf-class-edit hidden" data-id="${escapeHtml(p.id)}" aria-label="Assign ${escapeHtml(p.title)} to a class">${options}</select><button type="button" class="save-pdf-class hidden" data-id="${escapeHtml(p.id)}">Save</button><button type="button" class="cancel-pdf-class hidden" data-id="${escapeHtml(p.id)}">Cancel</button><button type="button" class="delete-pdf" data-id="${escapeHtml(p.id)}">Delete</button></div>`;
+            const resolveStatus = ['resolved', 'failed', 'not_pdf'].includes(p.resolve_status) ? p.resolve_status : 'unresolved';
+            const resolveLabel = {
+                unresolved: 'Pending check',
+                resolved: 'Direct PDF ready',
+                failed: 'Check failed',
+                not_pdf: 'Not a direct PDF'
+            }[resolveStatus];
+            return `<div class="pdf-item pdf-admin-row"><a href="${escapeHtml(safeUrl)}" target="_blank" rel="noopener noreferrer">📄 ${escapeHtml(p.title)}</a><span class="pdf-class-badge">${escapeHtml(getPdfClassLabel(selectedClass))}</span><span class="pdf-resolution-status" data-resolution="${resolveStatus}">PDF link: ${resolveLabel}</span><button type="button" class="edit-pdf-url" data-id="${escapeHtml(p.id)}">Fix Link</button><div class="pdf-url-editor" hidden><input type="url" class="pdf-url-input" value="${escapeHtml(p.url || '')}" maxlength="2048" aria-label="Correct URL for ${escapeHtml(p.title)}"><button type="button" class="save-pdf-url" data-id="${escapeHtml(p.id)}">Save URL</button><button type="button" class="cancel-pdf-url">Cancel</button></div><button type="button" class="edit-pdf-class" data-id="${escapeHtml(p.id)}">Edit class</button><select class="pdf-class-edit hidden" data-id="${escapeHtml(p.id)}" aria-label="Assign ${escapeHtml(p.title)} to a class">${options}</select><button type="button" class="save-pdf-class hidden" data-id="${escapeHtml(p.id)}">Save class</button><button type="button" class="cancel-pdf-class hidden" data-id="${escapeHtml(p.id)}">Cancel</button><button type="button" class="delete-pdf" data-id="${escapeHtml(p.id)}">Delete</button></div>`;
         }).join('');
+        document.querySelectorAll('.edit-pdf-url').forEach(btn => btn.addEventListener('click', () => {
+            const editor = btn.closest('.pdf-admin-row')?.querySelector('.pdf-url-editor');
+            if (editor) editor.hidden = false;
+        }));
+        document.querySelectorAll('.cancel-pdf-url').forEach(btn => btn.addEventListener('click', () => {
+            const row = btn.closest('.pdf-admin-row');
+            const input = row?.querySelector('.pdf-url-input');
+            const pdf = pdfMaterials.find(item => item.id === row?.querySelector('.save-pdf-url')?.getAttribute('data-id'));
+            if (input && pdf) input.value = pdf.url;
+            const editor = row?.querySelector('.pdf-url-editor');
+            if (editor) editor.hidden = true;
+        }));
+        document.querySelectorAll('.save-pdf-url').forEach(btn => btn.addEventListener('click', async () => {
+            const row = btn.closest('.pdf-admin-row');
+            const url = row?.querySelector('.pdf-url-input')?.value.trim();
+            if (!url) { showNotification('Enter a document URL', 'error'); return; }
+            btn.disabled = true;
+            try {
+                await api(`/api/pdfs/${encodeURIComponent(btn.getAttribute('data-id'))}`, { method: 'PATCH', body: { url } });
+                await api('/api/pdf-prefetch', { method: 'POST', body: { url } }).catch(() => null);
+                showNotification('Document link updated');
+                await refreshAllData();
+            } catch (error) {
+                showNotification(error.message, 'error');
+            } finally {
+                btn.disabled = false;
+            }
+        }));
         document.querySelectorAll('.delete-pdf').forEach(btn => btn.addEventListener('click', async () => {
             try { await api('/api/pdfs/' + btn.getAttribute('data-id'), { method: 'DELETE' }); showNotification("Document deleted"); refreshAllData(); } catch(e) { showNotification(e.message, "error"); }
         }));
@@ -5505,9 +5786,18 @@
                     teacher_guide_url: "teacher_guide_url"
                 }[openLink.dataset.curriculumOpen];
                 const link = teacherDashboardState.selectedCurriculumLink;
-                const url = urlField
+                const originalUrl = urlField
                     ? teacherCurriculumHttpsUrl(link?.[urlField])
                     : null;
+                const resolvedUrlField = {
+                    syllabus_url: "resolved_syllabus_url",
+                    learner_book_url: "resolved_learner_book_url",
+                    teacher_guide_url: "resolved_teacher_guide_url"
+                }[urlField];
+                const resolvedUrl = resolvedUrlField
+                    ? teacherCurriculumHttpsUrl(link?.[resolvedUrlField])
+                    : null;
+                const url = resolvedUrl || originalUrl;
                 if (url) console.log("[linker] opening", url);
                 if (url && openLink.hasAttribute("data-curriculum-reader")) {
                     event.preventDefault();
@@ -5518,6 +5808,11 @@
                     }[urlField];
                     void openBookReader({
                         url,
+                        original_url: originalUrl,
+                        resolved_pdf_url: resolvedUrl,
+                        id: link?.id,
+                        source_table: "curriculum_links",
+                        source_url_field: urlField,
                         title: `${teacherCurriculumTopicTitle(link)} — ${openLink.textContent.trim()}`,
                         doc_kind: kindField ? link?.[kindField] : null
                     });
@@ -6345,7 +6640,7 @@
         document.getElementById('elibrarySearchResults')?.addEventListener('click', event => {
             const target = event.target instanceof Element ? event.target.closest('[data-library-pdf-id]') : null;
             const pdf = target && pdfMaterials.find(item => item.id === target.getAttribute('data-library-pdf-id'));
-            if (pdf) void openBookReader(pdf.url, pdf.title, pdf.doc_kind);
+            if (pdf) void openBookReader({ ...pdf, source_table: 'pdfs', original_url: pdf.url });
         });
         document.getElementById('elibraryStatus')?.addEventListener('click', event => {
             const target = event.target instanceof Element ? event.target.closest('[data-elibrary-retry]') : null;
@@ -6363,7 +6658,7 @@
                 return;
             }
             const pdf = target && currentLibraryPdfs.find(item => item.id === target.getAttribute('data-library-pdf-id'));
-            if (pdf) void openBookReader(pdf.url, pdf.title, pdf.doc_kind);
+            if (pdf) void openBookReader({ ...pdf, source_table: 'pdfs', original_url: pdf.url });
         });
         document.getElementById('elibraryBackToShelf')?.addEventListener('click', returnToELibraryShelf);
         document.getElementById('closeBookReader')?.addEventListener('click', closeBookReader);
@@ -6483,12 +6778,77 @@
             if (!title || !date || !fee) { showNotification("Fill all", "error"); return; }
             try { await api('/api/events', { method: 'POST', body: { title, date, fee, schoolId: currentUser.schoolId } }); showNotification("School event added"); ['schoolEventTitle','schoolEventDate','schoolEventFee'].forEach(id => document.getElementById(id).value = ''); refreshAllData(); } catch(e) { showNotification(e.message, "error"); }
         });
+        let pdfUrlPrefetchTimer = null;
+        let pdfUrlPrefetchRequest = 0;
+        const pdfUrlInput = document.getElementById('pdfUrl');
+        const pdfUrlBadge = document.getElementById('pdfUrlResolutionBadge');
+        pdfUrlInput?.addEventListener('input', () => {
+            window.clearTimeout(pdfUrlPrefetchTimer);
+            const requestId = ++pdfUrlPrefetchRequest;
+            const url = pdfUrlInput.value.trim();
+            if (!url) {
+                pdfUrlBadge.hidden = true;
+                pdfUrlBadge.textContent = '';
+                return;
+            }
+            pdfUrlBadge.hidden = false;
+            pdfUrlBadge.removeAttribute('data-resolution');
+            pdfUrlBadge.textContent = 'Checking for a direct PDF link…';
+            pdfUrlPrefetchTimer = window.setTimeout(async () => {
+                const result = await prefetchPdfLink(url, { force: true });
+                if (requestId !== pdfUrlPrefetchRequest) return;
+                pdfUrlBadge.dataset.resolution = result.status;
+                pdfUrlBadge.textContent = result.status === 'resolved'
+                    ? 'Direct PDF found. It will be cached when you add this document.'
+                    : result.status === 'not_pdf'
+                        ? 'No direct PDF found. This can still be added as a regular document.'
+                        : 'Could not check this link. Confirm it is a reachable HTTPS URL.';
+            }, 650);
+        });
         document.getElementById('addPdfBtn')?.addEventListener('click', async () => {
             const title = document.getElementById('pdfTitle').value.trim();
             const url = document.getElementById('pdfUrl').value.trim();
             if (!title || !url) { showNotification("Fill both", "error"); return; }
             const classLevel = document.getElementById('pdfClassLevel').value;
-            try { await api('/api/pdfs', { method: 'POST', body: { title, url, class_level: classLevel } }); showNotification("Document added"); ['pdfTitle','pdfUrl'].forEach(id => document.getElementById(id).value = ''); document.getElementById('pdfClassLevel').value = ''; refreshAllData(); } catch(e) { showNotification(e.message, "error"); }
+            try {
+                await api('/api/pdfs', { method: 'POST', body: { title, url, class_level: classLevel } });
+                await prefetchPdfLink(url, { force: true });
+                showNotification("Document added");
+                ['pdfTitle','pdfUrl'].forEach(id => document.getElementById(id).value = '');
+                document.getElementById('pdfClassLevel').value = '';
+                pdfUrlBadge.hidden = true;
+                pdfUrlBadge.textContent = '';
+                await refreshAllData();
+            } catch(e) { showNotification(e.message, "error"); }
+        });
+        document.getElementById('resolvePdfLinksBtn')?.addEventListener('click', async (event) => {
+            if (currentUser?.role !== 'superadmin' || currentUser?.impersonatedBy) {
+                showNotification('A real Super Admin session is required.', 'error');
+                return;
+            }
+            const button = event.currentTarget;
+            const status = document.getElementById('pdfBatchResolveStatus');
+            button.disabled = true;
+            status.textContent = 'Resolving pending PDF links…';
+            let totals = { processed: 0, resolved: 0, failed: 0, not_pdf: 0, remaining: 0 };
+            try {
+                do {
+                    const batch = await api('/api/admin/resolve-pdf-links', {
+                        method: 'POST',
+                        body: { limit: 20 }
+                    });
+                    for (const key of ['processed', 'resolved', 'failed', 'not_pdf']) totals[key] += Number(batch[key]) || 0;
+                    totals.remaining = Number(batch.remaining) || 0;
+                    status.textContent = `Processed ${totals.processed}: ${totals.resolved} resolved, ${totals.failed} failed, ${totals.not_pdf} not PDF. ${totals.remaining} pending.`;
+                    await refreshAllData();
+                    if (!batch.processed || totals.remaining === 0) break;
+                } while (totals.remaining > 0);
+                status.textContent = `Done: ${totals.resolved} resolved, ${totals.failed} failed, ${totals.not_pdf} not PDF; ${totals.remaining} pending.`;
+            } catch (error) {
+                status.textContent = error.message || 'Could not resolve the pending PDF links.';
+            } finally {
+                button.disabled = false;
+            }
         });
         document.getElementById('addNewSubjectBtn')?.addEventListener('click', async () => {
             const newName = document.getElementById('newSubjectName').value.trim();
