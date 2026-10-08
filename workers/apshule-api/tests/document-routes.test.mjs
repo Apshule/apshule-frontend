@@ -102,8 +102,52 @@ test("Super Admin PDF batch resolves direct files and reports remaining work", a
     resolved: 1,
     failed: 0,
     not_pdf: 0,
+    unresolvable: 0,
     remaining: 0,
   });
+});
+
+test("Super Admin PDF batch marks unsupported publisher viewers for manual replacement", async () => {
+  const database = createPdfResolverSql({
+    pdfRows: [{ id: "pdf-2", url: "https://issuu.com/school/docs/lesson" }],
+    remaining: 0,
+  });
+  const originalFetch = globalThis.fetch;
+  let fetchCalled = false;
+  globalThis.fetch = async () => {
+    fetchCalled = true;
+    throw new Error("Blocklisted viewers must not be fetched.");
+  };
+  try {
+    const response = await app.request(
+      "/api/admin/resolve-pdf-links",
+      {
+        method: "POST",
+        headers: {
+          ...authHeaders,
+          "content-type": "application/json",
+          "x-test-role": "superadmin",
+        },
+        body: JSON.stringify({ limit: 20 }),
+      },
+      { __sql: database.sql },
+    );
+    assert.equal(response.status, 200);
+    assert.deepEqual(await response.json(), {
+      processed: 1,
+      resolved: 0,
+      failed: 0,
+      not_pdf: 0,
+      unresolvable: 1,
+      remaining: 0,
+    });
+    assert.equal(fetchCalled, false);
+    assert.ok(database.calls.some(({ query, values }) =>
+      query.includes("resolve_reason =") && values.includes("unsupported_viewer_issuu_com")
+    ));
+  } finally {
+    globalThis.fetch = originalFetch;
+  }
 });
 
 test("POST detect-doc-kind returns the server classification for authenticated users", async () => {
@@ -145,7 +189,7 @@ test("doc-proxy returns a CORS-enabled, one-hour cached response and pdf-proxy i
   });
   globalThis.fetch = async () => {
     fetchCount += 1;
-    return new Response(new Uint8Array([37, 80, 68, 70]), {
+    return new Response(new Uint8Array([37, 80, 68, 70, 45, 49, 46, 55]), {
       headers: { "Content-Type": "application/octet-stream" },
     });
   };
@@ -160,7 +204,7 @@ test("doc-proxy returns a CORS-enabled, one-hour cached response and pdf-proxy i
     assert.equal(first.headers.get("Access-Control-Allow-Origin"), "*");
     assert.match(first.headers.get("Cache-Control"), /max-age=3600/u);
     assert.equal(first.headers.get("Content-Type"), "application/pdf");
-    assert.deepEqual([...new Uint8Array(await first.arrayBuffer())], [37, 80, 68, 70]);
+    assert.deepEqual([...new Uint8Array(await first.arrayBuffer())], [37, 80, 68, 70, 45, 49, 46, 55]);
     assert.equal(second.status, 200);
     assert.equal(fetchCount, 1);
 
@@ -275,7 +319,7 @@ test("public doc-proxy rejects unsigned and tampered capabilities before fetchin
 
 test("doc-proxy download mode returns a safe attachment filename", async () => {
   const originalFetch = globalThis.fetch;
-  globalThis.fetch = async () => new Response(new Uint8Array([37, 80, 68, 70]), {
+  globalThis.fetch = async () => new Response(new Uint8Array([37, 80, 68, 70, 45, 49, 46, 55]), {
     headers: { "Content-Type": "application/pdf" },
   });
   try {
@@ -291,7 +335,170 @@ test("doc-proxy download mode returns a safe attachment filename", async () => {
   }
 });
 
-test("doc-proxy returns the exact viewer-page error and rejects private IP URLs", async () => {
+test("direct PDF proxy is authenticated, skips viewer resolution, and forwards byte ranges", async () => {
+  const originalFetch = globalThis.fetch;
+  let fetchedUrl = null;
+  let forwardedRange = null;
+  globalThis.fetch = async (url, init) => {
+    fetchedUrl = url;
+    forwardedRange = init.headers.Range;
+    return new Response(new TextEncoder().encode("%PDF-1.7"), {
+      status: 206,
+      headers: {
+        "Accept-Ranges": "bytes",
+        "Content-Length": "8",
+        "Content-Range": "bytes 0-7/2048",
+        "Content-Type": "application/pdf",
+      },
+    });
+  };
+  const url = "https://files.example.com/book.pdf";
+  const path = `/api/doc-proxy-direct?url=${encodeURIComponent(url)}`;
+
+  try {
+    const denied = await app.request(path);
+    assert.equal(denied.status, 401);
+
+    const response = await app.request(path, {
+      headers: { ...authHeaders, Range: "bytes=0-7" },
+    });
+    assert.equal(response.status, 206);
+    assert.equal(fetchedUrl, url);
+    assert.equal(forwardedRange, "bytes=0-7");
+    assert.equal(response.headers.get("Accept-Ranges"), "bytes");
+    assert.equal(response.headers.get("Content-Range"), "bytes 0-7/2048");
+    assert.match(response.headers.get("Access-Control-Expose-Headers"), /Content-Range/u);
+    assert.equal(new TextDecoder().decode(await response.arrayBuffer()), "%PDF-1.7");
+  } finally {
+    globalThis.fetch = originalFetch;
+  }
+});
+
+test("direct PDF proxy rejects non-PDF responses with the specified error code", async () => {
+  const originalFetch = globalThis.fetch;
+  globalThis.fetch = async () => new Response("<html>not a PDF</html>", {
+    headers: { "Content-Type": "text/html" },
+  });
+  try {
+    const response = await app.request(
+      `/api/doc-proxy-direct?url=${encodeURIComponent("https://files.example.com/book.pdf")}`,
+      { headers: authHeaders },
+    );
+    assert.equal(response.status, 415);
+    assert.deepEqual(await response.json(), { error: "Not a PDF", code: "NOT_PDF" });
+
+    const wrongExtension = await app.request(
+      `/api/doc-proxy-direct?url=${encodeURIComponent("https://files.example.com/book.docx")}`,
+      { headers: authHeaders },
+    );
+    assert.equal(wrongExtension.status, 415);
+    assert.equal((await wrongExtension.json()).code, "NOT_PDF");
+  } finally {
+    globalThis.fetch = originalFetch;
+  }
+});
+
+test("direct PDF proxy returns 504 TIMEOUT when the upstream stalls", async () => {
+  const originalFetch = globalThis.fetch;
+  globalThis.fetch = async (_url, init) => new Promise((_resolve, reject) => {
+    init.signal.addEventListener("abort", () => reject(new Error("aborted")), { once: true });
+  });
+  try {
+    const response = await app.request(
+      `/api/doc-proxy-direct?url=${encodeURIComponent("https://files.example.com/book.pdf")}`,
+      { headers: authHeaders },
+    );
+    assert.equal(response.status, 504);
+    assert.deepEqual(await response.json(), { error: "Upstream timeout", code: "TIMEOUT" });
+  } finally {
+    globalThis.fetch = originalFetch;
+  }
+});
+
+test("doc-proxy immediately rejects a blocklisted viewer without fetching it", async () => {
+  const originalFetch = globalThis.fetch;
+  let fetchCalled = false;
+  globalThis.fetch = async () => {
+    fetchCalled = true;
+    throw new Error("Blocklisted viewers must not be fetched.");
+  };
+  try {
+    const viewerUrl = "https://docs.google.com/viewer?url=https%3A%2F%2Ffiles.example.com%2Flesson.pdf";
+    const response = await app.request(
+      `/api/doc-proxy?url=${encodeURIComponent(viewerUrl)}`,
+      { headers: authHeaders },
+      { __sql: createPdfResolverSql().sql },
+    );
+    assert.equal(response.status, 422);
+    assert.deepEqual(await response.json(), {
+      error: "Cannot resolve to PDF",
+      code: "UNRESOLVABLE",
+      original_url: viewerUrl,
+    });
+    assert.equal(fetchCalled, false);
+  } finally {
+    globalThis.fetch = originalFetch;
+  }
+});
+
+test("PDF prefetch returns an immediate 422 for blocklisted links", async () => {
+  const originalFetch = globalThis.fetch;
+  let fetchCalled = false;
+  globalThis.fetch = async () => {
+    fetchCalled = true;
+    throw new Error("Blocklisted viewers must not be fetched.");
+  };
+  try {
+    const database = createPdfResolverSql();
+    const viewerUrl = "https://slideshare.net/school/lesson";
+    const response = await app.request(
+      "/api/pdf-prefetch",
+      {
+        method: "POST",
+        headers: { ...authHeaders, "content-type": "application/json" },
+        body: JSON.stringify({ url: viewerUrl }),
+      },
+      { __sql: database.sql },
+    );
+    assert.equal(response.status, 422);
+    assert.deepEqual(await response.json(), {
+      error: "Cannot resolve to PDF",
+      code: "UNRESOLVABLE",
+      original_url: viewerUrl,
+    });
+    assert.equal(fetchCalled, false);
+    assert.ok(database.calls.some(({ query, values }) =>
+      query.includes("resolve_reason =") && values.includes("unsupported_viewer_slideshare_net")
+    ));
+  } finally {
+    globalThis.fetch = originalFetch;
+  }
+});
+
+test("doc-proxy returns 422 UNRESOLVABLE for viewer pages without a PDF", async () => {
+  const originalFetch = globalThis.fetch;
+  globalThis.fetch = async () => new Response("<html>no PDF link</html>", {
+    headers: { "Content-Type": "text/html" },
+  });
+  try {
+    const viewerUrl = "https://pdftolink.app/view/no-pdf";
+    const response = await app.request(
+      `/api/doc-proxy?url=${encodeURIComponent(viewerUrl)}`,
+      { headers: authHeaders },
+      { __sql: createPdfResolverSql().sql },
+    );
+    assert.equal(response.status, 422);
+    assert.deepEqual(await response.json(), {
+      error: "Cannot resolve to PDF",
+      code: "UNRESOLVABLE",
+      original_url: viewerUrl,
+    });
+  } finally {
+    globalThis.fetch = originalFetch;
+  }
+});
+
+test("doc-proxy returns the exact unresolved-link error and rejects private IP URLs", async () => {
   const originalFetch = globalThis.fetch;
   globalThis.fetch = async () => new Response("<html>viewer</html>", {
     headers: { "Content-Type": "text/html" },
@@ -300,9 +507,14 @@ test("doc-proxy returns the exact viewer-page error and rejects private IP URLs"
     const response = await app.request(
       `/api/doc-proxy?url=${encodeURIComponent("https://files.example.com/view")}`,
       { headers: authHeaders },
+      { __sql: createPdfResolverSql().sql },
     );
-    assert.equal(response.status, 415);
-    assert.equal((await response.json()).error, "This is a viewer page, use direct file link");
+    assert.equal(response.status, 422);
+    assert.deepEqual(await response.json(), {
+      error: "Cannot resolve to PDF",
+      code: "UNRESOLVABLE",
+      original_url: "https://files.example.com/view",
+    });
 
     const privateUrl = await app.request(
       `/api/doc-proxy?url=${encodeURIComponent("https://127.0.0.1/book.pdf")}`,
@@ -315,7 +527,7 @@ test("doc-proxy returns the exact viewer-page error and rejects private IP URLs"
   }
 });
 
-test("doc-proxy rejects nested Google Docs and Microsoft Office viewers before fetching", async () => {
+test("doc-proxy skips Google viewers and rejects nested Microsoft Office viewers before fetching", async () => {
   const originalFetch = globalThis.fetch;
   let fetchCalled = false;
   globalThis.fetch = async () => {
@@ -323,8 +535,19 @@ test("doc-proxy rejects nested Google Docs and Microsoft Office viewers before f
     return new Response("unexpected");
   };
   try {
+    const googleViewerUrl = "https://docs.google.com/gview?embedded=1&url=https%3A%2F%2Ffiles.example.com%2Flesson.docx";
+    const googleResponse = await app.request(
+      `/api/doc-proxy?url=${encodeURIComponent(googleViewerUrl)}`,
+      { headers: authHeaders },
+    );
+    assert.equal(googleResponse.status, 422);
+    assert.deepEqual(await googleResponse.json(), {
+      error: "Cannot resolve to PDF",
+      code: "UNRESOLVABLE",
+      original_url: googleViewerUrl,
+    });
+
     for (const url of [
-      "https://docs.google.com/gview?embedded=1&url=https%3A%2F%2Ffiles.example.com%2Flesson.docx",
       "https://view.officeapps.live.com/op/embed.aspx?src=https%3A%2F%2Ffiles.example.com%2Flesson.docx",
     ]) {
       const response = await app.request(

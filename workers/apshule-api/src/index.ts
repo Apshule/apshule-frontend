@@ -34,6 +34,7 @@ import mfiCustomerPortalRoutes from "./routes/mfi-customer-portal.js";
 import clinicRoutes from "./routes/clinic.js";
 import clinicPatientPortalRoutes from "./routes/clinic-patient-portal.js";
 import videoStudioRoutes from "./routes/video-studio.js";
+import virtualLabRoutes from "./routes/virtual-lab.js";
 import farmRoutes from "./routes/farm.js";
 import documentRoutes from "./routes/documents.js";
 import {
@@ -117,7 +118,7 @@ app.use(
     origin: "*",
     allowMethods: ["GET", "POST", "PATCH", "PUT", "DELETE", "OPTIONS"],
     allowHeaders: ["Content-Type", "Authorization", "Idempotency-Key", "Range", "Save-Data"],
-    exposeHeaders: ["Content-Length", "Content-Type"],
+    exposeHeaders: ["Accept-Ranges", "Content-Length", "Content-Range", "Content-Type"],
   }),
 );
 app.use(
@@ -126,7 +127,7 @@ app.use(
     origin: "*",
     allowMethods: ["GET", "POST", "PATCH", "PUT", "DELETE", "OPTIONS"],
     allowHeaders: ["Content-Type", "Authorization", "Idempotency-Key", "Range", "Save-Data"],
-    exposeHeaders: ["Content-Length", "Content-Type"],
+    exposeHeaders: ["Accept-Ranges", "Content-Length", "Content-Range", "Content-Type"],
   }),
 );
 
@@ -167,6 +168,7 @@ app.route("/api", mfiCustomerPortalRoutes);
 app.route("/api", clinicRoutes);
 app.route("/api", clinicPatientPortalRoutes);
 app.route("/api/video-studio", videoStudioRoutes);
+app.route("/api/lab", virtualLabRoutes);
 app.route("/api/farm", farmRoutes);
 app.route("/api/yopayments", paymentsRoutes);
 app.route("/api/superadmin/platform-settings", platformSettingsRoutes);

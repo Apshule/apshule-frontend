@@ -21,7 +21,6 @@
     <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/page-flip@2.0.7/dist/js/page-flip.browser.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/papaparse@5.4.1/papaparse.min.js"></script>
     <script src="https://cdn.sheetjs.com/xlsx-0.20.3/package/dist/xlsx.full.min.js"></script>
     <style>
@@ -545,7 +544,8 @@
         .book-reader-error { border:1px solid #d96a44; background:#35242b; }
         .book-reader-error button { display:block; margin:14px auto 0; padding:10px 18px; border:0; border-radius:9px; background:#ff8c42; color:#fff; font-weight:700; cursor:pointer; }
         .book-reader-error a, .book-reader-media a { color:#ffd0a8; text-decoration:underline; overflow-wrap:anywhere; }
-        .book-flipbook { width:min(100%,1000px); height:min(100%,760px); }
+        .book-flipbook { width:min(100%,1000px); height:100%; min-height:0; overflow:auto; overscroll-behavior:contain; display:flex; align-items:flex-start; justify-content:center; touch-action:pan-y; }
+        .book-flipbook canvas { display:block; max-width:none; flex:none; background:#fff; box-shadow:0 4px 22px rgba(0,0,0,.35); touch-action:pan-x pan-y; }
         .book-reader-media { width:min(100%,1200px); height:100%; min-height:0; display:flex; flex-direction:column; align-items:center; justify-content:center; gap:12px; overflow:auto; }
         .book-reader-media[hidden], .book-reader-controls[hidden] { display:none !important; }
         .book-reader-media iframe { width:100%; height:100%; min-height:0; border:0; border-radius:8px; background:#fff; }
@@ -1828,6 +1828,7 @@
                         <button type="button" id="resolvePdfLinksBtn" class="admin-toggle">Resolve pending PDF links</button>
                         <div id="pdfBatchResolveStatus" class="pdf-resolution-status" role="status" aria-live="polite"></div>
                     </div>
+                    <div id="pdfUnresolvableSummary" class="pdf-resolution-status" role="status" aria-live="polite"></div>
                     <div id="pdfAdminList"></div>
                 </div>
             </div>
@@ -2007,11 +2008,15 @@
     const ORIGINAL_SUPERADMIN_TOKEN_KEY = 'original_superadmin_token';
     let AUTH_TOKEN = sessionStorage.getItem(IMPERSONATION_TOKEN_KEY) || localStorage.getItem('apshule_token') || null;
     function clearStoredPdfResolverCache() {
-        try { localStorage.removeItem('apshule_pdf_resolver_cache_v1'); } catch (_) {}
+        try {
+            localStorage.removeItem('apshule_pdf_resolver_cache_v1');
+            localStorage.removeItem('apshule_pdf_resolver_cache_v2');
+        } catch (_) {}
         try { pdfResolverCache?.clear(); } catch (_) {}
         try { pdfResolverCacheGeneration += 1; } catch (_) {}
         try {
             pendingPdfLinkPrefetches?.forEach(task => {
+                task.controller?.abort();
                 task.resolve?.({ status: 'failed', error: new Error('PDF cache cleared after account change.') });
             });
             pendingPdfLinkPrefetches?.clear();
@@ -2133,7 +2138,8 @@
     let currentReaderPdf = null;
     let activePdfLoadingTask = null;
     let activePdfDocument = null;
-    let pageFlipInstance = null;
+    let activePdfPageRenderTask = null;
+    let activePdfPageNumber = 0;
     let activeBookReaderId = 0;
     let currentLibraryRequestId = 0;
 
@@ -3040,11 +3046,109 @@
         currentLibraryPdfs = [];
     }
     function updateBookReaderPages() {
-        const count = pageFlipInstance?.getPageCount?.() || 0;
-        const index = pageFlipInstance?.getCurrentPageIndex?.() || 0;
-        document.getElementById('bookReaderPageCount').textContent = `Page ${count ? index + 1 : 0} of ${count}`;
-        document.getElementById('bookReaderPrev').disabled = !count || index <= 0;
-        document.getElementById('bookReaderNext').disabled = !count || index >= count - 1;
+        const count = activePdfDocument?.numPages || 0;
+        document.getElementById('bookReaderPageCount').textContent = `Page ${count ? activePdfPageNumber : 0} of ${count}`;
+        document.getElementById('bookReaderPrev').disabled = !count || activePdfPageNumber <= 1;
+        document.getElementById('bookReaderNext').disabled = !count || activePdfPageNumber >= count;
+    }
+    function enablePdfCanvasPinchZoom(canvas, container) {
+        let startDistance = 0;
+        let startScale = 1;
+        let scale = 1;
+        const touchDistance = touches => {
+            const dx = touches[0].clientX - touches[1].clientX;
+            const dy = touches[0].clientY - touches[1].clientY;
+            return Math.hypot(dx, dy);
+        };
+        canvas.addEventListener('touchstart', event => {
+            if (event.touches.length !== 2) return;
+            startDistance = touchDistance(event.touches);
+            startScale = scale;
+            event.preventDefault();
+        }, { passive: false });
+        canvas.addEventListener('touchmove', event => {
+            if (event.touches.length !== 2 || !startDistance) return;
+            event.preventDefault();
+            scale = Math.min(3, Math.max(1, startScale * touchDistance(event.touches) / startDistance));
+            canvas.style.transform = `scale(${scale})`;
+            canvas.style.transformOrigin = 'top center';
+            const cssHeight = Number.parseFloat(canvas.style.height) || canvas.clientHeight;
+            container.style.minHeight = `${Math.ceil(cssHeight * scale)}px`;
+        }, { passive: false });
+        canvas.addEventListener('touchend', event => {
+            if (event.touches.length < 2) startDistance = 0;
+        }, { passive: true });
+    }
+    async function renderPdfReaderPage(pageNumber, readerId = activeBookReaderId) {
+        const documentProxy = activePdfDocument;
+        const container = document.getElementById('bookFlipbook');
+        if (!documentProxy || !container || readerId !== activeBookReaderId) return;
+        const safePageNumber = Math.max(1, Math.min(documentProxy.numPages, pageNumber));
+        const page = await documentProxy.getPage(safePageNumber);
+        if (readerId !== activeBookReaderId) {
+            page.cleanup();
+            return;
+        }
+        const baseViewport = page.getViewport({ scale: 1 });
+        const availableWidth = Math.min(
+            container.clientWidth || window.innerWidth - 32,
+            window.innerWidth - 24,
+            1000,
+        );
+        const viewport = page.getViewport({ scale: Math.max(0.1, availableWidth / baseViewport.width) });
+        const outputScale = Math.min(2, Math.max(1, window.devicePixelRatio || 1));
+        const canvas = document.createElement('canvas');
+        canvas.width = Math.ceil(viewport.width * outputScale);
+        canvas.height = Math.ceil(viewport.height * outputScale);
+        canvas.style.width = `${Math.ceil(viewport.width)}px`;
+        canvas.style.height = `${Math.ceil(viewport.height)}px`;
+        canvas.setAttribute('role', 'img');
+        canvas.setAttribute('aria-label', `Page ${safePageNumber} of ${documentProxy.numPages}`);
+        canvas.title = 'Pinch to zoom on touch screens';
+        const context = canvas.getContext('2d', { alpha: false });
+        if (!context) {
+            page.cleanup();
+            throw new Error(`Could not create a canvas for page ${safePageNumber}.`);
+        }
+        container.style.minHeight = '';
+        container.replaceChildren(canvas);
+        activePdfPageNumber = safePageNumber;
+        updateBookReaderPages();
+        let renderTask = null;
+        try {
+            renderTask = page.render({
+                canvasContext: context,
+                viewport,
+                transform: outputScale === 1 ? null : [outputScale, 0, 0, outputScale, 0, 0],
+            });
+            activePdfPageRenderTask = renderTask;
+            await renderTask.promise;
+            if (readerId === activeBookReaderId) enablePdfCanvasPinchZoom(canvas, container);
+        } finally {
+            if (activePdfPageRenderTask === renderTask) activePdfPageRenderTask = null;
+            page.cleanup();
+        }
+    }
+    async function navigatePdfReaderPage(delta) {
+        if (!activePdfDocument || activePdfPageRenderTask) return;
+        const targetPage = activePdfPageNumber + delta;
+        if (targetPage < 1 || targetPage > activePdfDocument.numPages) return;
+        const readerId = activeBookReaderId;
+        const loading = document.getElementById('bookReaderLoading');
+        setBookReaderStatus(`📖 Rendering page ${targetPage} of ${activePdfDocument.numPages}…`);
+        loading.hidden = false;
+        document.getElementById('bookReaderPrev').disabled = true;
+        document.getElementById('bookReaderNext').disabled = true;
+        try {
+            await renderPdfReaderPage(targetPage, readerId);
+        } catch (error) {
+            if (readerId === activeBookReaderId) showReaderError(error, currentReaderPdf?.url);
+        } finally {
+            if (readerId === activeBookReaderId) {
+                loading.hidden = true;
+                updateBookReaderPages();
+            }
+        }
     }
     const documentReaderKinds = {
         pdf: { icon: '📕', label: 'PDF' },
@@ -3061,7 +3165,7 @@
     let activeReaderObjectUrl = null;
     const pendingPdfLinkPrefetches = new Map();
     const pdfResolverCache = new Map();
-    const PDF_RESOLVER_CACHE_KEY = 'apshule_pdf_resolver_cache_v1';
+    const PDF_RESOLVER_CACHE_KEY = 'apshule_pdf_resolver_cache_v2';
     const PDF_PREFETCH_MAX_CONCURRENT = 3;
     const PDF_PREFETCH_START_INTERVAL_MS = 500;
     let pdfResolverCacheGeneration = 0;
@@ -3081,10 +3185,52 @@
     function isPdfToLinkViewerUrl(value) {
         try {
             const parsed = new URL(value);
+            const host = parsed.hostname.toLowerCase();
+            const viewerHost = ['pdftolink.app', 'pdftolink.com'].some(domain =>
+                host === domain || host.endsWith(`.${domain}`)
+            );
             return parsed.protocol === 'https:' &&
-                (parsed.hostname.toLowerCase() === 'pdftolink.app' ||
-                    parsed.hostname.toLowerCase().endsWith('.pdftolink.app')) &&
-                /^\/view\/[^/]+\/?$/u.test(parsed.pathname);
+                viewerHost &&
+                parsed.pathname.toLowerCase().includes('/view/') &&
+                !parsed.pathname.toLowerCase().endsWith('.pdf');
+        } catch (_) {
+            return false;
+        }
+    }
+    function isKnownUnsupportedPdfViewerUrl(value) {
+        try {
+            const parsed = new URL(value);
+            const host = parsed.hostname.toLowerCase();
+            const isDomain = domain => host === domain || host.endsWith(`.${domain}`);
+            if (['issuu.com', 'scribd.com', 'slideshare.net'].some(isDomain)) return true;
+            if (isDomain('docs.google.com')) {
+                return /\/(?:viewer|gview)(?:\/|$)/iu.test(parsed.pathname);
+            }
+            return false;
+        } catch (_) {
+            return false;
+        }
+    }
+    function isPdfResolverViewerUrl(value, kind) {
+        if (isPdfToLinkViewerUrl(value) || isKnownUnsupportedPdfViewerUrl(value)) return true;
+        try {
+            const parsed = new URL(value);
+            const host = parsed.hostname.toLowerCase();
+            if (
+                (host === 'elearn.ncdc.go.ug' || host.endsWith('.elearn.ncdc.go.ug')) &&
+                /\/viewer(?:\/|$)/iu.test(parsed.pathname)
+            ) return true;
+            if (host === 'view.officeapps.live.com' || host.endsWith('.view.officeapps.live.com')) return false;
+            const hasFileExtension = /\.[a-z0-9]{1,12}$/iu.test(parsed.pathname);
+            return kind === 'viewer' || (!hasFileExtension && kind !== 'document' && kind !== 'spreadsheet' && kind !== 'presentation');
+        } catch (_) {
+            return kind === 'viewer';
+        }
+    }
+    function isDirectPdfUrl(value) {
+        try {
+            const parsed = new URL(value);
+            return parsed.protocol === 'https:' && parsed.pathname.toLowerCase().endsWith('.pdf');
         } catch (_) {
             return false;
         }
@@ -3126,12 +3272,12 @@
             return null;
         }
         const checkedAt = Number(entry.checkedAt) || 0;
-        const retryAfterSeconds = entry.status === 'not_pdf' ? 300 : 60;
+        const retryAfterSeconds = ['not_pdf', 'unresolvable'].includes(entry.status) ? 300 : 60;
         if (checkedAt && nowSeconds - checkedAt < retryAfterSeconds) {
             return {
                 status: entry.status,
-                ...(entry.errorCode === 'TIMEOUT'
-                    ? { error: { message: 'The PDF link took too long to resolve.' } }
+                ...(entry.status === 'unresolvable'
+                    ? { error: { code: 'UNRESOLVABLE', message: "This link can't open inside the app." } }
                     : {})
             };
         }
@@ -3147,17 +3293,45 @@
             if (pdfPrefetchActiveCount >= PDF_PREFETCH_MAX_CONCURRENT) return;
             const task = pdfPrefetchQueue.shift();
             if (!task) return;
+            if (task.deadlineAt && Date.now() >= task.deadlineAt) {
+                task.resolve({
+                    status: 'unresolvable',
+                    error: Object.assign(new Error('PDF link resolution took more than 5 seconds.'), { code: 'TIMEOUT' })
+                });
+                if (pendingPdfLinkPrefetches.get(task.sourceUrl) === task) {
+                    pendingPdfLinkPrefetches.delete(task.sourceUrl);
+                }
+                pumpPdfPrefetchQueue();
+                return;
+            }
             task.started = true;
             pdfPrefetchActiveCount += 1;
             pdfPrefetchLastStartAt = Date.now();
+            task.controller = new AbortController();
             void (async () => {
                 let normalized;
                 try {
-                    const result = await api('/api/pdf-prefetch', {
+                    const timeoutMs = task.deadlineAt
+                        ? Math.max(1, Math.min(5000, task.deadlineAt - Date.now()))
+                        : 5000;
+                    task.timeoutId = window.setTimeout(() => task.controller?.abort(), timeoutMs);
+                    const response = await fetch(`${API_BASE}/api/pdf-prefetch`, {
                         method: 'POST',
-                        body: { url: task.sourceUrl }
+                        headers: {
+                            'Content-Type': 'application/json',
+                            ...(AUTH_TOKEN ? { Authorization: `Bearer ${AUTH_TOKEN}` } : {})
+                        },
+                        body: JSON.stringify({ url: task.sourceUrl }),
+                        signal: task.controller.signal
                     });
-                    const status = ['resolved', 'failed', 'not_pdf'].includes(result?.status)
+                    const result = await response.json().catch(() => ({}));
+                    if (!response.ok) {
+                        throw Object.assign(
+                            new Error(result?.error || `PDF link could not be resolved (HTTP ${response.status}).`),
+                            { code: result?.code || (response.status === 422 ? 'UNRESOLVABLE' : 'PREFETCH_FAILED') }
+                        );
+                    }
+                    const status = ['resolved', 'failed', 'not_pdf', 'unresolvable'].includes(result?.status)
                         ? result.status
                         : 'failed';
                     const directUrl = status === 'resolved' ? safeReaderDocumentUrl(result.direct_url) : null;
@@ -3166,7 +3340,8 @@
                     const expiresAt = Number(result?.expires_at) || null;
                     if (
                         task.cacheGeneration === pdfResolverCacheGeneration &&
-                        result?.error_code !== 'TIMEOUT'
+                        result?.error_code !== 'TIMEOUT' &&
+                        !task.controller.signal.aborted
                     ) {
                         const cache = readPdfResolverCache();
                         cache[task.sourceUrl] = finalStatus === 'resolved'
@@ -3186,17 +3361,31 @@
                     normalized = {
                         status: finalStatus,
                         ...(directUrl && finalStatus === 'resolved' ? { directUrl } : {}),
-                        ...(result?.error_code === 'TIMEOUT'
-                            ? { error: { message: 'The PDF link took too long to resolve.' } }
+                        ...(finalStatus === 'unresolvable'
+                            ? { error: { code: 'UNRESOLVABLE', message: "This link can't open inside the app." } }
                             : {})
                     };
                 } catch (error) {
-                    if (task.cacheGeneration === pdfResolverCacheGeneration) {
+                    const requestError = error;
+                    const timedOut = task.controller.signal.aborted ||
+                        requestError?.name === 'AbortError' ||
+                        requestError?.code === 'TIMEOUT';
+                    if (task.cacheGeneration === pdfResolverCacheGeneration && !timedOut) {
                         const cache = readPdfResolverCache();
-                        cache[task.sourceUrl] = { status: 'failed', checkedAt: Math.floor(Date.now() / 1000) };
+                        cache[task.sourceUrl] = {
+                            status: requestError?.code === 'UNRESOLVABLE' ? 'unresolvable' : 'failed',
+                            checkedAt: Math.floor(Date.now() / 1000)
+                        };
                         writePdfResolverCache(cache);
                     }
-                    normalized = { status: 'failed', error };
+                    normalized = timedOut
+                        ? { status: 'unresolvable', error: { code: 'TIMEOUT', message: 'PDF link resolution took more than 5 seconds.' } }
+                        : {
+                            status: requestError?.code === 'UNRESOLVABLE' ? 'unresolvable' : 'failed',
+                            error: requestError
+                        };
+                } finally {
+                    if (task.timeoutId) window.clearTimeout(task.timeoutId);
                 }
                 task.resolve(normalized);
             })().finally(() => {
@@ -3211,11 +3400,11 @@
     }
     async function prefetchPdfLink(sourceUrl, options = {}) {
         const safeSourceUrl = safeReaderDocumentUrl(sourceUrl);
-        const directPdfUrl = (() => {
-            try { return new URL(safeSourceUrl).pathname.toLowerCase().endsWith('.pdf'); }
-            catch (_) { return false; }
-        })();
-        if (!safeSourceUrl || (!isPdfToLinkViewerUrl(safeSourceUrl) && !directPdfUrl)) {
+        const canResolvePdf = options.viewer ||
+            isPdfToLinkViewerUrl(safeSourceUrl) ||
+            isKnownUnsupportedPdfViewerUrl(safeSourceUrl) ||
+            isDirectPdfUrl(safeSourceUrl);
+        if (!safeSourceUrl || !canResolvePdf) {
             return { status: 'not_pdf' };
         }
         if (!options.force) {
@@ -3224,6 +3413,14 @@
         }
         if (pendingPdfLinkPrefetches.has(safeSourceUrl)) {
             const existingTask = pendingPdfLinkPrefetches.get(safeSourceUrl);
+            if (options.priority && existingTask) {
+                existingTask.priority = true;
+                existingTask.deadlineAt = Date.now() + 5000;
+                const backgroundTask = [...pendingPdfLinkPrefetches.values()].find(task =>
+                    task !== existingTask && task.started && !task.priority && task.controller
+                );
+                backgroundTask?.controller?.abort();
+            }
             if (options.priority && existingTask && !existingTask.started) {
                 const queuedIndex = pdfPrefetchQueue.indexOf(existingTask);
                 if (queuedIndex >= 0) {
@@ -3236,6 +3433,7 @@
                     pumpPdfPrefetchQueue();
                 }
             }
+            if (options.priority && existingTask) return waitForPdfPrefetchDeadline(existingTask);
             return existingTask.promise;
         }
         let resolveTask;
@@ -3245,13 +3443,45 @@
             promise,
             resolve: resolveTask,
             started: false,
+            priority: Boolean(options.priority),
+            deadlineAt: options.priority ? Date.now() + 5000 : null,
+            controller: null,
+            timeoutId: null,
             cacheGeneration: pdfResolverCacheGeneration
         };
         pendingPdfLinkPrefetches.set(safeSourceUrl, task);
-        if (options.priority) pdfPrefetchQueue.unshift(task);
-        else pdfPrefetchQueue.push(task);
+        if (options.priority) {
+            pdfPrefetchQueue.unshift(task);
+            const backgroundTask = [...pendingPdfLinkPrefetches.values()].find(candidate =>
+                candidate !== task && candidate.started && !candidate.priority && candidate.controller
+            );
+            backgroundTask?.controller?.abort();
+            if (pdfPrefetchPumpTimer) {
+                window.clearTimeout(pdfPrefetchPumpTimer);
+                pdfPrefetchPumpTimer = null;
+            }
+        } else {
+            pdfPrefetchQueue.push(task);
+        }
         pumpPdfPrefetchQueue();
+        if (options.priority) return waitForPdfPrefetchDeadline(task);
         return promise;
+    }
+    function waitForPdfPrefetchDeadline(task) {
+        const remainingMs = Math.max(0, (task.deadlineAt || Date.now()) - Date.now());
+        return new Promise(resolve => {
+            const timeoutId = window.setTimeout(() => {
+                task.controller?.abort();
+                resolve({
+                    status: 'unresolvable',
+                    error: { code: 'TIMEOUT', message: 'PDF link resolution took more than 5 seconds.' }
+                });
+            }, remainingMs);
+            task.promise.then(result => {
+                window.clearTimeout(timeoutId);
+                resolve(result);
+            });
+        });
     }
     function prefetchVisiblePdfLinks(container, items) {
         if (!container || !Array.isArray(items) || !items.length) return;
@@ -3260,7 +3490,7 @@
         if (!('IntersectionObserver' in window)) {
             targets.slice(0, 10).forEach(target => {
                 const item = rowById.get(target.getAttribute('data-library-pdf-id'));
-                if (item) void prefetchPdfLink(item.url);
+                if (item) void prefetchPdfLink(item.url, { viewer: item.doc_kind === 'viewer' });
             });
             return;
         }
@@ -3268,7 +3498,7 @@
             entries.forEach(entry => {
                 if (!entry.isIntersecting) return;
                 const item = rowById.get(entry.target.getAttribute('data-library-pdf-id'));
-                if (item) void prefetchPdfLink(item.url);
+                if (item) void prefetchPdfLink(item.url, { viewer: item.doc_kind === 'viewer' });
                 observer.unobserve(entry.target);
             });
         }, { root: null, rootMargin: '120px 0px' });
@@ -3383,7 +3613,12 @@
         const safeUrl = safeReaderDocumentUrl(url);
         let host = '';
         try { host = new URL(safeUrl).hostname.toLowerCase(); } catch (_) {}
-        if (host === 'pdftolink.app') {
+        if (
+            host === 'pdftolink.app' ||
+            host.endsWith('.pdftolink.app') ||
+            host === 'pdftolink.com' ||
+            host.endsWith('.pdftolink.com')
+        ) {
             const viewer = document.createElement('div');
             viewer.className = 'book-reader-inline-viewer';
             const status = document.createElement('p');
@@ -3587,21 +3822,18 @@
         document.getElementById('bookReaderMedia').hidden = true;
         panel.replaceChildren();
         const message = document.createElement('p');
-        message.textContent = 'This link opens a webpage instead of a PDF. Ask an admin to replace it with a direct PDF link.';
+        message.textContent = "This link can't open inside the app";
         panel.appendChild(message);
-        const browserLink = document.createElement('a');
-        browserLink.href = safeReaderDocumentUrl(url) || '#';
-        browserLink.target = '_blank';
-        browserLink.rel = 'noopener noreferrer';
-        browserLink.referrerPolicy = 'no-referrer';
-        browserLink.textContent = 'Open in Browser';
-        panel.appendChild(browserLink);
-        if (error?.error || error?.message) {
-            const detail = document.createElement('small');
-            detail.textContent = error.error || error.message;
-            detail.style.display = 'block';
-            detail.style.marginTop = '8px';
-            panel.appendChild(detail);
+        const explanation = document.createElement('p');
+        explanation.textContent = "The file is hosted on a viewer page we can't extract.";
+        panel.appendChild(explanation);
+        if (safeReaderDocumentUrl(url)) {
+            const { download, status } = createReaderDownloadAction(url, 'PDF');
+            download.textContent = 'Download PDF';
+            download.setAttribute('aria-label', 'Download PDF');
+            panel.appendChild(download);
+            appendReaderDirectLink(panel, url, 'Open Original Link', 'book-reader-original-link');
+            panel.appendChild(status);
         }
 
         const record = currentReaderPdf || {};
@@ -3615,7 +3847,7 @@
             const details = document.createElement('details');
             details.style.marginTop = '14px';
             const summary = document.createElement('summary');
-            summary.textContent = 'Fix Link';
+            summary.textContent = '✏️ Fix Link (admin only)';
             const form = document.createElement('form');
             form.style.marginTop = '8px';
             const input = document.createElement('input');
@@ -3641,8 +3873,8 @@
             form.addEventListener('submit', async (event) => {
                 event.preventDefault();
                 const correctedUrl = safeReaderDocumentUrl(input.value.trim());
-                if (!correctedUrl) {
-                    status.textContent = 'Enter a valid HTTP or HTTPS link.';
+                if (!correctedUrl || !isDirectPdfUrl(correctedUrl)) {
+                    status.textContent = 'Enter an HTTPS URL ending in .pdf.';
                     return;
                 }
                 save.disabled = true;
@@ -3652,7 +3884,7 @@
                         ? `/api/pdfs/${encodeURIComponent(record.id)}`
                         : `/api/curriculum-links/${encodeURIComponent(record.id)}`;
                     await api(endpoint, { method: 'PATCH', body: { [sourceField]: correctedUrl } });
-                    const updatedRecord = { ...record, url: correctedUrl, original_url: correctedUrl, resolved_pdf_url: null, doc_kind: null };
+                    const updatedRecord = { ...record, url: correctedUrl, original_url: correctedUrl, resolved_pdf_url: null, doc_kind: 'pdf' };
                     currentReaderPdf = updatedRecord;
                     status.textContent = 'Link saved. Checking the new document…';
                     await openBookReader(updatedRecord);
@@ -3731,15 +3963,19 @@
         try {
             if (!directUrl) throw new Error('This document does not have a valid HTTP or HTTPS link.');
             let kind = pdf?.doc_kind;
-            if (isPdfToLinkViewerUrl(originalUrl || directUrl)) {
+            const resolverSourceUrl = originalUrl || directUrl;
+            const shouldResolvePdf = isPdfResolverViewerUrl(resolverSourceUrl, kind);
+            if (shouldResolvePdf) {
                 kind = 'viewer';
+            } else if (isDirectPdfUrl(directUrl)) {
+                kind = 'pdf';
             } else if (!Object.hasOwn(documentReaderKinds, kind) || kind === 'other') {
                 const result = await api('/api/detect-doc-kind', { method: 'POST', body: { url: directUrl } });
                 kind = result?.kind;
             }
-            if (kind === 'viewer' && isPdfToLinkViewerUrl(originalUrl || directUrl)) {
+            if (shouldResolvePdf) {
                 setBookReaderStatus('🔍 Resolving PDF link…');
-                const resolution = await prefetchPdfLink(originalUrl || directUrl, { priority: true });
+                const resolution = await prefetchPdfLink(resolverSourceUrl, { priority: true, viewer: true });
                 if (readerId !== activeBookReaderId) return;
                 if (resolution.status !== 'resolved' || !resolution.directUrl) {
                     showPdfResolutionError(
@@ -3797,7 +4033,6 @@
 
             if (kind === 'pdf') {
                 if (!window.pdfjsLib) throw new Error('PDF.js did not load.');
-                if (!window.St?.PageFlip) throw new Error('The page-flip library did not load.');
                 window.pdfjsLib.GlobalWorkerOptions.workerSrc =
                     'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
                 setBookReaderStatus('📥 Downloading PDF…');
@@ -3827,73 +4062,20 @@
                 const documentProxy = await loadingTask.promise;
                 if (readerId !== activeBookReaderId) return;
                 activePdfDocument = documentProxy;
+                activePdfPageNumber = 0;
                 if (!documentProxy.numPages) throw new Error('The selected PDF contains no pages.');
-                const images = [];
-                for (let pageNumber = 1; pageNumber <= documentProxy.numPages; pageNumber += 1) {
-                    if (readerId !== activeBookReaderId) return;
-                    setBookReaderStatus(
-                        `📖 Rendering page ${pageNumber} of ${documentProxy.numPages}…`,
-                        ((pageNumber - 1) / documentProxy.numPages) * 100
-                    );
-                    const page = await documentProxy.getPage(pageNumber);
-                    const baseViewport = page.getViewport({ scale: 1 });
-                    const scale = Math.min(1.5, 1000 / baseViewport.width);
-                    const viewport = page.getViewport({ scale });
-                    const canvas = document.createElement('canvas');
-                    canvas.width = Math.ceil(viewport.width);
-                    canvas.height = Math.ceil(viewport.height);
-                    const context = canvas.getContext('2d');
-                    if (!context) throw new Error(`Could not create a canvas for page ${pageNumber}.`);
-                    await page.render({ canvasContext: context, viewport }).promise;
-                    const imageUrl = canvas.toDataURL('image/jpeg', 0.88);
-                    images.push(imageUrl);
-                    if (pageNumber === 1) {
-                        const previewImage = document.createElement('img');
-                        previewImage.src = imageUrl;
-                        previewImage.alt = `${pdf.title || 'PDF'} — first page preview`;
-                        firstPagePreview.replaceChildren(previewImage);
-                        firstPagePreview.hidden = false;
-                        reader.dataset.firstPageReady = 'true';
-                        if (activeBookReaderTimeoutId === loadTimeout) {
-                            window.clearTimeout(loadTimeout);
-                            activeBookReaderTimeoutId = null;
-                        }
-                        setBookReaderStatus(
-                            `📖 Page 1 of ${documentProxy.numPages} is ready. Preparing the reader…`,
-                            (1 / documentProxy.numPages) * 100
-                        );
-                    } else {
-                        setBookReaderStatus(
-                            `📖 Rendering page ${pageNumber} of ${documentProxy.numPages}…`,
-                            (pageNumber / documentProxy.numPages) * 100
-                        );
-                    }
-                    page.cleanup();
-                    canvas.width = 0;
-                    canvas.height = 0;
-                }
-                if (readerId !== activeBookReaderId) return;
-                pageFlipInstance = new window.St.PageFlip(flipbook, {
-                    width: 400,
-                    height: 600,
-                    size: 'stretch',
-                    showCover: true,
-                    mobileScrollSupport: true,
-                    usePortrait: true,
-                    autoSize: true,
-                    minWidth: 280,
-                    maxWidth: 1000,
-                    minHeight: 420,
-                    maxHeight: 1500
-                });
-                loading.hidden = true;
-                firstPagePreview.hidden = true;
-                firstPagePreview.replaceChildren();
                 flipbook.hidden = false;
                 controls.hidden = false;
                 document.getElementById('bookReaderNightToggle').hidden = false;
-                pageFlipInstance.loadFromImages(images);
-                pageFlipInstance.on('flip', updateBookReaderPages);
+                setBookReaderStatus(`📖 Rendering page 1 of ${documentProxy.numPages}…`);
+                await renderPdfReaderPage(1, readerId);
+                if (readerId !== activeBookReaderId) return;
+                reader.dataset.firstPageReady = 'true';
+                loading.hidden = true;
+                if (activeBookReaderTimeoutId === loadTimeout) {
+                    window.clearTimeout(loadTimeout);
+                    activeBookReaderTimeoutId = null;
+                }
                 updateBookReaderPages();
                 return;
             }
@@ -3952,13 +4134,12 @@
             window.clearTimeout(activeBookReaderTimeoutId);
             activeBookReaderTimeoutId = null;
         }
-        if (pageFlipInstance) {
-            try { pageFlipInstance.destroy(); } catch (error) { console.warn('Page-flip cleanup failed:', error); }
-            pageFlipInstance = null;
-        }
+        try { activePdfPageRenderTask?.cancel(); } catch (_) {}
+        activePdfPageRenderTask = null;
         const loadingTask = activePdfLoadingTask;
         activePdfLoadingTask = null;
         activePdfDocument = null;
+        activePdfPageNumber = 0;
         if (loadingTask?.destroy) Promise.resolve().then(() => loadingTask.destroy()).catch(() => {});
         if (activeReaderObjectUrl) {
             URL.revokeObjectURL(activeReaderObjectUrl);
@@ -4001,23 +4182,68 @@
         document.getElementById('bookReaderNext').disabled = true;
         currentReaderPdf = null;
     }
+    let pdfReaderResizeTimer = null;
+    window.addEventListener('resize', () => {
+        if (!activePdfDocument || !activePdfPageNumber || activePdfPageRenderTask) return;
+        window.clearTimeout(pdfReaderResizeTimer);
+        pdfReaderResizeTimer = window.setTimeout(() => {
+            if (activePdfDocument && activePdfPageNumber && !activePdfPageRenderTask) {
+                void renderPdfReaderPage(activePdfPageNumber, activeBookReaderId).catch(error => {
+                    showReaderError(error, currentReaderPdf?.url);
+                });
+            }
+        }, 120);
+    });
+    let pdfAdminUnresolvableOnly = false;
     function renderPdfAdmin() {
         const c = document.getElementById('pdfAdminList');
         if (!c) return;
-        if (!pdfMaterials.length) { c.innerHTML = '<div>No documents yet.</div>'; return; }
+        const summary = document.getElementById('pdfUnresolvableSummary');
+        const unresolvablePdfs = pdfMaterials.filter(pdf => pdf.resolve_status === 'unresolvable');
+        if (!unresolvablePdfs.length) pdfAdminUnresolvableOnly = false;
+        if (summary) {
+            if (!unresolvablePdfs.length) {
+                summary.replaceChildren();
+            } else {
+                const count = unresolvablePdfs.length;
+                const label = `${count} document${count === 1 ? '' : 's'} need${count === 1 ? 's' : ''} manual URL replacement.`;
+                const message = document.createElement('span');
+                message.textContent = `⚠️ ${label} `;
+                const toggle = document.createElement('button');
+                toggle.type = 'button';
+                toggle.textContent = pdfAdminUnresolvableOnly ? 'Show all documents' : 'View list';
+                toggle.addEventListener('click', () => {
+                    pdfAdminUnresolvableOnly = !pdfAdminUnresolvableOnly;
+                    renderPdfAdmin();
+                });
+                summary.replaceChildren(message, toggle);
+            }
+        }
+        const visiblePdfs = pdfAdminUnresolvableOnly ? unresolvablePdfs : pdfMaterials;
+        if (!visiblePdfs.length) {
+            c.innerHTML = pdfAdminUnresolvableOnly
+                ? '<div>No unresolvable links need replacement.</div>'
+                : '<div>No documents yet.</div>';
+            return;
+        }
         const classOptions = [{ value: 'unassigned', label: 'General / Unassigned' }, ...elibraryShelves.flatMap(shelf => shelf.classes.map(item => ({ value: item.value, label: item.label })))];
-        c.innerHTML = pdfMaterials.map(p => {
+        c.innerHTML = visiblePdfs.map(p => {
             const selectedClass = getPdfClassLevel(p);
             const safeUrl = /^https?:\/\//iu.test(p.url || '') ? p.url : '#';
             const options = classOptions.map(option => `<option value="${escapeHtml(option.value)}"${option.value === selectedClass ? ' selected' : ''}>${escapeHtml(option.label)}</option>`).join('');
-            const resolveStatus = ['resolved', 'failed', 'not_pdf'].includes(p.resolve_status) ? p.resolve_status : 'unresolved';
+            const resolveStatus = ['resolved', 'failed', 'not_pdf', 'unresolvable'].includes(p.resolve_status) ? p.resolve_status : 'unresolved';
             const resolveLabel = {
                 unresolved: 'Pending check',
                 resolved: 'Direct PDF ready',
                 failed: 'Check failed',
-                not_pdf: 'Not a direct PDF'
+                not_pdf: 'Not a direct PDF',
+                unresolvable: 'Cannot extract a PDF'
             }[resolveStatus];
-            return `<div class="pdf-item pdf-admin-row"><a href="${escapeHtml(safeUrl)}" target="_blank" rel="noopener noreferrer">📄 ${escapeHtml(p.title)}</a><span class="pdf-class-badge">${escapeHtml(getPdfClassLabel(selectedClass))}</span><span class="pdf-resolution-status" data-resolution="${resolveStatus}">PDF link: ${resolveLabel}</span><button type="button" class="edit-pdf-url" data-id="${escapeHtml(p.id)}">Fix Link</button><div class="pdf-url-editor" hidden><input type="url" class="pdf-url-input" value="${escapeHtml(p.url || '')}" maxlength="2048" aria-label="Correct URL for ${escapeHtml(p.title)}"><button type="button" class="save-pdf-url" data-id="${escapeHtml(p.id)}">Save URL</button><button type="button" class="cancel-pdf-url">Cancel</button></div><button type="button" class="edit-pdf-class" data-id="${escapeHtml(p.id)}">Edit class</button><select class="pdf-class-edit hidden" data-id="${escapeHtml(p.id)}" aria-label="Assign ${escapeHtml(p.title)} to a class">${options}</select><button type="button" class="save-pdf-class hidden" data-id="${escapeHtml(p.id)}">Save class</button><button type="button" class="cancel-pdf-class hidden" data-id="${escapeHtml(p.id)}">Cancel</button><button type="button" class="delete-pdf" data-id="${escapeHtml(p.id)}">Delete</button></div>`;
+            const reason = resolveStatus === 'unresolvable'
+                ? `<small class="pdf-unresolvable-reason">Reason: ${escapeHtml(p.resolve_reason || 'No direct PDF URL found')}</small>`
+                : '';
+            const editLabel = pdfAdminUnresolvableOnly ? 'Edit' : 'Fix Link';
+            return `<div class="pdf-item pdf-admin-row"><a href="${escapeHtml(safeUrl)}" target="_blank" rel="noopener noreferrer">📄 ${escapeHtml(p.title)}</a><span class="pdf-class-badge">${escapeHtml(getPdfClassLabel(selectedClass))}</span><span class="pdf-resolution-status" data-resolution="${resolveStatus}">PDF link: ${resolveLabel}</span>${reason}<button type="button" class="edit-pdf-url" data-id="${escapeHtml(p.id)}">${editLabel}</button><div class="pdf-url-editor" hidden><input type="url" class="pdf-url-input" value="${escapeHtml(p.url || '')}" maxlength="2048" placeholder="Paste a direct HTTPS .pdf URL" aria-label="Correct URL for ${escapeHtml(p.title)}"><button type="button" class="save-pdf-url" data-id="${escapeHtml(p.id)}">Save URL</button><button type="button" class="cancel-pdf-url">Cancel</button></div><button type="button" class="edit-pdf-class" data-id="${escapeHtml(p.id)}">Edit class</button><select class="pdf-class-edit hidden" data-id="${escapeHtml(p.id)}" aria-label="Assign ${escapeHtml(p.title)} to a class">${options}</select><button type="button" class="save-pdf-class hidden" data-id="${escapeHtml(p.id)}">Save class</button><button type="button" class="cancel-pdf-class hidden" data-id="${escapeHtml(p.id)}">Cancel</button><button type="button" class="delete-pdf" data-id="${escapeHtml(p.id)}">Delete</button></div>`;
         }).join('');
         document.querySelectorAll('.edit-pdf-url').forEach(btn => btn.addEventListener('click', () => {
             const editor = btn.closest('.pdf-admin-row')?.querySelector('.pdf-url-editor');
@@ -4034,7 +4260,7 @@
         document.querySelectorAll('.save-pdf-url').forEach(btn => btn.addEventListener('click', async () => {
             const row = btn.closest('.pdf-admin-row');
             const url = row?.querySelector('.pdf-url-input')?.value.trim();
-            if (!url) { showNotification('Enter a document URL', 'error'); return; }
+            if (!isDirectPdfUrl(url)) { showNotification('Enter a direct HTTPS URL ending in .pdf', 'error'); return; }
             btn.disabled = true;
             try {
                 await api(`/api/pdfs/${encodeURIComponent(btn.getAttribute('data-id'))}`, { method: 'PATCH', body: { url } });
@@ -6906,8 +7132,8 @@
         document.getElementById('elibraryBackToShelf')?.addEventListener('click', returnToELibraryShelf);
         document.getElementById('closeBookReader')?.addEventListener('click', closeBookReader);
         document.getElementById('cancelBookReaderLoading')?.addEventListener('click', closeBookReader);
-        document.getElementById('bookReaderPrev')?.addEventListener('click', () => pageFlipInstance?.flipPrev());
-        document.getElementById('bookReaderNext')?.addEventListener('click', () => pageFlipInstance?.flipNext());
+        document.getElementById('bookReaderPrev')?.addEventListener('click', () => void navigatePdfReaderPage(-1));
+        document.getElementById('bookReaderNext')?.addEventListener('click', () => void navigatePdfReaderPage(1));
         document.getElementById('bookReaderNightToggle')?.addEventListener('click', event => {
             const reader = document.getElementById('bookReader');
             const isNight = reader.classList.toggle('night-mode');
@@ -7073,21 +7299,21 @@
             const button = event.currentTarget;
             const status = document.getElementById('pdfBatchResolveStatus');
             button.disabled = true;
-            status.textContent = 'Resolving pending PDF links…';
-            let totals = { processed: 0, resolved: 0, failed: 0, not_pdf: 0, remaining: 0 };
+            status.textContent = 'Processing existing PDF links…';
+            let totals = { processed: 0, resolved: 0, failed: 0, not_pdf: 0, unresolvable: 0, remaining: 0 };
             try {
                 do {
                     const batch = await api('/api/admin/resolve-pdf-links', {
                         method: 'POST',
                         body: { limit: 20 }
                     });
-                    for (const key of ['processed', 'resolved', 'failed', 'not_pdf']) totals[key] += Number(batch[key]) || 0;
+                    for (const key of ['processed', 'resolved', 'failed', 'not_pdf', 'unresolvable']) totals[key] += Number(batch[key]) || 0;
                     totals.remaining = Number(batch.remaining) || 0;
-                    status.textContent = `Processed ${totals.processed}: ${totals.resolved} resolved, ${totals.failed} failed, ${totals.not_pdf} not PDF. ${totals.remaining} pending.`;
+                    status.textContent = `Processed ${totals.processed}: ${totals.resolved} resolved, ${totals.unresolvable} need manual URL replacement, ${totals.failed} failed, ${totals.not_pdf} not PDF. ${totals.remaining} pending.`;
                     await refreshAllData();
                     if (!batch.processed || totals.remaining === 0) break;
                 } while (totals.remaining > 0);
-                status.textContent = `Done: ${totals.resolved} resolved, ${totals.failed} failed, ${totals.not_pdf} not PDF; ${totals.remaining} pending.${totals.remaining === 0 ? ' If the old PDF loading page still appears, run “Purge Everything” in Cloudflare.' : ''}`;
+                status.textContent = `Done: ${totals.resolved} resolved, ${totals.unresolvable} need manual URL replacement, ${totals.failed} failed, ${totals.not_pdf} not PDF; ${totals.remaining} pending.`;
             } catch (error) {
                 status.textContent = error.message || 'Could not resolve the pending PDF links.';
             } finally {

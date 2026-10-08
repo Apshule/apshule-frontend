@@ -78,15 +78,107 @@ const EXTENSION_MIME_TYPE: Record<string, string> = {
   txt: "text/plain; charset=utf-8",
   md: "text/markdown; charset=utf-8",
 };
+const DOCUMENT_MAX_BYTES = 20 * 1024 * 1024;
+const DOCUMENT_CACHE_SECONDS = 60 * 60;
 
 export class DocumentProxyError extends Error {
   public readonly status: number;
+  public readonly code: string;
 
-  constructor(status: number, message: string) {
+  constructor(status: number, message: string, code = "DOCUMENT_PROXY_ERROR") {
     super(message);
     this.status = status;
+    this.code = code;
     this.name = "DocumentProxyError";
   }
+}
+
+export async function fetchWithTimeout(
+  value: string,
+  init: RequestInit,
+  timeoutMs: number,
+  fetcher: (input: string, init?: RequestInit) => Promise<Response> = fetch,
+): Promise<Response> {
+  const controller = new AbortController();
+  const callerSignal = init.signal;
+  const timeoutError = () =>
+    new DocumentProxyError(504, "Upstream timeout", "TIMEOUT");
+  const abortFromCaller = () => controller.abort(callerSignal?.reason);
+  if (callerSignal?.aborted) abortFromCaller();
+  else callerSignal?.addEventListener("abort", abortFromCaller, { once: true });
+  const releaseCallerSignal = () =>
+    callerSignal?.removeEventListener("abort", abortFromCaller);
+
+  let headerTimer: ReturnType<typeof setTimeout> | undefined = setTimeout(
+    () => controller.abort(),
+    timeoutMs,
+  );
+  let response: Response;
+  try {
+    response = await fetcher(value, { ...init, signal: controller.signal });
+  } catch (error) {
+    releaseCallerSignal();
+    if (callerSignal?.aborted) throw error;
+    if (controller.signal.aborted) throw timeoutError();
+    throw error;
+  } finally {
+    if (headerTimer !== undefined) clearTimeout(headerTimer);
+    headerTimer = undefined;
+  }
+
+  if (!response.body) {
+    releaseCallerSignal();
+    return response;
+  }
+
+  const reader = response.body.getReader();
+  let finished = false;
+  const timedBody = new ReadableStream<Uint8Array>({
+    async pull(streamController) {
+      if (finished) return;
+      let readTimer: ReturnType<typeof setTimeout> | undefined;
+      try {
+        const result = await Promise.race([
+          reader.read(),
+          new Promise<never>((_resolve, reject) => {
+            readTimer = setTimeout(() => reject(timeoutError()), timeoutMs);
+          }),
+        ]);
+        if (readTimer !== undefined) clearTimeout(readTimer);
+        if (finished) return;
+        if (result.done) {
+          finished = true;
+          releaseCallerSignal();
+          reader.releaseLock();
+          streamController.close();
+          return;
+        }
+        streamController.enqueue(result.value);
+      } catch (error) {
+        if (readTimer !== undefined) clearTimeout(readTimer);
+        if (finished) return;
+        finished = true;
+        releaseCallerSignal();
+        controller.abort(error);
+        await reader.cancel(error).catch(() => {});
+        reader.releaseLock();
+        streamController.error(error);
+      }
+    },
+    async cancel(reason) {
+      if (finished) return;
+      finished = true;
+      releaseCallerSignal();
+      await reader.cancel(reason).catch(() => {});
+      reader.releaseLock();
+    },
+  });
+
+  return new Response(timedBody, {
+    status: response.status,
+    statusText: response.statusText,
+    headers: response.headers,
+  });
 }
 
 export function parseHttpUrl(value: string): URL {
@@ -152,17 +244,27 @@ export function detectDocKind(value: string | null | undefined): DocumentKind | 
 
   const hostname = parsed.hostname.toLowerCase().replace(/\.$/u, "");
   const pathname = parsed.pathname.toLowerCase();
+  const isDomain = (domain: string) =>
+    hostname === domain || hostname.endsWith(`.${domain}`);
   if (
-    hostname === "elearn.ncdc.go.ug" &&
+    isDomain("elearn.ncdc.go.ug") &&
     /\/viewer(?:\/|$)/u.test(pathname)
   ) {
     return "viewer";
   }
   if (
-    hostname === "docs.google.com" ||
-    hostname.endsWith(".docs.google.com") ||
-    hostname === "view.officeapps.live.com" ||
-    hostname.endsWith(".view.officeapps.live.com")
+    (isDomain("pdftolink.app") || isDomain("pdftolink.com")) &&
+    pathname.includes("/view/") &&
+    !pathname.endsWith(".pdf")
+  ) {
+    return "viewer";
+  }
+  if (
+    isDomain("docs.google.com") ||
+    isDomain("view.officeapps.live.com") ||
+    isDomain("issuu.com") ||
+    isDomain("scribd.com") ||
+    isDomain("slideshare.net")
   ) {
     return "viewer";
   }
@@ -197,10 +299,18 @@ function fileExtension(url: URL): string | null {
   return pathname.toLowerCase().match(/\.([a-z0-9]+)$/u)?.[1] ?? null;
 }
 
-export async function fetchDocumentBytes(
+export async function fetchDocumentStream(
   value: string,
   fetcher: (input: string, init?: RequestInit) => Promise<Response> = fetch,
-): Promise<{ body: Uint8Array; contentType: string }> {
+  options: { range?: string | null; requirePdf?: boolean } = {},
+): Promise<{
+  body: ReadableStream<Uint8Array>;
+  contentType: string;
+  contentLength: number | null;
+  status: number;
+  contentRange: string | null;
+  acceptRanges: string | null;
+}> {
   let currentUrl = validateDocumentProxyUrl(value);
   let upstream: Response | null = null;
 
@@ -209,9 +319,13 @@ export async function fetchDocumentBytes(
       headers: {
         "User-Agent": "Mozilla/5.0 (compatible; APSHULE-ELibrary/1.0)",
         Accept: "*/*",
+        ...(options.range ? { Range: options.range } : {}),
       },
       redirect: "manual",
-    });
+      ...(!options.range
+        ? { cf: { cacheTtl: DOCUMENT_CACHE_SECONDS, cacheEverything: true } }
+        : {}),
+    } as RequestInit);
 
     if (![301, 302, 303, 307, 308].includes(upstream.status)) break;
     const location = upstream.headers.get("Location");
@@ -238,12 +352,15 @@ export async function fetchDocumentBytes(
   const upstreamType = upstream.headers.get("Content-Type");
   if (isHtmlContentType(upstreamType)) {
     await upstream.body?.cancel();
+    if (options.requirePdf) {
+      throw new DocumentProxyError(415, "Not a PDF", "NOT_PDF");
+    }
     throw new DocumentProxyError(415, "This is a viewer page, use direct file link");
   }
 
-  const declaredLength = Number(upstream.headers.get("Content-Length"));
-  const maxBytes = 20 * 1024 * 1024;
-  if (Number.isFinite(declaredLength) && declaredLength > maxBytes) {
+  const contentLengthHeader = upstream.headers.get("Content-Length");
+  const declaredLength = contentLengthHeader === null ? NaN : Number(contentLengthHeader);
+  if (Number.isFinite(declaredLength) && declaredLength > DOCUMENT_MAX_BYTES) {
     await upstream.body?.cancel();
     throw new DocumentProxyError(413, "Files larger than 20 MB cannot be opened here.");
   }
@@ -252,41 +369,61 @@ export async function fetchDocumentBytes(
   }
 
   const reader = upstream.body.getReader();
-  const chunks: Uint8Array[] = [];
+  const initialChunks: Uint8Array[] = [];
+  let prefixLength = 0;
   let totalBytes = 0;
-  let htmlPrefix = "";
 
   try {
-    while (true) {
+    while (prefixLength < 512) {
       const { done, value } = await reader.read();
       if (done) break;
       totalBytes += value.byteLength;
-      if (totalBytes > maxBytes) {
+      if (totalBytes > DOCUMENT_MAX_BYTES) {
         await reader.cancel();
         throw new DocumentProxyError(413, "Files larger than 20 MB cannot be opened here.");
       }
-
-      if (htmlPrefix.length < 512) {
-        htmlPrefix += new TextDecoder().decode(value.slice(0, 512 - htmlPrefix.length));
-        if (isHtmlDocumentPrefix(htmlPrefix)) {
-          await reader.cancel();
-          throw new DocumentProxyError(415, "This is a viewer page, use direct file link");
-        }
+      initialChunks.push(value);
+      prefixLength += value.byteLength;
+    }
+    const prefix = new Uint8Array(Math.min(prefixLength, 512));
+    let prefixOffset = 0;
+    for (const chunk of initialChunks) {
+      const copyLength = Math.min(chunk.byteLength, prefix.byteLength - prefixOffset);
+      if (copyLength <= 0) break;
+      prefix.set(chunk.subarray(0, copyLength), prefixOffset);
+      prefixOffset += copyLength;
+    }
+    if (isHtmlDocumentPrefix(new TextDecoder().decode(prefix))) {
+      await reader.cancel();
+      if (options.requirePdf) {
+        throw new DocumentProxyError(415, "Not a PDF", "NOT_PDF");
       }
-      chunks.push(value);
+      throw new DocumentProxyError(415, "This is a viewer page, use direct file link");
+    }
+    if (options.requirePdf) {
+      const mediaType = upstreamType?.split(";", 1)[0]?.trim().toLowerCase();
+      const supportedPdfType =
+        !mediaType ||
+        mediaType === "application/pdf" ||
+        mediaType === "application/x-pdf" ||
+        mediaType === "application/octet-stream" ||
+        mediaType === "binary/octet-stream";
+      const rangeStartsAtBeginning =
+        !options.range || /^bytes=0-/u.test(options.range);
+      if (
+        !supportedPdfType ||
+        (rangeStartsAtBeginning &&
+          new TextDecoder().decode(prefix.subarray(0, 5)) !== "%PDF-")
+      ) {
+        await reader.cancel();
+        throw new DocumentProxyError(415, "Not a PDF", "NOT_PDF");
+      }
     }
   } catch (error) {
+    await reader.cancel().catch(() => {});
+    reader.releaseLock();
     if (error instanceof DocumentProxyError) throw error;
     throw new DocumentProxyError(502, "The document could not be read from its host.");
-  } finally {
-    reader.releaseLock();
-  }
-
-  const body = new Uint8Array(totalBytes);
-  let offset = 0;
-  for (const chunk of chunks) {
-    body.set(chunk, offset);
-    offset += chunk.byteLength;
   }
 
   const extension = fileExtension(currentUrl);
@@ -294,10 +431,87 @@ export async function fetchDocumentBytes(
   const isGenericType =
     !declaredType ||
     /^(?:application|binary)\/octet-stream(?:\s*;|$)/iu.test(declaredType);
+  let initialIndex = 0;
+  let streamedBytes = totalBytes;
+  let finished = false;
+  const body = new ReadableStream<Uint8Array>({
+    async pull(controller) {
+      if (initialIndex < initialChunks.length) {
+        controller.enqueue(initialChunks[initialIndex]);
+        initialIndex += 1;
+        return;
+      }
+      if (finished) return;
+      try {
+        const { done, value } = await reader.read();
+        if (done) {
+          finished = true;
+          reader.releaseLock();
+          controller.close();
+          return;
+        }
+        streamedBytes += value.byteLength;
+        if (streamedBytes > DOCUMENT_MAX_BYTES) {
+          finished = true;
+          await reader.cancel();
+          reader.releaseLock();
+          controller.error(new DocumentProxyError(413, "Files larger than 20 MB cannot be opened here."));
+          return;
+        }
+        controller.enqueue(value);
+      } catch (error) {
+        finished = true;
+        reader.releaseLock();
+        controller.error(
+          error instanceof DocumentProxyError
+            ? error
+            : new DocumentProxyError(502, "The document could not be read from its host."),
+        );
+      }
+    },
+    async cancel(reason) {
+      if (finished) return;
+      finished = true;
+      await reader.cancel(reason).catch(() => {});
+      reader.releaseLock();
+    },
+  });
+
   return {
     body,
     contentType: isGenericType
       ? EXTENSION_MIME_TYPE[extension ?? ""] ?? "application/octet-stream"
       : declaredType,
+    contentLength: Number.isFinite(declaredLength) ? declaredLength : null,
+    status: upstream.status,
+    contentRange: upstream.headers.get("Content-Range"),
+    acceptRanges: upstream.headers.get("Accept-Ranges"),
   };
+}
+
+export async function fetchDocumentBytes(
+  value: string,
+  fetcher: (input: string, init?: RequestInit) => Promise<Response> = fetch,
+): Promise<{ body: Uint8Array; contentType: string }> {
+  const document = await fetchDocumentStream(value, fetcher);
+  const reader = document.body.getReader();
+  const chunks: Uint8Array[] = [];
+  let totalBytes = 0;
+  try {
+    while (true) {
+      const { done, value: chunk } = await reader.read();
+      if (done) break;
+      chunks.push(chunk);
+      totalBytes += chunk.byteLength;
+    }
+  } finally {
+    reader.releaseLock();
+  }
+  const body = new Uint8Array(totalBytes);
+  let offset = 0;
+  for (const chunk of chunks) {
+    body.set(chunk, offset);
+    offset += chunk.byteLength;
+  }
+  return { body, contentType: document.contentType };
 }

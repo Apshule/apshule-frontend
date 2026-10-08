@@ -1,0 +1,2 @@
+ALTER TABLE pdfs
+  ADD COLUMN IF NOT EXISTS resolve_reason TEXT;

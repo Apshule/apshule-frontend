@@ -1,4 +1,5 @@
 import { Hono, type Context, type Next } from "hono";
+import type { ContentfulStatusCode } from "hono/utils/http-status";
 import { ApiError, getDb } from "../db.js";
 import { authMiddleware, requireRealSuperAdmin } from "../auth.js";
 import { readJson, requiredString } from "../http.js";
@@ -6,11 +7,13 @@ import {
   detectDocKind,
   DocumentProxyError,
   fetchDocumentStream,
+  fetchWithTimeout,
   parseHttpUrl,
   validateDocumentProxyUrl,
 } from "../document-kind.js";
 import {
   pdfUrlExpiresAt,
+  getPdfResolverSkipReason,
   resolvePdfUrl,
   type PdfResolutionStatus,
 } from "../pdf-resolver.js";
@@ -20,10 +23,12 @@ const documents = new Hono<AppEnv>();
 const DOCUMENT_CACHE_SECONDS = 60 * 60;
 const PUBLIC_PROXY_LINK_SECONDS = 60 * 60;
 const PUBLIC_PROXY_TOKEN_AAD = "APSHULE-DOC-PROXY-V1";
-const PDF_LINK_FAILURE_RETRY_MS = 5 * 60 * 1000;
 const PDF_LINK_EXPIRY_SAFETY_SECONDS = 5 * 60;
 const PDF_BATCH_DEFAULT_LIMIT = 20;
 const PDF_BATCH_MAX_LIMIT = 50;
+const PDF_PROXY_TIMEOUT_MS = 15_000;
+const DOCUMENT_PROXY_TIMEOUT_MS = 20_000;
+const MAX_PDF_RANGE_HEADER_LENGTH = 128;
 
 function toBase64Url(bytes: Uint8Array): string {
   let binary = "";
@@ -184,12 +189,15 @@ async function documentProxyAuth(c: Context<AppEnv>, next: Next) {
 type PdfCacheRow = {
   resolved_pdf_url?: string | null;
   resolve_status?: string | null;
+  resolve_reason?: string | null;
   resolved_at?: string | Date | null;
 };
 
 type CachedPdfResolution = {
   status: PdfResolutionStatus;
   directUrl?: string;
+  errorCode?: "TIMEOUT";
+  reason?: string;
 };
 
 function isResolvedUrlFresh(value: string, nowSeconds: number): boolean {
@@ -205,12 +213,11 @@ function cachedPdfResolution(row: PdfCacheRow | undefined): CachedPdfResolution 
     }
     return null;
   }
-  if (row.resolve_status === "not_pdf") return { status: "not_pdf" };
-  if (row.resolve_status === "failed" && row.resolved_at) {
-    const failedAt = new Date(row.resolved_at).getTime();
-    if (Number.isFinite(failedAt) && Date.now() - failedAt < PDF_LINK_FAILURE_RETRY_MS) {
-      return { status: "failed" };
-    }
+  if (row.resolve_status === "unresolvable") {
+    return { status: "unresolvable", reason: row.resolve_reason ?? "unresolvable" };
+  }
+  if (row.resolve_status === "not_pdf") {
+    return { status: "not_pdf", reason: row.resolve_reason ?? "source_url_not_pdf" };
   }
   return null;
 }
@@ -220,7 +227,7 @@ async function findCachedPdfResolution(
   sourceUrl: string,
 ): Promise<CachedPdfResolution | null> {
   const pdfRows = await sql`
-    SELECT resolved_pdf_url, resolve_status, resolved_at
+    SELECT resolved_pdf_url, resolve_status, resolve_reason, resolved_at
     FROM pdfs
     WHERE url = ${sourceUrl}
     ORDER BY created_at DESC
@@ -251,11 +258,13 @@ async function persistPdfResolution(
   sourceUrl: string,
   status: PdfResolutionStatus,
   directUrl: string | null,
+  reason: string | null = null,
 ): Promise<void> {
   await sql`
     UPDATE pdfs
     SET resolved_pdf_url = ${directUrl},
         resolve_status = ${status},
+        resolve_reason = ${reason},
         resolved_at = NOW(),
         doc_kind = CASE WHEN ${status === "resolved"} THEN 'pdf' ELSE doc_kind END
     WHERE url = ${sourceUrl}
@@ -285,15 +294,28 @@ async function resolveAndCachePdfUrl(
   sourceUrl: string,
 ): Promise<CachedPdfResolution> {
   const sql = getDb(env);
+  const skipReason = getPdfResolverSkipReason(sourceUrl);
+  if (skipReason) {
+    await persistPdfResolution(sql, sourceUrl, "unresolvable", null, skipReason);
+    return { status: "unresolvable", reason: skipReason };
+  }
   const cached = await findCachedPdfResolution(sql, sourceUrl);
   if (cached) return cached;
 
   const resolution = await resolvePdfUrl(sourceUrl);
   const directUrl = resolution.status === "resolved" ? resolution.directUrl ?? null : null;
-  await persistPdfResolution(sql, sourceUrl, resolution.status, directUrl);
+  await persistPdfResolution(
+    sql,
+    sourceUrl,
+    resolution.status,
+    directUrl,
+    resolution.reason ?? null,
+  );
   return {
     status: resolution.status,
     ...(directUrl ? { directUrl } : {}),
+    ...(resolution.errorCode ? { errorCode: resolution.errorCode } : {}),
+    ...(resolution.reason ? { reason: resolution.reason } : {}),
   };
 }
 
@@ -317,6 +339,15 @@ function normalizeResolveBatchLimit(value: unknown): number {
 async function proxyDocument(c: Context<AppEnv>) {
   const isPublic = c.req.query("public") === "1";
   const download = c.req.query("download") === "1";
+  const rawUrl = c.req.query("url") ?? "";
+  const skipReason = !isPublic ? getPdfResolverSkipReason(rawUrl) : null;
+  if (skipReason) {
+    return c.json({
+      error: "Cannot resolve to PDF",
+      code: "UNRESOLVABLE",
+      original_url: rawUrl,
+    }, 422);
+  }
   let targetUrl: URL;
   try {
     if (isPublic) {
@@ -329,7 +360,7 @@ async function proxyDocument(c: Context<AppEnv>) {
       }
       targetUrl = validateDocumentProxyUrl(claims.url);
     } else {
-      targetUrl = validateDocumentProxyUrl(c.req.query("url") ?? "");
+      targetUrl = validateDocumentProxyUrl(rawUrl);
     }
   } catch (error) {
     if (error instanceof ApiError) throw error;
@@ -339,14 +370,16 @@ async function proxyDocument(c: Context<AppEnv>) {
     throw error;
   }
 
-  if (detectDocKind(targetUrl.toString()) === "viewer") {
+  const sourceKind = detectDocKind(targetUrl.toString());
+  const hasFileExtension = /\.[a-z0-9]{1,12}$/iu.test(targetUrl.pathname);
+  if (sourceKind === "viewer" || (sourceKind === "other" && !hasFileExtension)) {
     const resolution = await resolveAndCachePdfUrl(c.env, targetUrl.toString());
     if (resolution.status !== "resolved" || !resolution.directUrl) {
-      throw new ApiError(
-        415,
-        "PDF_LINK_NOT_RESOLVED",
-        "This link opens a webpage instead of a PDF. Ask an admin to replace it with a direct PDF link.",
-      );
+      return c.json({
+        error: "Cannot resolve to PDF",
+        code: "UNRESOLVABLE",
+        original_url: targetUrl.toString(),
+      }, 422);
     }
     try {
       targetUrl = validateDocumentProxyUrl(resolution.directUrl);
@@ -358,11 +391,17 @@ async function proxyDocument(c: Context<AppEnv>) {
     }
   }
 
+  const isPdf = targetUrl.pathname.toLowerCase().endsWith(".pdf");
+  const rawRange = c.req.header("Range") ?? null;
+  const range = isPdf ? parsePdfRange(rawRange) : { value: null, invalid: false };
+  if (range.invalid) {
+    return c.json({ error: "Invalid PDF byte range", code: "INVALID_RANGE" }, 416);
+  }
   const cache = (globalThis as typeof globalThis & {
     caches?: { default?: Cache };
   }).caches?.default;
   const key = await documentCacheKey(c.req.url, targetUrl, download);
-  if (cache) {
+  if (cache && !range.value) {
     try {
       const cached = await cache.match(key);
       if (cached) return cached;
@@ -375,25 +414,44 @@ async function proxyDocument(c: Context<AppEnv>) {
     body: ReadableStream<Uint8Array>;
     contentType: string;
     contentLength: number | null;
+    status: number;
+    contentRange: string | null;
+    acceptRanges: string | null;
   };
   try {
-    document = await fetchDocumentStream(targetUrl.toString());
+    document = await fetchDocumentStream(
+      targetUrl.toString(),
+      (input, init) => fetchWithTimeout(
+        input,
+        { ...init, signal: c.req.raw.signal },
+        DOCUMENT_PROXY_TIMEOUT_MS,
+      ),
+      { range: range.value, requirePdf: isPdf },
+    );
   } catch (error) {
     if (error instanceof DocumentProxyError) {
-      throw new ApiError(error.status, "DOCUMENT_PROXY_ERROR", error.message);
+      return c.json(
+        { error: error.message, code: error.code },
+        error.status as ContentfulStatusCode,
+      );
     }
-    throw error;
+    console.error("[doc-proxy] upstream request failed");
+    return c.json({ error: "Could not load the document.", code: "UPSTREAM_ERROR" }, 502);
   }
 
   const responseHeaders = new Headers({
     "Access-Control-Allow-Origin": "*",
-    "Access-Control-Expose-Headers": "Content-Disposition, Content-Length, Content-Type",
+    "Access-Control-Expose-Headers": "Accept-Ranges, Content-Disposition, Content-Length, Content-Range, Content-Type",
     "Cache-Control": `public, max-age=${DOCUMENT_CACHE_SECONDS}, s-maxage=${DOCUMENT_CACHE_SECONDS}`,
     "Content-Type": document.contentType,
     "X-Content-Type-Options": "nosniff",
   });
+  if (isPdf) responseHeaders.set("Accept-Ranges", document.acceptRanges || "bytes");
   if (document.contentLength !== null) {
     responseHeaders.set("Content-Length", String(document.contentLength));
+  }
+  if (document.contentRange) {
+    responseHeaders.set("Content-Range", document.contentRange);
   }
   if (download) {
     responseHeaders.set(
@@ -401,9 +459,12 @@ async function proxyDocument(c: Context<AppEnv>) {
       `attachment; filename="${documentFilename(targetUrl)}"`,
     );
   }
-  const response = new Response(document.body, { headers: responseHeaders });
+  const response = new Response(document.body, {
+    status: document.status,
+    headers: responseHeaders,
+  });
 
-  if (cache) {
+  if (cache && !range.value && document.status === 200) {
     try {
       c.executionCtx.waitUntil(
         cache.put(key, response.clone()).catch(() => {
@@ -417,9 +478,112 @@ async function proxyDocument(c: Context<AppEnv>) {
   return response;
 }
 
+function parsePdfRange(value: string | null): { value: string | null; invalid: boolean } {
+  if (!value) return { value: null, invalid: false };
+  if (value.length > MAX_PDF_RANGE_HEADER_LENGTH) {
+    return { value: null, invalid: true };
+  }
+  const match = value.match(/^bytes=(\d+)-(\d*)$/u);
+  if (!match) return { value: null, invalid: true };
+  const start = Number(match[1]);
+  const end = match[2] ? Number(match[2]) : null;
+  if (
+    !Number.isSafeInteger(start) ||
+    (end !== null && (!Number.isSafeInteger(end) || end < start))
+  ) {
+    return { value: null, invalid: true };
+  }
+  return { value, invalid: false };
+}
+
+async function proxyDirectPdf(c: Context<AppEnv>) {
+  const rawUrl = c.req.query("url") ?? "";
+  if (!rawUrl || rawUrl.length > 2048) {
+    return c.json({ error: "A PDF URL is required.", code: "INVALID_PDF_URL" }, 400);
+  }
+  let targetUrl: URL;
+  try {
+    targetUrl = validateDocumentProxyUrl(rawUrl);
+  } catch (error) {
+    const message = error instanceof DocumentProxyError
+      ? error.message
+      : "The PDF URL is invalid.";
+    return c.json({ error: message, code: "INVALID_PDF_URL" }, 400);
+  }
+  if (
+    targetUrl.protocol !== "https:" ||
+    !targetUrl.pathname.toLowerCase().endsWith(".pdf")
+  ) {
+    return c.json({ error: "Not a PDF", code: "NOT_PDF" }, 415);
+  }
+
+  const range = parsePdfRange(c.req.header("Range") ?? null);
+  if (range.invalid) {
+    return c.json({ error: "Invalid PDF byte range", code: "INVALID_RANGE" }, 416);
+  }
+
+  let document: Awaited<ReturnType<typeof fetchDocumentStream>>;
+  try {
+    document = await fetchDocumentStream(
+      targetUrl.toString(),
+      (input, init) => fetchWithTimeout(
+        input,
+        { ...init, signal: c.req.raw.signal },
+        PDF_PROXY_TIMEOUT_MS,
+      ),
+      { range: range.value, requirePdf: true },
+    );
+  } catch (error) {
+    if (error instanceof DocumentProxyError) {
+      return c.json(
+        { error: error.message, code: error.code },
+        error.status as ContentfulStatusCode,
+      );
+    }
+    console.error("[doc-proxy-direct] upstream request failed");
+    return c.json({ error: "Could not load the PDF.", code: "UPSTREAM_ERROR" }, 502);
+  }
+
+  const responseHeaders = new Headers({
+    "Access-Control-Allow-Origin": "*",
+    "Access-Control-Expose-Headers": "Accept-Ranges, Content-Disposition, Content-Length, Content-Range, Content-Type",
+    "Cache-Control": `public, max-age=${DOCUMENT_CACHE_SECONDS}, s-maxage=${DOCUMENT_CACHE_SECONDS}`,
+    "Content-Type": "application/pdf",
+    "X-Content-Type-Options": "nosniff",
+    "Accept-Ranges": document.acceptRanges || "bytes",
+  });
+  if (document.contentLength !== null) {
+    responseHeaders.set("Content-Length", String(document.contentLength));
+  }
+  if (document.contentRange) {
+    responseHeaders.set("Content-Range", document.contentRange);
+  }
+  if (c.req.query("download") === "1") {
+    responseHeaders.set(
+      "Content-Disposition",
+      `attachment; filename="${documentFilename(targetUrl)}"`,
+    );
+  }
+  return new Response(document.body, {
+    status: document.status,
+    headers: responseHeaders,
+  });
+}
+
 documents.post("/pdf-prefetch", authMiddleware, async (c) => {
   const body = await readJson(c);
   const rawUrl = requiredString(body, "url", { max: 2048 });
+  const skipReason = getPdfResolverSkipReason(rawUrl);
+  if (skipReason) {
+    const originalUrl = parseHttpUrl(rawUrl).toString();
+    await resolveAndCachePdfUrl(c.env, originalUrl);
+    c.header("Cache-Control", "no-store");
+    return c.json({
+      error: "Cannot resolve to PDF",
+      code: "UNRESOLVABLE",
+      original_url: originalUrl,
+    }, 422);
+  }
   let sourceUrl: URL;
   try {
     sourceUrl = validateDocumentProxyUrl(rawUrl);
@@ -434,12 +598,20 @@ documents.post("/pdf-prefetch", authMiddleware, async (c) => {
   }
 
   const resolution = await resolveAndCachePdfUrl(c.env, sourceUrl.toString());
-  const expiresAt = resolution.directUrl ? pdfUrlExpiresAt(resolution.directUrl) : null;
   c.header("Cache-Control", "no-store");
+  if (resolution.status !== "resolved" || !resolution.directUrl) {
+    return c.json({
+      error: "Cannot resolve to PDF",
+      code: "UNRESOLVABLE",
+      original_url: sourceUrl.toString(),
+    }, 422);
+  }
+  const expiresAt = resolution.directUrl ? pdfUrlExpiresAt(resolution.directUrl) : null;
   return c.json({
     status: resolution.status,
     direct_url: resolution.directUrl ?? null,
     expires_at: expiresAt,
+    ...(resolution.errorCode ? { error_code: resolution.errorCode } : {}),
   });
 });
 
@@ -454,7 +626,8 @@ documents.post(
     const rows = await sql`
       SELECT id, url
       FROM pdfs
-      WHERE COALESCE(resolve_status, 'unresolved') = 'unresolved'
+      WHERE COALESCE(resolve_status, 'unresolved') IN ('unresolved', 'failed')
+         OR (resolve_status = 'not_pdf' AND doc_kind = 'viewer')
       ORDER BY created_at ASC, id ASC
       LIMIT ${limit}
     ` as Array<{ id: string; url: string }>;
@@ -462,29 +635,33 @@ documents.post(
     let resolved = 0;
     let failed = 0;
     let notPdf = 0;
+    let unresolvable = 0;
     for (const [index, row] of rows.entries()) {
       if (index > 0) await new Promise((resolve) => setTimeout(resolve, 200));
       try {
         const result = await resolveAndCachePdfUrl(c.env, row.url);
         if (result.status === "resolved") resolved += 1;
         else if (result.status === "not_pdf") notPdf += 1;
+        else if (result.status === "unresolvable") unresolvable += 1;
         else failed += 1;
       } catch {
-        failed += 1;
-        await persistPdfResolution(sql, row.url, "failed", null);
+        unresolvable += 1;
+        await persistPdfResolution(sql, row.url, "unresolvable", null, "resolver_exception");
       }
     }
 
     const remainingRows = await sql`
       SELECT COUNT(*)::int AS count
       FROM pdfs
-      WHERE COALESCE(resolve_status, 'unresolved') = 'unresolved'
+      WHERE COALESCE(resolve_status, 'unresolved') IN ('unresolved', 'failed')
+         OR (resolve_status = 'not_pdf' AND doc_kind = 'viewer')
     `;
     return c.json({
       processed: rows.length,
       resolved,
       failed,
       not_pdf: notPdf,
+      unresolvable,
       remaining: Number((remainingRows[0] as { count?: number } | undefined)?.count ?? 0),
     });
   },
@@ -521,5 +698,6 @@ documents.post("/doc-proxy-link", authMiddleware, async (c) => {
 
 documents.get("/doc-proxy", documentProxyAuth, proxyDocument);
 documents.get("/pdf-proxy", authMiddleware, proxyDocument);
+documents.get("/doc-proxy-direct", authMiddleware, proxyDirectPdf);
 
 export default documents;

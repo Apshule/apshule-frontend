@@ -1,21 +1,25 @@
 import {
   detectDocKind,
   DocumentProxyError,
+  fetchWithTimeout,
+  parseHttpUrl,
   validateDocumentProxyUrl,
 } from "./document-kind.js";
 
-export type PdfResolutionStatus = "resolved" | "failed" | "not_pdf";
+export type PdfResolutionStatus = "resolved" | "failed" | "not_pdf" | "unresolvable";
 
 export type PdfResolution = {
   status: PdfResolutionStatus;
   directUrl?: string;
   expiresAt?: number | null;
+  errorCode?: "TIMEOUT";
+  reason?: string;
 };
 
 const MAX_VIEWER_HTML_BYTES = 512 * 1024;
 const MAX_REDIRECTS = 3;
 const MAX_CANDIDATES = 8;
-const PDF_SIGNATURE = "%PDF-";
+export const PDF_VIEWER_FETCH_TIMEOUT_MS = 4_000;
 
 function responseHeaderIsHtml(response: Response): boolean {
   const mediaType = response.headers
@@ -24,17 +28,6 @@ function responseHeaderIsHtml(response: Response): boolean {
     ?.trim()
     .toLowerCase();
   return mediaType === "text/html" || mediaType === "application/xhtml+xml";
-}
-
-async function readPrefix(response: Response): Promise<Uint8Array> {
-  if (!response.body) return new Uint8Array();
-  const reader = response.body.getReader();
-  try {
-    const first = await reader.read();
-    return first.value?.slice(0, 5) ?? new Uint8Array();
-  } finally {
-    await reader.cancel().catch(() => {});
-  }
 }
 
 async function readTextUpToLimit(response: Response): Promise<string | null> {
@@ -75,7 +68,8 @@ async function readTextUpToLimit(response: Response): Promise<string | null> {
 async function fetchWithSafeRedirects(
   value: string,
   fetcher: (input: string, init?: RequestInit) => Promise<Response>,
-  rangeRequest = false,
+  timeoutMs: number,
+  signal: AbortSignal,
 ): Promise<{ response: Response; finalUrl: URL } | null> {
   let currentUrl: URL;
   try {
@@ -87,19 +81,24 @@ async function fetchWithSafeRedirects(
   for (let redirectCount = 0; redirectCount <= MAX_REDIRECTS; redirectCount += 1) {
     let response: Response;
     try {
-      response = await fetcher(
+      response = await fetchWithTimeout(
         currentUrl.toString(),
         {
           method: "GET",
           headers: {
             "User-Agent": "Mozilla/5.0 (compatible; APSHULE-PDFResolver/1.0)",
-            Accept: rangeRequest ? "application/pdf,application/octet-stream;q=0.9,*/*;q=0.1" : "text/html,application/xhtml+xml",
-            ...(rangeRequest ? { Range: "bytes=0-4" } : {}),
+            Accept: "text/html,application/xhtml+xml,*/*;q=0.1",
           },
           redirect: "manual",
-        } as RequestInit,
+          signal,
+        },
+        timeoutMs,
+        fetcher,
       );
-    } catch {
+    } catch (error) {
+      if (error instanceof DocumentProxyError && error.code === "TIMEOUT") {
+        throw error;
+      }
       return null;
     }
 
@@ -123,6 +122,48 @@ async function fetchWithSafeRedirects(
   return null;
 }
 
+export function getPdfResolverSkipReason(value: string): string | null {
+  let url: URL;
+  try {
+    url = parseHttpUrl(value);
+  } catch {
+    return null;
+  }
+  const hostname = url.hostname.toLowerCase().replace(/\.$/u, "");
+  const pathname = url.pathname.toLowerCase();
+  const hasPdfSuffix = pathname.endsWith(".pdf");
+  const isHostOrSubdomain = (domain: string) =>
+    hostname === domain || hostname.endsWith(`.${domain}`);
+
+  if (
+    !hasPdfSuffix &&
+    (isHostOrSubdomain("pdftolink.com") || isHostOrSubdomain("pdftolink.app")) &&
+    pathname.includes("/view/")
+  ) {
+    return "pdftolink_viewer_page";
+  }
+  if (
+    (isHostOrSubdomain("docs.google.com") || isHostOrSubdomain("googleusercontent.com")) &&
+    (/\/viewer(?:\/|$)/u.test(pathname) || /\/gview(?:\/|$)/u.test(pathname))
+  ) {
+    return "google_viewer_page";
+  }
+  for (const domain of ["issuu.com", "scribd.com", "slideshare.net"]) {
+    if (isHostOrSubdomain(domain)) return `unsupported_viewer_${domain.replace(/\W/gu, "_")}`;
+  }
+  return null;
+}
+
+function stripTrackingQueryParams(url: URL): URL {
+  const candidate = new URL(url.toString());
+  const trackingParam =
+    /^(?:utm_.+|fbclid|gclid|dclid|msclkid|mc_cid|mc_eid|referrer|ref|source|campaign|tracking)$/iu;
+  for (const key of [...candidate.searchParams.keys()]) {
+    if (trackingParam.test(key)) candidate.searchParams.delete(key);
+  }
+  return candidate;
+}
+
 function extractPdfCandidates(html: string, viewerUrl: URL): URL[] {
   const normalized = html
     .replace(/\\u0026/giu, "&")
@@ -138,7 +179,7 @@ function extractPdfCandidates(html: string, viewerUrl: URL): URL[] {
     const raw = rawMatch.replace(/[),.;\]}]+$/gu, "");
     let candidate: URL;
     try {
-      candidate = validateDocumentProxyUrl(raw);
+      candidate = stripTrackingQueryParams(validateDocumentProxyUrl(raw));
     } catch {
       continue;
     }
@@ -193,15 +234,25 @@ export function pdfUrlExpiresAt(value: string): number | null {
 export async function resolvePdfUrl(
   value: string,
   fetcher: (input: string, init?: RequestInit) => Promise<Response> = fetch,
+  timeouts: { viewer?: number } = {},
 ): Promise<PdfResolution> {
+  const skipReason = getPdfResolverSkipReason(value);
+  if (skipReason) {
+    return { status: "unresolvable", reason: skipReason };
+  }
+
   let sourceUrl: URL;
   try {
     sourceUrl = validateDocumentProxyUrl(value);
   } catch (error) {
-    if (error instanceof DocumentProxyError) return { status: "failed" };
-    return { status: "failed" };
+    return {
+      status: "unresolvable",
+      reason: error instanceof DocumentProxyError ? "invalid_source_url" : "invalid_source_url",
+    };
   }
-  if (sourceUrl.protocol !== "https:") return { status: "failed" };
+  if (sourceUrl.protocol !== "https:") {
+    return { status: "unresolvable", reason: "source_url_not_https" };
+  }
 
   if (sourceUrl.pathname.toLowerCase().endsWith(".pdf")) {
     const directUrl = sourceUrl.toString();
@@ -212,49 +263,72 @@ export async function resolvePdfUrl(
     };
   }
 
-  if (detectDocKind(sourceUrl.toString()) !== "viewer") {
-    return { status: "not_pdf" };
+  const kind = detectDocKind(sourceUrl.toString());
+  if (kind !== "viewer" && kind !== "other") {
+    return { status: "not_pdf", reason: "source_url_not_pdf" };
   }
 
-  const viewerResponse = await fetchWithSafeRedirects(sourceUrl.toString(), fetcher);
-  if (!viewerResponse || !viewerResponse.response.ok) {
-    await viewerResponse?.response.body?.cancel().catch(() => {});
-    return { status: "failed" };
-  }
-
-  if (!responseHeaderIsHtml(viewerResponse.response)) {
-    const prefix = await readPrefix(viewerResponse.response);
-    if (new TextDecoder().decode(prefix) === PDF_SIGNATURE) {
-      const directUrl = viewerResponse.finalUrl.toString();
+  const viewerTimeoutMs = timeouts.viewer ?? PDF_VIEWER_FETCH_TIMEOUT_MS;
+  const deadline = new AbortController();
+  const deadlineTimer = setTimeout(() => deadline.abort(), viewerTimeoutMs);
+  try {
+    const viewerResponse = await fetchWithSafeRedirects(
+      sourceUrl.toString(),
+      fetcher,
+      viewerTimeoutMs,
+      deadline.signal,
+    );
+    if (deadline.signal.aborted) {
       return {
-        status: "resolved",
-        directUrl,
-        expiresAt: pdfUrlExpiresAt(directUrl),
+        status: "unresolvable",
+        errorCode: "TIMEOUT",
+        reason: "viewer_fetch_timeout",
       };
     }
-    return { status: "not_pdf" };
-  }
-
-  const html = await readTextUpToLimit(viewerResponse.response);
-  if (html === null) return { status: "failed" };
-  const candidates = extractPdfCandidates(html, viewerResponse.finalUrl);
-  if (!candidates.length) return { status: "not_pdf" };
-
-  for (const candidate of candidates) {
-    const probe = await fetchWithSafeRedirects(candidate.toString(), fetcher, true);
-    if (!probe) continue;
-    if (![200, 206].includes(probe.response.status)) {
-      await probe.response.body?.cancel().catch(() => {});
-      continue;
+    if (!viewerResponse || !viewerResponse.response.ok) {
+      await viewerResponse?.response.body?.cancel().catch(() => {});
+      return { status: "unresolvable", reason: "viewer_page_unavailable" };
     }
-    const prefix = await readPrefix(probe.response);
-    if (new TextDecoder().decode(prefix) !== PDF_SIGNATURE) continue;
-    const directUrl = probe.finalUrl.toString();
+
+    if (!responseHeaderIsHtml(viewerResponse.response)) {
+      await viewerResponse.response.body?.cancel().catch(() => {});
+      return { status: "unresolvable", reason: "viewer_page_not_html" };
+    }
+
+    const html = await readTextUpToLimit(viewerResponse.response);
+    if (deadline.signal.aborted) {
+      return {
+        status: "unresolvable",
+        errorCode: "TIMEOUT",
+        reason: "viewer_fetch_timeout",
+      };
+    }
+    if (html === null) {
+      return { status: "unresolvable", reason: "viewer_page_too_large" };
+    }
+    const candidates = extractPdfCandidates(html, viewerResponse.finalUrl);
+    if (!candidates.length) {
+      return { status: "unresolvable", reason: "no_direct_pdf_url_found" };
+    }
+    const directUrl = candidates[0].toString();
     return {
       status: "resolved",
       directUrl,
       expiresAt: pdfUrlExpiresAt(directUrl),
     };
+  } catch (error) {
+    if (
+      deadline.signal.aborted ||
+      (error instanceof DocumentProxyError && error.code === "TIMEOUT")
+    ) {
+      return {
+        status: "unresolvable",
+        errorCode: "TIMEOUT",
+        reason: "viewer_fetch_timeout",
+      };
+    }
+    return { status: "unresolvable", reason: "viewer_fetch_failed" };
+  } finally {
+    clearTimeout(deadlineTimer);
   }
-  return { status: "not_pdf" };
 }

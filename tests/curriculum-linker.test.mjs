@@ -183,8 +183,12 @@ test("document reader uses Microsoft viewer, authenticated downloads, and viewer
   );
   assert.equal(viewerSourceContext.extractViewerSource("https://elearn.ncdc.go.ug/viewer/lesson"), null);
   assert.match(reader, /\/api\/detect-doc-kind/u);
-  assert.match(reader, /isPdfToLinkViewerUrl\(originalUrl \|\| directUrl\)/u);
-  assert.match(html, /This link opens a webpage instead of a PDF\. Ask an admin to replace it with a direct PDF link\./u);
+  assert.match(reader, /isPdfResolverViewerUrl\(resolverSourceUrl, kind\)/u);
+  assert.match(html, /This link can't open inside the app/u);
+  assert.match(html, /The file is hosted on a viewer page we can't extract\./u);
+  assert.match(html, /Download PDF/u);
+  assert.match(html, /Open Original Link/u);
+  assert.match(html, /Fix Link \(admin only\)/u);
   assert.match(reader, /Nothing rendered within 25 seconds/u);
   assert.match(reader, /25000/u);
   assert.match(reader, /api\/doc-proxy-direct/u);
@@ -212,6 +216,9 @@ test("document reader uses Microsoft viewer, authenticated downloads, and viewer
   assert.match(html, /localStorage\.setItem\(PDF_RESOLVER_CACHE_KEY/u);
   assert.match(html, /expiry <= nowSeconds \+ 300/u);
   assert.match(html, /clearStoredPdfResolverCache/u);
+  assert.match(html, /PDF_RESOLVER_CACHE_KEY = 'apshule_pdf_resolver_cache_v2'/u);
+  assert.match(html, /Math\.min\(5000, task\.deadlineAt - Date\.now\(\)\)/u);
+  assert.match(html, /fetch\(`\$\{API_BASE\}\/api\/pdf-prefetch`/u);
   assert.match(viewerFallback, /This is an external viewer page\. It will open in a new tab\./u);
   assert.match(viewerFallback, /book-reader-open-page/u);
   assert.match(reader, /kind === 'pdf'/u);
@@ -223,15 +230,25 @@ test("document reader uses Microsoft viewer, authenticated downloads, and viewer
   assert.match(reader, /kind === 'text'/u);
   assert.match(reader, /kind === 'viewer'/u);
   assert.match(reader, /renderViewerWithFallback\(media, directUrl, pdf\.title \|\| kindInfo\.label\)/u);
-  assert.match(viewerFallback, /host === 'pdftolink\.app'/u);
+  assert.match(viewerFallback, /host === 'pdftolink\.app'[\s\S]*host === 'pdftolink\.com'/u);
   assert.match(viewerFallback, /iframe\.src = safeUrl/u);
   assert.equal((html.match(/openBookReader\(\{\s*\.\.\.pdf, source_table: 'pdfs', original_url: pdf\.url \}\)/gu) || []).length, 2);
   assert.match(reader, /disableStream: true/u);
   assert.match(reader, /disableAutoFetch: true/u);
+  assert.match(reader, /await renderPdfReaderPage\(1, readerId\)/u);
+  assert.match(html, /canvas\.width = Math\.ceil\(viewport\.width \* outputScale\)/u);
+  assert.match(html, /const outputScale = Math\.min\(2, Math\.max\(1, window\.devicePixelRatio \|\| 1\)\)/u);
+  assert.match(html, /enablePdfCanvasPinchZoom/u);
+  assert.doesNotMatch(reader, /loadFromImages|for \(let pageNumber = 1/u);
+  assert.match(html, /pdfUnresolvableSummary/u);
+  assert.match(html, /manual URL replacement/u);
+  assert.match(html, /p\.resolve_reason/u);
+  assert.match(html, /isDirectPdfUrl\(url\)/u);
+  assert.doesNotMatch(html, /PageFlip|loadFromImages|page-flip\.browser/u);
 });
 
-test("the service worker uses cache v25 and claims clients on activation", async () => {
+test("the service worker uses cache v26 and claims clients on activation", async () => {
   const sw = await readFile(new URL("../sw.js", import.meta.url), "utf8");
-  assert.match(sw, /const CACHE_NAME = "apshule-cache-v25"/u);
+  assert.match(sw, /const CACHE_NAME = "apshule-cache-v26"/u);
   assert.match(sw, /await self\.clients\.claim\(\)/u);
 });
