@@ -535,6 +535,8 @@
         .book-reader-media iframe { width:100%; height:100%; min-height:0; border:0; border-radius:8px; background:#fff; }
         .book-reader-office-viewer { align-self:stretch; flex:1 1 auto; min-height:260px; width:min(100%,1200px); display:flex; }
         .book-reader-office-iframe { flex:1 1 auto; min-height:260px !important; }
+        .book-reader-inline-viewer { align-self:stretch; flex:1 1 auto; min-height:260px; width:min(100%,1200px); display:flex; flex-direction:column; gap:8px; }
+        .book-reader-inline-viewer iframe { flex:1 1 auto; min-height:260px; }
         .book-reader-media img { max-width:100%; max-height:100%; object-fit:contain; touch-action:pan-x pan-y pinch-zoom; }
         .book-reader-media video { width:100%; max-height:100%; background:#000; }
         .book-reader-media audio { width:min(100%,620px); }
@@ -1922,7 +1924,7 @@
     </header>
     <div class="book-reader-center">
         <div class="book-reader-content">
-            <div class="book-reader-loading" id="bookReaderLoading">Preparing your book…</div>
+            <div class="book-reader-loading" id="bookReaderLoading">📖 Loading...</div>
             <div class="book-reader-error" id="bookReaderError" hidden></div>
             <div class="book-flipbook" id="bookFlipbook" hidden></div>
             <div class="book-reader-media" id="bookReaderMedia" hidden></div>
@@ -3110,7 +3112,42 @@
         viewer.appendChild(fallback);
         container.appendChild(viewer);
     }
-    function renderViewerWithFallback(container, url) {
+    function renderViewerWithFallback(container, url, title = 'Document viewer') {
+        const safeUrl = safeReaderDocumentUrl(url);
+        let host = '';
+        try { host = new URL(safeUrl).hostname.toLowerCase(); } catch (_) {}
+        if (host === 'pdftolink.app') {
+            const viewer = document.createElement('div');
+            viewer.className = 'book-reader-inline-viewer';
+            const status = document.createElement('p');
+            status.className = 'book-reader-viewer-fallback';
+            status.textContent = '📖 Loading preview...';
+            const iframe = document.createElement('iframe');
+            iframe.title = `${title} preview`;
+            iframe.src = safeUrl;
+            iframe.referrerPolicy = 'no-referrer';
+            iframe.loading = 'eager';
+            iframe.allowFullscreen = true;
+            iframe.setAttribute('sandbox', 'allow-scripts allow-same-origin allow-forms allow-popups allow-downloads');
+            const fallbackTimer = window.setTimeout(() => {
+                if (!iframe.isConnected || iframe.dataset.loaded === 'true') return;
+                status.textContent = 'Could not load. Try again.';
+                appendReaderDirectLink(status, safeUrl, 'Open original page');
+            }, 10000);
+            iframe.addEventListener('load', () => {
+                iframe.dataset.loaded = 'true';
+                window.clearTimeout(fallbackTimer);
+                status.remove();
+            }, { once: true });
+            iframe.addEventListener('error', () => {
+                window.clearTimeout(fallbackTimer);
+                status.textContent = 'Could not load. Try again.';
+                appendReaderDirectLink(status, safeUrl, 'Open original page');
+            }, { once: true });
+            viewer.append(status, iframe);
+            container.appendChild(viewer);
+            return;
+        }
         const card = document.createElement('div');
         card.className = 'book-reader-external-viewer-card';
         const message = document.createElement('p');
@@ -3236,7 +3273,10 @@
         panel.appendChild(retry);
         panel.hidden = false;
     }
-    async function openBookReader(pdf) {
+    async function openBookReader(urlOrPdf, title = '', docKind = null) {
+        const pdf = typeof urlOrPdf === 'string'
+            ? { url: urlOrPdf, title, doc_kind: docKind }
+            : urlOrPdf;
         closeBookReader();
         const readerId = ++activeBookReaderId;
         currentReaderPdf = pdf;
@@ -3268,10 +3308,24 @@
         actions.replaceChildren();
         controls.hidden = true;
         updateBookReaderPages();
+        const loadTimeout = window.setTimeout(() => {
+            if (readerId !== activeBookReaderId || loading.hidden) return;
+            activeBookReaderId += 1;
+            const pendingPdf = activePdfLoadingTask;
+            activePdfLoadingTask = null;
+            if (pendingPdf?.destroy) void Promise.resolve(pendingPdf.destroy()).catch(() => {});
+            loading.hidden = true;
+            flipbook.hidden = true;
+            media.hidden = true;
+            showReaderError(new Error('Could not load. Try again.'), directUrl);
+        }, 10000);
         try {
             if (!directUrl) throw new Error('This document does not have a valid HTTP or HTTPS link.');
             let kind = pdf?.doc_kind;
-            if (!Object.hasOwn(documentReaderKinds, kind)) {
+            if (new URL(directUrl).hostname.toLowerCase() === 'pdftolink.app' &&
+                /^\/view\/[^/]+\/?$/u.test(new URL(directUrl).pathname)) {
+                kind = 'viewer';
+            } else if (!Object.hasOwn(documentReaderKinds, kind) || kind === 'other') {
                 const result = await api('/api/detect-doc-kind', { method: 'POST', body: { url: directUrl } });
                 kind = result?.kind;
             }
@@ -3290,7 +3344,7 @@
                 if (viewerSourceUrl) {
                     appendReaderFileActions(actions, viewerSourceUrl, pdf.title || kindInfo.label);
                 }
-                renderViewerWithFallback(media, directUrl);
+                renderViewerWithFallback(media, directUrl, pdf.title || kindInfo.label);
                 return;
             }
 
@@ -3321,8 +3375,8 @@
                 const loadingTask = window.pdfjsLib.getDocument({
                     url: `${API_BASE}/api/doc-proxy?url=${encodeURIComponent(directUrl)}`,
                     httpHeaders: AUTH_TOKEN ? { Authorization: `Bearer ${AUTH_TOKEN}` } : {},
-                    disableRange: true,
-                    disableStream: true
+                    disableRange: false,
+                    disableStream: false
                 });
                 activePdfLoadingTask = loadingTask;
                 const documentProxy = await loadingTask.promise;
@@ -3414,6 +3468,8 @@
             flipbook.hidden = true;
             media.hidden = true;
             showReaderError(error, directUrl);
+        } finally {
+            window.clearTimeout(loadTimeout);
         }
     }
     function closeBookReader() {
@@ -6289,7 +6345,7 @@
         document.getElementById('elibrarySearchResults')?.addEventListener('click', event => {
             const target = event.target instanceof Element ? event.target.closest('[data-library-pdf-id]') : null;
             const pdf = target && pdfMaterials.find(item => item.id === target.getAttribute('data-library-pdf-id'));
-            if (pdf) openBookReader(pdf);
+            if (pdf) void openBookReader(pdf.url, pdf.title, pdf.doc_kind);
         });
         document.getElementById('elibraryStatus')?.addEventListener('click', event => {
             const target = event.target instanceof Element ? event.target.closest('[data-elibrary-retry]') : null;
@@ -6307,7 +6363,7 @@
                 return;
             }
             const pdf = target && currentLibraryPdfs.find(item => item.id === target.getAttribute('data-library-pdf-id'));
-            if (pdf) openBookReader(pdf);
+            if (pdf) void openBookReader(pdf.url, pdf.title, pdf.doc_kind);
         });
         document.getElementById('elibraryBackToShelf')?.addEventListener('click', returnToELibraryShelf);
         document.getElementById('closeBookReader')?.addEventListener('click', closeBookReader);
