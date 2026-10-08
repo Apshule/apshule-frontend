@@ -20,6 +20,8 @@ const OTP_REQUEST_MESSAGE = "If registered, an OTP has been sent";
 const INVALID_OTP_MESSAGE = "Invalid or expired code. Request a new one.";
 const RESET_CONFIRM_ERROR = "Reset session expired. Start over.";
 const encoder = new TextEncoder();
+const TOS_VERSION = "v1.0 (2026-10-08)";
+const PRIVACY_VERSION = "v1.0 (2026-10-08)";
 
 const teacherSubjects = new Set([
   "Mathematics",
@@ -144,6 +146,9 @@ authRoutes.post("/signup", async (c) => {
   const name = requiredString(body, "name", { max: 120 });
   const email = requiredString(body, "email", { max: 254 }).toLowerCase();
   const password = requiredString(body, "password", { min: 8, max: 128 });
+  if (body.termsAccepted !== true || body.privacyAccepted !== true) {
+    throw new ApiError(400, "CONSENT_REQUIRED", "Accept the Terms of Service and Privacy Policy before creating an account.");
+  }
   const sectorValue = body.sector === undefined
     ? "education"
     : requiredString(body, "sector", { max: 50 });
@@ -233,6 +238,25 @@ authRoutes.post("/signup", async (c) => {
     if (isUniqueViolation(error)) {
       throw new ApiError(409, "EMAIL_IN_USE", "An account with this email already exists.");
     }
+    throw error;
+  }
+
+  try {
+    await sql`
+      INSERT INTO user_consent (user_id, consent_type, version, consented, ip, user_agent)
+      VALUES
+        (${user.id}, 'tos', ${TOS_VERSION}, TRUE,
+          ${c.req.header("CF-Connecting-IP") ?? c.req.header("X-Forwarded-For")?.split(",")[0]?.trim() ?? null},
+          ${c.req.header("User-Agent") ?? null}),
+        (${user.id}, 'privacy', ${PRIVACY_VERSION}, TRUE,
+          ${c.req.header("CF-Connecting-IP") ?? c.req.header("X-Forwarded-For")?.split(",")[0]?.trim() ?? null},
+          ${c.req.header("User-Agent") ?? null}),
+        (${user.id}, 'data_processing', ${PRIVACY_VERSION}, TRUE,
+          ${c.req.header("CF-Connecting-IP") ?? c.req.header("X-Forwarded-For")?.split(",")[0]?.trim() ?? null},
+          ${c.req.header("User-Agent") ?? null})
+    `;
+  } catch (error) {
+    await sql`DELETE FROM users WHERE id = ${user.id}`;
     throw error;
   }
 

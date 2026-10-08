@@ -1,6 +1,6 @@
 import { Hono } from "hono";
 import { ApiError, getDb } from "../db.js";
-import { authMiddleware, requireRole } from "../auth.js";
+import { authMiddleware, requireRealSuperAdmin, requireRole } from "../auth.js";
 import { optionalString, publicUser, readJson, requiredString } from "../http.js";
 import type { AppEnv, UserRecord } from "../types.js";
 
@@ -188,15 +188,30 @@ users.patch("/:id", authMiddleware, requireRole("superadmin"), async (c) => {
   return c.json({ user: publicUser(rows[0] as Record<string, unknown>) });
 });
 
-users.delete("/:id", authMiddleware, requireRole("superadmin"), async (c) => {
+users.delete("/:id", authMiddleware, requireRealSuperAdmin(), async (c) => {
   const userId = c.req.param("id");
   if (userId === c.get("user").id) {
     throw new ApiError(400, "SELF_DELETE_NOT_ALLOWED", "You cannot delete your own account.");
   }
   const sql = getDb(c.env);
-  const rows = await sql`DELETE FROM users WHERE id = ${userId} RETURNING id`;
-  if (!rows[0]) throw new ApiError(404, "USER_NOT_FOUND", "User account was not found.");
-  return c.json({ message: "User deleted.", id: (rows[0] as { id: string }).id });
+  const rows = await sql`
+    INSERT INTO data_deletion_requests (user_id, user_email, reason)
+    SELECT id, email, 'Requested by a Super Admin through the legacy Users endpoint'
+    FROM users WHERE id = ${userId}
+    ON CONFLICT (user_id) WHERE status IN ('pending', 'approved') DO NOTHING
+    RETURNING id, user_id, status, created_at
+  `;
+  if (!rows[0]) {
+    const existing = await sql`
+      SELECT id, user_id, status, created_at
+      FROM data_deletion_requests
+      WHERE user_id = ${userId} AND status IN ('pending', 'approved')
+      ORDER BY created_at DESC LIMIT 1
+    `;
+    if (!existing[0]) throw new ApiError(404, "USER_NOT_FOUND", "User account was not found.");
+    return c.json({ message: "An open PDPO deletion request already exists.", request: existing[0] }, 202);
+  }
+  return c.json({ message: "PDPO deletion request created. Account data will not be removed until an administrator approves and completes it.", request: rows[0] }, 202);
 });
 
 export default users;

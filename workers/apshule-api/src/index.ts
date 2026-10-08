@@ -36,6 +36,11 @@ import clinicPatientPortalRoutes from "./routes/clinic-patient-portal.js";
 import videoStudioRoutes from "./routes/video-studio.js";
 import farmRoutes from "./routes/farm.js";
 import documentRoutes from "./routes/documents.js";
+import {
+  commandCenterRouter,
+  publicAnnouncementsRouter,
+  userComplianceRouter,
+} from "./routes/command-center.js";
 import type { AppEnv, Env } from "./types.js";
 
 const app = new Hono<AppEnv>();
@@ -129,6 +134,10 @@ app.get("/api/healthz", (c) =>
   c.json({ status: "ok", service: "apshule-api" }),
 );
 app.route("/api/auth", authRoutes);
+app.route("/api/cc", commandCenterRouter);
+app.route("/api", publicAnnouncementsRouter);
+app.route("/api/consent", userComplianceRouter);
+app.route("/api/pdpo", userComplianceRouter);
 app.route("/api/users", usersRoutes);
 app.route("/api/users", userProfileRoutes);
 app.route("/api/schools", schoolsRoutes);

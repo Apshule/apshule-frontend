@@ -17,6 +17,7 @@
     <link rel="stylesheet" href="./clinic-ui.css">
     <link rel="stylesheet" href="./farm-ui.css">
     <link rel="stylesheet" href="./clinic-billing-ui.css">
+    <link rel="stylesheet" href="./command-center-ui.css">
     <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
@@ -1064,6 +1065,14 @@
                     </div>
                 </fieldset>
             </div>
+            <div class="signup-policy-consent">
+                <label><input id="signupTermsAccepted" type="checkbox" required>
+                    <span>I agree to the <a href="https://appshule.com/terms.html" target="_blank" rel="noopener">Terms of Service</a>.</span>
+                </label>
+                <label><input id="signupPrivacyAccepted" type="checkbox" required>
+                    <span>I acknowledge the <a href="https://appshule.com/privacy.html" target="_blank" rel="noopener">Privacy Policy</a>.</span>
+                </label>
+            </div>
             <button id="signupBtn" class="login-btn">Create Account</button>
         </div>
         <div id="loginError" class="error-message"></div>
@@ -1952,6 +1961,7 @@
     import { initSettingsUI } from "./settings-ui.js";
     import { initVideoStudioUI } from "./video-studio-ui.js";
     import { initFarmUI } from "./farm-ui.js";
+    import { initCommandCenterUI } from "./command-center-ui.js";
     import { createOfflineDataLayer } from "./offline-data.js";
 
     const API_BASE = "https://apshule-api.apshule-migration.workers.dev";
@@ -2016,6 +2026,7 @@
     let farmUI = null;
     let settingsUI = null;
     let videoStudioUI = null;
+    let commandCenterUI = null;
     const MFI_USER_ROLES = new Set(["mfi_admin", "loan_officer", "loan_manager", "loan_director", "borrower"]);
     const CLINIC_USER_ROLES = new Set(["clinic_admin", "doctor", "nurse", "receptionist", "pharmacist"]);
     const FARM_USER_ROLES = new Set(["farm_admin", "farm_manager", "farm_worker"]);
@@ -4239,6 +4250,7 @@
 
     async function showAppFor(user) {
         currentUser = user;
+        commandCenterUI?.setUser(user);
         settingsUI?.setUser(user);
         videoStudioUI?.setUser(user);
         const isMfiAccount = currentUser?.sector === "mfi" || MFI_USER_ROLES.has(String(currentUser?.role || "").toLowerCase());
@@ -5914,6 +5926,7 @@
         AUTH_TOKEN = null;
         localStorage.removeItem('apshule_token');
         currentUser = null;
+        commandCenterUI?.setUser(null);
         settingsUI?.setUser(null);
         videoStudioUI?.setUser(null);
         await reportCardsUI?.setUser(null);
@@ -6021,6 +6034,14 @@
             getCurrentUser: () => currentUser,
             notify: showNotification,
             escapeHtml,
+        });
+        commandCenterUI = initCommandCenterUI({
+            apiBase: API_BASE,
+            getToken: () => AUTH_TOKEN,
+            getUser: () => currentUser,
+            notify: showNotification,
+            activateSectorPanel: (sector) => activateCommandTab(sector),
+            startImpersonation: (user) => startImpersonation(user),
         });
         void loadSubscriptionPlans();
         wireTeacherDashboardEvents();
@@ -6530,10 +6551,13 @@
             const errorBox = document.getElementById('loginError');
             errorBox.className = 'error-message';
             if (!sector || !name || !email || !phone || !password || (isEducation && !isTeacher && (!educationLevel || !classLevel))) { errorBox.innerText = "Fill all required fields"; return; }
+            const termsAccepted = document.getElementById('signupTermsAccepted').checked;
+            const privacyAccepted = document.getElementById('signupPrivacyAccepted').checked;
+            if (!termsAccepted || !privacyAccepted) { errorBox.innerText = "Please accept the Terms of Service and Privacy Policy."; return; }
             if (password.length < 8) { errorBox.innerText = "Password min 8 chars"; return; }
             try {
                 const data = await api('/api/auth/signup', { method: 'POST', body: {
-                    name, email, phone, password, role, sector,
+                    name, email, phone, password, role, sector, termsAccepted, privacyAccepted,
                     educationLevel: !isEducation || isTeacher ? null : educationLevel,
                     classLevel: !isEducation || isTeacher ? null : classLevel,
                     lin: !isEducation || isTeacher ? null : (lin || null),
