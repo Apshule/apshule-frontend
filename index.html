@@ -1107,9 +1107,9 @@
             <img id="headerLogoImg" class="header-logo-img logo--responsive logo--desktop logo--tablet logo--mobile"
                  src="https://i.ibb.co/YFrCtRW8/IMG-20260328-WA0041-9.jpg"
                  alt="Logo SHU Learn">
-             <div><div class="app-title">APSHULE</div><div class="tagline">Let's Learn With Ease From Anywhere at Anytime</div><div id="schoolMotto" class="school-motto" hidden></div><div class="greeting" id="userGreeting"><span id="greetingPrefix">Hello, </span><span id="userName">Student</span>!<span id="userRoleLabel"></span></div></div>
+             <div><div class="app-title">APSHULE</div><div class="tagline" data-i18n="tagline">Let's Learn With Ease From Anywhere at Anytime</div><div id="schoolMotto" class="school-motto" hidden></div><div class="greeting" id="userGreeting"><span id="greetingPrefix">Hello, </span><span id="userName">Student</span>!<span id="userRoleLabel"></span></div></div>
         </div>
-        <div class="header-right"><button class="ai-icon-btn" id="openAIDrawerBtn"><i class="fas fa-robot"></i></button><div style="position: relative;"><button class="more-menu-btn" id="moreMenuBtn"><i class="fas fa-ellipsis-v"></i></button><div class="more-dropdown" id="moreDropdown"><div class="dropdown-item" id="attendanceMenuItem" style="display: none;"><i class="fas fa-camera"></i><span>📸 Facial Attendance</span></div><div class="dropdown-item" id="adminMenuItem" style="display: none;"><i class="fas fa-user-cog"></i><span>Admin Panel</span></div><div class="dropdown-item" id="logoutBtn"><i class="fas fa-sign-out-alt"></i><span>Logout</span></div></div></div></div>
+        <div class="header-right"><button class="ai-icon-btn" id="openAIDrawerBtn" aria-label="AI assistant"><i class="fas fa-robot"></i></button><div style="position: relative;"><button class="more-menu-btn" id="moreMenuBtn" aria-label="More" data-i18n-aria-label="more"><i class="fas fa-ellipsis-v"></i></button><div class="more-dropdown" id="moreDropdown"><div class="dropdown-item" id="attendanceMenuItem" style="display: none;"><i class="fas fa-camera"></i><span data-i18n="facial_attendance">📸 Facial Attendance</span></div><div class="dropdown-item" id="adminMenuItem" style="display: none;"><i class="fas fa-user-cog"></i><span data-i18n="admin_panel">Admin Panel</span></div><div class="dropdown-item" id="logoutBtn"><i class="fas fa-sign-out-alt"></i><span data-i18n="logout">Logout</span></div></div></div></div>
     </div>
 
     <div id="videoModal" class="video-modal"><div class="video-content" id="videoContent"><div class="video-header"><span id="videoTitle"><i class="fab fa-youtube"></i> Lesson</span><div><button id="fullscreenBtn"><i class="fas fa-expand"></i></button><button id="closeVideoBtn">&times;</button></div></div><div class="youtube-player-container"><iframe id="youtubeIframe" src="" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" allowfullscreen></iframe></div><div class="video-title" id="currentVideoTitle"></div><div class="feedback-section" id="feedbackSection"><h4>⭐ Rate this lesson</h4><div id="starRating"><i class="far fa-star" data-rating="1"></i><i class="far fa-star" data-rating="2"></i><i class="far fa-star" data-rating="3"></i><i class="far fa-star" data-rating="4"></i><i class="far fa-star" data-rating="5"></i></div><textarea id="feedbackComment" placeholder="Your feedback (optional)" rows="3"></textarea><div class="feedback-buttons"><button id="submitFeedbackBtn" class="submit-feedback">Submit & Continue</button><button id="closeFeedbackBtn" class="skip-feedback">Skip</button></div></div></div></div>
@@ -1805,11 +1805,11 @@
     </div>
 
     <div class="bottom-nav">
-        <div class="nav-item active" data-page="home"><i class="fas fa-home"></i><span>Home</span></div>
-        <div class="nav-item" data-page="mylist"><i class="fas fa-heart"></i><span>My List</span></div>
-        <div class="nav-item" data-page="notifications"><i class="fas fa-bell"></i><span>Alerts</span></div>
-        <div class="nav-item" data-page="account"><i class="fas fa-user"></i><span>Account</span></div>
-        <div class="nav-item" data-page="about"><i class="fas fa-info-circle"></i><span>About</span></div>
+        <div class="nav-item active" data-page="home"><i class="fas fa-home"></i><span data-i18n="home">Home</span></div>
+        <div class="nav-item" data-page="mylist"><i class="fas fa-heart"></i><span data-i18n="my_list">My List</span></div>
+        <div class="nav-item" data-page="notifications"><i class="fas fa-bell"></i><span data-i18n="alerts">Alerts</span></div>
+        <div class="nav-item" data-page="account"><i class="fas fa-user"></i><span data-i18n="account">Account</span></div>
+        <div class="nav-item" data-page="about"><i class="fas fa-info-circle"></i><span data-i18n="about">About</span></div>
     </div>
 </div>
 <div id="reportCardsWorkspace" class="rc-workspace" role="dialog" aria-modal="true" aria-labelledby="rcWorkspaceTitle" hidden>
@@ -1949,6 +1949,7 @@
     import { initRetoolingUI } from "./retooling-ui.js";
     import { initMfiUI } from "./mfi-ui.js";
     import { initClinicUI } from "./clinic-ui.js";
+    import { initSettingsUI } from "./settings-ui.js";
     import { initFarmUI } from "./farm-ui.js";
     import { createOfflineDataLayer } from "./offline-data.js";
 
@@ -2012,6 +2013,7 @@
     let mfiUI = null;
     let clinicUI = null;
     let farmUI = null;
+    let settingsUI = null;
     const MFI_USER_ROLES = new Set(["mfi_admin", "loan_officer", "loan_manager", "loan_director", "borrower"]);
     const CLINIC_USER_ROLES = new Set(["clinic_admin", "doctor", "nurse", "receptionist", "pharmacist"]);
     const FARM_USER_ROLES = new Set(["farm_admin", "farm_manager", "farm_worker"]);
@@ -4235,6 +4237,7 @@
 
     async function showAppFor(user) {
         currentUser = user;
+        settingsUI?.setUser(user);
         const isMfiAccount = currentUser?.sector === "mfi" || MFI_USER_ROLES.has(String(currentUser?.role || "").toLowerCase());
         const appScreen = document.getElementById('appScreen');
         appScreen.classList.remove('is-clinic-portal');
@@ -5908,6 +5911,7 @@
         AUTH_TOKEN = null;
         localStorage.removeItem('apshule_token');
         currentUser = null;
+        settingsUI?.setUser(null);
         await reportCardsUI?.setUser(null);
         await bulkImportUI?.setUser(null);
         await profileUI?.setUser(null);
@@ -5961,6 +5965,7 @@
             },
             setCurrentUser: (user) => {
                 currentUser = user;
+                settingsUI?.setUser(user);
                 void offlineData.saveSession(user);
                 updateGreeting();
                 renderImpersonationBanner(user);
@@ -5991,6 +5996,14 @@
             getCurrentUser: () => currentUser,
             notify: showNotification,
             escapeHtml,
+        });
+        settingsUI = initSettingsUI({
+            api,
+            apiBase: API_BASE,
+            getCurrentUser: () => currentUser,
+            idb: window.idb,
+            offlineData,
+            notify: showNotification,
         });
         farmUI = initFarmUI({
             api,

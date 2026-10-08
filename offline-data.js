@@ -347,6 +347,7 @@ export function createOfflineDataLayer(options) {
         const headers = { "Content-Type": "application/json" };
         if (auth && requestToken) headers.Authorization = `Bearer ${requestToken}`;
         if (operationId) headers["Idempotency-Key"] = operationId;
+        if (globalThis.__APSHULE_SAVE_DATA_ACTIVE === true) headers["Save-Data"] = "on";
 
         const response = await fetchImpl(`${apiBase}${path}`, {
             method,
@@ -673,6 +674,7 @@ export function createOfflineDataLayer(options) {
             return { skipped: true, reason: "The account must be verified online before syncing." };
         }
 
+        const syncStartedAt = Date.now();
         queueClaimSequence += 1;
         const claimId = `${userId}:${Date.now()}:${queueClaimSequence}`;
         const queue = (await idb.queueAll())
@@ -796,6 +798,32 @@ export function createOfflineDataLayer(options) {
         }
 
         await notifyQueueState();
+        if (getToken?.() === token && isOnline()) {
+            try {
+                await performRequest(
+                    "/api/user/sync-history",
+                    {
+                        method: "POST",
+                        auth: true,
+                        body: {
+                            sync_type: "offline_queue",
+                            items_synced: synced,
+                            items_failed: failed + conflicts,
+                            duration_ms: Math.max(0, Date.now() - syncStartedAt),
+                            triggered_by: force ? "manual" : "automatic",
+                            error_summary: failed || conflicts
+                                ? `${conflicts} conflicted, ${failed} failed`
+                                : null,
+                        },
+                    },
+                    null,
+                    null,
+                    token,
+                );
+            } catch {
+                console.warn("[Offline] Sync history could not be recorded.");
+            }
+        }
         return { synced, conflicts, failed, skipped: false };
     }
 
