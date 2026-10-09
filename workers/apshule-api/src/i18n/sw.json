@@ -39,5 +39,15 @@
   "use_image_url": "Tumia URL",
   "try_pixabay_again": "Jaribu Pixabay tena",
   "image_url_invalid": "Weka URL halali ya HTTP au HTTPS ya picha.",
-  "image_attached": "Picha ya ndani imeambatanishwa na tukio hili."
+  "image_attached": "Picha ya ndani imeambatanishwa na tukio hili.",
+  "elibrary_title_en": "SHULE E-LIBRARY",
+  "elibrary_title_lg": "SHULE E-LIBRARY",
+  "reader_spread_toggle": "Switch page layout",
+  "reader_single_page": "Single Page",
+  "reader_two_page_spread": "Two-Page Spread",
+  "reader_zoom_decrease": "Zoom out",
+  "reader_zoom_increase": "Zoom in",
+  "reader_zoom_slider": "Zoom level",
+  "reader_more_actions": "More document actions",
+  "reader_download_progress": "Downloading PDF · {loaded} of {total}"
 }

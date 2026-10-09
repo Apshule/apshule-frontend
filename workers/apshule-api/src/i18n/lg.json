@@ -132,5 +132,15 @@
   "use_image_url": "Kozesa URL",
   "try_pixabay_again": "Ddamu ogezeeko Pixabay",
   "image_url_invalid": "Teekamu HTTP oba HTTPS URL entuufu ey'ekifaananyi.",
-  "image_attached": "Ekifaananyi ekiterekeddwa mu scene."
+  "image_attached": "Ekifaananyi ekiterekeddwa mu scene.",
+  "elibrary_title_lg": "SHULE E-LIBRARY",
+  "elibrary_title_en": "SHULE E-LIBRARY",
+  "reader_spread_toggle": "Kyusa engeri y'okulaga empapula",
+  "reader_single_page": "Olupapula lumu",
+  "reader_two_page_spread": "Empapula bbiri",
+  "reader_zoom_decrease": "Kendeeza okuzimba",
+  "reader_zoom_increase": "Yongera okuzimba",
+  "reader_zoom_slider": "Omutindo gw'okuzimba",
+  "reader_more_actions": "Ebikolwa ebirala",
+  "reader_download_progress": "PDF eri kuwanulibwa · {loaded} ku {total}"
 }

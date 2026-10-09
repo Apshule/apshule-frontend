@@ -542,6 +542,39 @@ test("doc-proxy returns a CORS-enabled, one-hour cached response and pdf-proxy i
   }
 });
 
+test("doc-proxy forwards PDF byte ranges and preserves partial response headers", async () => {
+  const originalFetch = globalThis.fetch;
+  let forwardedRange = null;
+  globalThis.fetch = async (_input, init) => {
+    forwardedRange = new Headers(init?.headers).get("Range");
+    return new Response("page-data", {
+      status: 206,
+      headers: {
+        "Accept-Ranges": "bytes",
+        "Content-Length": "9",
+        "Content-Range": "bytes 10-18/2048",
+        "Content-Type": "application/pdf",
+      },
+    });
+  };
+
+  try {
+    const url = "https://files.example.com/book.pdf";
+    const response = await app.request(
+      `/api/doc-proxy?url=${encodeURIComponent(url)}`,
+      { headers: { ...authHeaders, Range: "bytes=10-18" } },
+    );
+    assert.equal(forwardedRange, "bytes=10-18");
+    assert.equal(response.status, 206);
+    assert.equal(response.headers.get("Accept-Ranges"), "bytes");
+    assert.equal(response.headers.get("Content-Length"), "9");
+    assert.equal(response.headers.get("Content-Range"), "bytes 10-18/2048");
+    assert.equal(await response.text(), "page-data");
+  } finally {
+    globalThis.fetch = originalFetch;
+  }
+});
+
 test("doc-proxy-link issues an encrypted temporary URL that works without a JWT", async () => {
   const originalFetch = globalThis.fetch;
   let fetchedUrl = null;

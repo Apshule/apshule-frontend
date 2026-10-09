@@ -5,8 +5,12 @@ import { readFile } from "node:fs/promises";
 const html = await readFile(new URL("../index.html", import.meta.url), "utf8");
 const sw = await readFile(new URL("../sw.js", import.meta.url), "utf8");
 const settings = await readFile(new URL("../settings-ui.js", import.meta.url), "utf8");
+const localeCodes = ["en", "lg", "xog", "nyn", "nyo", "ach", "sw"];
+const localeDictionaries = await Promise.all(localeCodes.map(async code =>
+  JSON.parse(await readFile(new URL(`../workers/apshule-api/src/i18n/${code}.json`, import.meta.url), "utf8"))
+));
 
-test("the reader exposes the requested translated modes, zoom presets, and page controls", () => {
+test("the reader exposes translated book, spread, zoom, and page controls", () => {
   for (const key of [
     "reader_book_mode",
     "reader_scroll_mode",
@@ -16,6 +20,12 @@ test("the reader exposes the requested translated modes, zoom presets, and page 
     "reader_go_to_page",
     "reader_top",
     "reader_page_of",
+    "reader_spread_toggle",
+    "reader_single_page",
+    "reader_zoom_decrease",
+    "reader_zoom_increase",
+    "reader_zoom_slider",
+    "reader_more_actions",
   ]) {
     assert.match(html, new RegExp(`data-i18n(?:-aria-label)?="${key}"`, "u"));
   }
@@ -23,7 +33,11 @@ test("the reader exposes the requested translated modes, zoom presets, and page 
   assert.match(html, /id="bookReaderZoom"/u);
   assert.match(html, /id="bookReaderPageJump"/u);
   assert.match(html, /id="bookReaderTop"/u);
-  assert.match(html, /apshuleTranslate\('reader_page_of', fallback, \{ current, total: count \}\)/u);
+  assert.match(html, /id="bookReaderLayoutToggle"/u);
+  assert.match(html, /reader_two_page_spread/u);
+  assert.match(html, /id="bookReaderZoom" min="0" max="100"/u);
+  assert.match(html, /id="bookReaderMoreMenu"/u);
+  assert.match(html, /window\.apshuleTranslate\('reader_page_of', fallback, \{ current: currentLabel, total: count \}\)/u);
 });
 
 test("Book remains the default, and mode and zoom preferences persist", () => {
@@ -32,8 +46,11 @@ test("Book remains the default, and mode and zoom preferences persist", () => {
   assert.match(html, /let pdfReaderMode = 'book'/u);
   assert.match(html, /readPdfReaderSetting\(PDF_READER_MODE_KEY, 'book', \['book', 'scroll'\]\)/u);
   assert.match(html, /localStorage\.setItem\(PDF_READER_MODE_KEY, pdfReaderMode\)/u);
-  assert.match(html, /localStorage\.setItem\(PDF_READER_ZOOM_KEY, zoom\)/u);
+  assert.match(html, /localStorage\.setItem\(PDF_READER_ZOOM_KEY, nextMode\)/u);
+  assert.match(html, /localStorage\.setItem\(PDF_READER_ZOOM_LEVEL_KEY, String\(nextLevel\)\)/u);
   assert.match(html, /function togglePdfReaderMode\(\)/u);
+  assert.match(html, /function togglePdfReaderLayout\(\)/u);
+  assert.match(html, /let pdfReaderBookLayout = window\.innerWidth < 600 \? 'single' : 'spread'/u);
   assert.match(html, /function jumpToPdfReaderPage\(pageNumber\)/u);
 });
 
@@ -60,8 +77,30 @@ test("the reader saves per-document progress and offline page snapshots without 
   assert.match(html, /isR2DocumentUrl\(directUrl\)\s*\?\s*directUrl\s*:/u);
   assert.match(html, /\/api\/doc-proxy-direct\?url=\$\{encodeURIComponent\(directUrl\)\}/u);
   assert.match(html, /disableRange: false/u);
+  assert.match(html, /disableStream: false/u);
+  assert.match(html, /disableAutoFetch: false/u);
   assert.match(html, /rangeChunkSize: 65536/u);
   assert.match(html, /appendReaderFileActions\(actions, directUrl/u);
+});
+
+test("every supported language has the reader controls and streaming progress keys", () => {
+  const keys = [
+    "elibrary_title_en",
+    "elibrary_title_lg",
+    "reader_spread_toggle",
+    "reader_single_page",
+    "reader_two_page_spread",
+    "reader_zoom_decrease",
+    "reader_zoom_increase",
+    "reader_zoom_slider",
+    "reader_more_actions",
+    "reader_download_progress",
+  ];
+  for (const [index, dictionary] of localeDictionaries.entries()) {
+    for (const key of keys) {
+      assert.equal(typeof dictionary[key], "string", `${localeCodes[index]} is missing ${key}`);
+    }
+  }
 });
 
 test("dynamic reader labels use the shared translation function and refresh on language changes", () => {
@@ -70,16 +109,18 @@ test("dynamic reader labels use the shared translation function and refresh on l
   assert.match(settings, /apshule:language-changed/u);
 });
 
-test("page retry, mode-specific keyboard controls, Book swipes, and double-tap zoom are wired", () => {
+test("page retry, keyboard controls, Book tap zones, swipe navigation, and pinch zoom are wired", () => {
   assert.match(html, /data-pdf-page-retry/u);
   assert.match(html, /reader_page_failed/u);
   assert.match(html, /event\.key === 'ArrowLeft' \|\| event\.key === 'ArrowRight'/u);
   assert.match(html, /\['PageUp', 'PageDown', ' ', 'Spacebar'\]/u);
   assert.match(html, /deltaX < 0 \? 1 : -1/u);
-  assert.match(html, /now - pdfScrollLastTapAt < 320/u);
+  assert.match(html, /fraction < 0\.3/u);
+  assert.match(html, /reader-controls-hidden/u);
+  assert.match(html, /enablePdfCanvasPinchZoom\(canvas, container\)/u);
   assert.match(html, /reader_top/u);
 });
 
 test("the service worker advances its cache namespace for the reader update", () => {
-  assert.match(sw, /const CACHE_NAME = "apshule-cache-v29"/u);
+  assert.match(sw, /const CACHE_NAME = "apshule-cache-v30"/u);
 });

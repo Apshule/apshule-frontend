@@ -39,5 +39,15 @@
   "use_image_url": "Use URL",
   "try_pixabay_again": "Try Pixabay again",
   "image_url_invalid": "Enter a valid HTTP or HTTPS image URL.",
-  "image_attached": "Local image is attached to this scene."
+  "image_attached": "Local image is attached to this scene.",
+  "elibrary_title_en": "SHULE E-LIBRARY",
+  "elibrary_title_lg": "SHULE E-LIBRARY",
+  "reader_spread_toggle": "Switch page layout",
+  "reader_single_page": "Single Page",
+  "reader_two_page_spread": "Two-Page Spread",
+  "reader_zoom_decrease": "Zoom out",
+  "reader_zoom_increase": "Zoom in",
+  "reader_zoom_slider": "Zoom level",
+  "reader_more_actions": "More document actions",
+  "reader_download_progress": "Downloading PDF · {loaded} of {total}"
 }
