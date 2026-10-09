@@ -71,15 +71,15 @@ content.get("/pdfs", async (c) => {
   }
   const rows = requestedClassLevel
     ? await sql`
-        SELECT id, title, url, doc_kind, class_level, cover_color, display_order,
-               resolve_status, resolve_reason, resolved_at, created_at
+        SELECT id, title, url, doc_kind, class_level, subject, cover_color, display_order,
+               storage_type, file_size, mime_type, resolve_status, resolve_reason, resolved_at, created_at
         FROM pdfs
         WHERE class_level = ${requestedClassLevel}
         ORDER BY display_order ASC, created_at DESC
       `
     : await sql`
-        SELECT id, title, url, doc_kind, class_level, cover_color, display_order,
-               resolve_status, resolve_reason, resolved_at, created_at
+        SELECT id, title, url, doc_kind, class_level, subject, cover_color, display_order,
+               storage_type, file_size, mime_type, resolve_status, resolve_reason, resolved_at, created_at
         FROM pdfs
         ORDER BY display_order ASC, created_at DESC
       `;
@@ -112,7 +112,8 @@ content.get("/pdfs/:id", authMiddleware, requireRealSuperAdmin(), async (c) => {
   const sql = getDb(c.env);
   const rows = await sql`
     SELECT id, title, url, resolved_pdf_url, doc_kind, class_level, cover_color,
-           display_order, resolve_status, resolve_reason, resolved_at, created_at
+           display_order, subject, storage_type, r2_key, file_size, mime_type,
+           resolve_status, resolve_reason, resolved_at, created_at
     FROM pdfs
     WHERE id = ${c.req.param("id")}
     LIMIT 1
@@ -157,19 +158,42 @@ content.patch("/pdfs/:id", authMiddleware, requireRole("superadmin"), async (c) 
         class_level = CASE WHEN ${hasClassLevel} THEN ${classLevel} ELSE class_level END,
         cover_color = CASE WHEN ${hasCoverColor} THEN ${coverColor} ELSE cover_color END,
         display_order = CASE WHEN ${hasDisplayOrder} THEN ${displayOrder} ELSE display_order END
-    WHERE id = ${c.req.param("id")}
+     WHERE id = ${c.req.param("id")}
+       AND (NOT ${hasUrl} OR COALESCE(storage_type, 'url') <> 'r2')
     RETURNING id, title, url, resolved_pdf_url, doc_kind, class_level, cover_color, display_order,
               resolve_status, resolve_reason, resolved_at, created_at
   `;
-  if (!rows[0]) throw new ApiError(404, "PDF_NOT_FOUND", "Document was not found.");
+  if (!rows[0]) {
+    const existing = await sql`
+      SELECT storage_type FROM pdfs WHERE id = ${c.req.param("id")} LIMIT 1
+    `;
+    if (hasUrl && (existing[0] as { storage_type?: string } | undefined)?.storage_type === "r2") {
+      throw new ApiError(
+        409,
+        "R2_FILE_IMMUTABLE",
+        "Upload a replacement file through the document upload flow instead.",
+      );
+    }
+    throw new ApiError(404, "PDF_NOT_FOUND", "Document was not found.");
+  }
   return c.json({ pdf: rows[0] });
 });
 
 content.delete("/pdfs/:id", authMiddleware, requireRole("superadmin"), async (c) => {
   const sql = getDb(c.env);
-  const rows = await sql`DELETE FROM pdfs WHERE id = ${c.req.param("id")} RETURNING id`;
-  if (!rows[0]) throw new ApiError(404, "PDF_NOT_FOUND", "Document was not found.");
-  return c.json({ message: "Document deleted.", id: (rows[0] as { id: string }).id });
+  const rows = await sql`
+    SELECT id, storage_type, r2_key FROM pdfs WHERE id = ${c.req.param("id")} LIMIT 1
+  `;
+  const row = rows[0] as { id: string; storage_type?: string | null; r2_key?: string | null } | undefined;
+  if (!row) throw new ApiError(404, "PDF_NOT_FOUND", "Document was not found.");
+  if (row.storage_type === "r2") {
+    if (!row.r2_key || !c.env.DOCS_BUCKET) {
+      throw new ApiError(503, "R2_NOT_CONFIGURED", "Document storage is not configured.");
+    }
+    await c.env.DOCS_BUCKET.delete(row.r2_key);
+  }
+  await sql`DELETE FROM pdfs WHERE id = ${row.id}`;
+  return c.json({ message: "Document deleted.", id: row.id });
 });
 
 content.get("/video-mappings", async (c) => {

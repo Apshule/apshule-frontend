@@ -8,6 +8,12 @@ APP_URL = "https://appshule.com"
 RESEND_FROM_EMAIL = "noreply@appshule.com"
 RESEND_FROM_NAME = "APSHULE"
 
+[[r2_buckets]]
+binding = "DOCS_BUCKET"
+bucket_name = "appshule-docs"
+
+# Future R2 buckets (not bound): appshule-videos, appshule-recordings
+
 [triggers]
 crons = ["0 2 * * *"]
 

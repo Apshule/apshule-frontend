@@ -1,5 +1,6 @@
 export interface Env {
   DATABASE_URL?: string;
+  DOCS_BUCKET?: R2Bucket;
   JWT_SECRET?: string;
   RESEND_API_KEY?: string;
   RESEND_FROM_EMAIL?: string;

@@ -18,6 +18,32 @@ app.route("/api", contentRoutes);
 
 const authHeaders = { authorization: "Bearer test-token" };
 
+function createR2Bucket() {
+  const objects = new Map();
+  return {
+    objects,
+    async put(key, value, options) {
+      const bytes = value instanceof Uint8Array
+        ? new Uint8Array(value)
+        : new Uint8Array(await new Response(value).arrayBuffer());
+      objects.set(key, { bytes, options, stream: value instanceof ReadableStream });
+    },
+    async get(key, options) {
+      const stored = objects.get(key);
+      if (!stored) return null;
+      const start = options?.range?.offset ?? 0;
+      const end = options?.range
+        ? start + options.range.length
+        : stored.bytes.length;
+      const bytes = stored.bytes.slice(start, end);
+      return { body: new Response(bytes).body, size: stored.bytes.length };
+    },
+    async delete(key) {
+      objects.delete(key);
+    },
+  };
+}
+
 function createPdfResolverSql({ pdfRows = [], remaining = 0 } = {}) {
   const calls = [];
   const sql = async (strings, ...values) => {
@@ -45,6 +71,157 @@ test("document routes require an authenticated user", async () => {
     `/api/doc-proxy?url=${encodeURIComponent("https://files.example.com/book.pdf")}`,
   );
   assert.equal(proxyResponse.status, 401);
+});
+
+test("document upload stores a validated PDF in R2 and inserts an R2-backed row", async () => {
+  const bucket = createR2Bucket();
+  let insertQuery = "";
+  let insertValues = [];
+  const sql = async (strings, ...values) => {
+    insertQuery = strings.join(" ").replace(/\s+/gu, " ").trim();
+    insertValues = values;
+    return [{ id: values[0] }];
+  };
+  const form = new FormData();
+  form.set("file", new File(["%PDF-1.7\nsample"], "lesson.pdf", { type: "application/pdf" }));
+  form.set("title", "Lesson PDF");
+  form.set("class_level", "Primary 4");
+  form.set("subject", "Science");
+
+  const response = await app.request(
+    "/api/docs/upload",
+    { method: "POST", headers: authHeaders, body: form },
+    { DOCS_BUCKET: bucket, __sql: sql },
+  );
+  assert.equal(response.status, 201);
+  const body = await response.json();
+  assert.equal(body.ok, true);
+  assert.equal(body.title, "Lesson PDF");
+  assert.equal(body.mime_type, "application/pdf");
+  assert.match(insertQuery, /storage_type/u);
+  assert.match(insertQuery, /'r2'/u);
+  assert.ok(insertValues.some((value) => typeof value === "string" && value.startsWith("docs/public/")));
+  assert.equal(bucket.objects.size, 1);
+  assert.equal([...bucket.objects.values()][0].stream, true);
+  assert.deepEqual([...bucket.objects.values()][0].options.httpMetadata, { contentType: "application/pdf" });
+});
+
+test("document upload rejects unsupported extensions and oversized files before R2 writes", async () => {
+  const bucket = createR2Bucket();
+  const unsupported = new FormData();
+  unsupported.set("file", new File(["hello"], "payload.exe", { type: "application/octet-stream" }));
+  unsupported.set("title", "Not allowed");
+  const unsupportedResponse = await app.request(
+    "/api/docs/upload",
+    { method: "POST", headers: authHeaders, body: unsupported },
+    { DOCS_BUCKET: bucket, __sql: async () => [] },
+  );
+  assert.equal(unsupportedResponse.status, 415);
+
+  const oversized = new FormData();
+  oversized.set("file", new File([new Uint8Array(20 * 1024 * 1024 + 1)], "large.pdf", { type: "application/pdf" }));
+  oversized.set("title", "Too large");
+  const oversizedResponse = await app.request(
+    "/api/docs/upload",
+    { method: "POST", headers: authHeaders, body: oversized },
+    { DOCS_BUCKET: bucket, __sql: async () => [] },
+  );
+  assert.equal(oversizedResponse.status, 413);
+  assert.equal(bucket.objects.size, 0);
+});
+
+test("R2 document file route streams byte ranges with the expected headers", async () => {
+  const bytes = new TextEncoder().encode("%PDF-1.7\npage-data");
+  const bucket = createR2Bucket();
+  await bucket.put("docs/public/lesson.pdf", bytes, {});
+  const sql = async () => [{
+    id: "00000000-0000-4000-8000-000000000001",
+    title: "Lesson",
+    url: "https://api.example.test/api/docs/file/00000000-0000-4000-8000-000000000001",
+    storage_type: "r2",
+    r2_key: "docs/public/lesson.pdf",
+    file_size: bytes.length,
+    mime_type: "application/pdf",
+  }];
+  const response = await app.request(
+    "/api/docs/file/00000000-0000-4000-8000-000000000001",
+    { headers: { ...authHeaders, Range: "bytes=2-5" } },
+    { DOCS_BUCKET: bucket, __sql: sql },
+  );
+  assert.equal(response.status, 206);
+  assert.equal(response.headers.get("Content-Range"), `bytes 2-5/${bytes.length}`);
+  assert.equal(response.headers.get("Content-Length"), "4");
+  assert.equal(response.headers.get("Accept-Ranges"), "bytes");
+  assert.equal(response.headers.get("Content-Type"), "application/pdf");
+  assert.deepEqual([...new Uint8Array(await response.arrayBuffer())], [...bytes.slice(2, 6)]);
+});
+
+test("legacy URL documents redirect from the file route without changing their stored link", async () => {
+  const sql = async () => [{
+    id: "00000000-0000-4000-8000-000000000002",
+    title: "Legacy PDF",
+    url: "https://files.example.test/book.pdf",
+    storage_type: "url",
+  }];
+  const response = await app.request(
+    "/api/docs/file/00000000-0000-4000-8000-000000000002",
+    { headers: authHeaders },
+    { __sql: sql },
+  );
+  assert.equal(response.status, 302);
+  const location = new URL(response.headers.get("Location"));
+  assert.equal(location.pathname, "/api/doc-proxy");
+  assert.equal(location.searchParams.get("url"), "https://files.example.test/book.pdf");
+});
+
+test("R2 deletion removes the object and its PDF row", async () => {
+  const bucket = createR2Bucket();
+  await bucket.put("docs/public/delete.pdf", new Uint8Array([1, 2, 3]), {});
+  const statements = [];
+  const sql = async (strings) => {
+    const query = strings.join(" ").replace(/\s+/gu, " ").trim();
+    statements.push(query);
+    if (query.startsWith("SELECT id, storage_type, r2_key")) {
+      return [{ id: "00000000-0000-4000-8000-000000000003", storage_type: "r2", r2_key: "docs/public/delete.pdf" }];
+    }
+    return [];
+  };
+  const response = await app.request(
+    "/api/docs/00000000-0000-4000-8000-000000000003",
+    { method: "DELETE", headers: { ...authHeaders, "x-test-role": "superadmin" } },
+    { DOCS_BUCKET: bucket, __sql: sql },
+  );
+  assert.equal(response.status, 200);
+  assert.equal(bucket.objects.size, 0);
+  assert.ok(statements.some((query) => query.startsWith("DELETE FROM pdfs")));
+});
+
+test("bulk migration accepts omitted IDs and only selects bounded URL documents", async () => {
+  let query = "";
+  let limitValue = null;
+  const sql = async (strings, ...values) => {
+    query = strings.join(" ").replace(/\s+/gu, " ").trim();
+    limitValue = values.at(-1);
+    return [];
+  };
+  const response = await app.request(
+    "/api/docs/migrate-to-r2",
+    {
+      method: "POST",
+      headers: {
+        ...authHeaders,
+        "content-type": "application/json",
+        "x-test-role": "superadmin",
+      },
+      body: JSON.stringify({}),
+    },
+    { DOCS_BUCKET: createR2Bucket(), __sql: sql },
+  );
+  assert.equal(response.status, 200);
+  assert.match(query, /COALESCE\(storage_type, 'url'\) <> 'r2'/u);
+  assert.match(query, /LIMIT$/u);
+  assert.equal(limitValue, 25);
+  assert.deepEqual(await response.json(), { migrated: 0, failed: 0, results: [] });
 });
 
 test("PDF prefetch is authenticated and caches direct PDF mappings", async () => {
@@ -263,6 +440,32 @@ test("saving a direct HTTPS PDF URL resolves only the edited record immediately"
   assert.match(updateQuery, /resolved_pdf_url = CASE WHEN/u);
   assert.ok(updateValues.includes(directUrl));
   assert.equal((await response.json()).pdf.resolve_status, "resolved");
+});
+
+test("legacy URL edits cannot detach an R2 document from its stored object", async () => {
+  const queries = [];
+  const sql = async (strings) => {
+    const query = strings.join(" ").replace(/\s+/gu, " ").trim();
+    queries.push(query);
+    if (query.startsWith("SELECT storage_type")) return [{ storage_type: "r2" }];
+    return [];
+  };
+  const response = await app.request(
+    "/api/pdfs/pdf-1",
+    {
+      method: "PATCH",
+      headers: {
+        ...authHeaders,
+        "content-type": "application/json",
+        "x-test-role": "superadmin",
+      },
+      body: JSON.stringify({ url: "https://files.example.com/replacement.pdf" }),
+    },
+    { __sql: sql },
+  );
+  assert.equal(response.status, 409);
+  assert.equal((await response.json()).code, "R2_FILE_IMMUTABLE");
+  assert.match(queries[0], /COALESCE\(storage_type, 'url'\) <> 'r2'/u);
 });
 
 test("POST detect-doc-kind returns the server classification for authenticated users", async () => {

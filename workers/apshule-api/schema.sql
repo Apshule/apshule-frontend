@@ -132,13 +132,19 @@ ALTER TABLE pdfs
   ADD COLUMN IF NOT EXISTS class_level VARCHAR(30) DEFAULT 'unassigned',
   ADD COLUMN IF NOT EXISTS cover_color VARCHAR(20) DEFAULT '#FF8C42',
   ADD COLUMN IF NOT EXISTS display_order INT DEFAULT 0,
+  ADD COLUMN IF NOT EXISTS subject TEXT,
   ADD COLUMN IF NOT EXISTS doc_kind TEXT,
+  ADD COLUMN IF NOT EXISTS storage_type TEXT DEFAULT 'url',
+  ADD COLUMN IF NOT EXISTS r2_key TEXT,
+  ADD COLUMN IF NOT EXISTS file_size INT,
+  ADD COLUMN IF NOT EXISTS mime_type TEXT,
   ADD COLUMN IF NOT EXISTS resolved_pdf_url TEXT,
   ADD COLUMN IF NOT EXISTS resolve_status TEXT DEFAULT 'unresolved',
   ADD COLUMN IF NOT EXISTS resolved_at TIMESTAMPTZ,
   ADD COLUMN IF NOT EXISTS resolve_reason TEXT;
 UPDATE pdfs SET class_level = 'unassigned' WHERE class_level IS NULL;
 CREATE INDEX IF NOT EXISTS idx_pdfs_class ON pdfs(class_level);
+CREATE INDEX IF NOT EXISTS idx_pdfs_storage_type ON pdfs(storage_type);
 
 CREATE TABLE IF NOT EXISTS video_mappings (
   id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
