@@ -568,15 +568,25 @@
         .add-pdf-form select { width:100%; margin:5px 0; padding:8px; border:1px solid #ccc; border-radius:20px; background:#fff; color:#302942; }
         .book-reader { display:none; position:fixed; inset:0; z-index:6000; flex-direction:column; background:#191821; color:#fff; }
         .book-reader.show { display:flex; }
-        .book-reader-topbar { min-height:58px; display:flex; align-items:center; gap:12px; padding:10px 14px; background:#292733; }
+        .book-reader-topbar { min-height:58px; display:flex; align-items:center; gap:10px; padding:10px 14px; background:#292733; }
         .book-reader-topbar button, .book-reader-controls button { border:0; border-radius:9px; background:#413e4b; color:#fff; cursor:pointer; font:inherit; }
         .book-reader-close { flex:none; padding:9px 11px; font-size:13px !important; font-weight:700 !important; }
         .book-reader-title-wrap { flex:1; min-width:0; display:flex; align-items:center; justify-content:center; gap:8px; overflow:hidden; }
         .book-reader-title-icon { flex:none; font-size:18px; }
         .book-reader-title { overflow:hidden; font-size:14px; font-weight:700; text-align:center; text-overflow:ellipsis; white-space:nowrap; }
         .book-reader-night { width:40px; height:40px; flex:none; font-size:17px !important; }
+        .book-reader-toolbar { flex:none; display:flex; align-items:center; justify-content:flex-end; flex-wrap:wrap; gap:7px; }
+        .book-reader-toolbar button { min-height:38px; padding:7px 10px; font-size:12px; font-weight:700; white-space:nowrap; }
+        .book-reader-toolbar button[aria-pressed="true"] { background:#5e5573; box-shadow:inset 0 0 0 1px #a59ab9; }
+        .book-reader-toolbar select, .book-reader-page-jump input { min-height:38px; max-width:126px; padding:6px 8px; border:1px solid #625e6c; border-radius:9px; background:#413e4b; color:#fff; font:inherit; font-size:12px; }
+        .book-reader-page-jump { display:flex; align-items:center; gap:5px; color:#dedbe4; font-size:11px; white-space:nowrap; }
+        .book-reader-page-jump input { width:60px; max-width:60px; text-align:center; }
+        .book-reader-render-progress { flex:none; display:flex; align-items:center; gap:8px; min-height:22px; padding:2px 14px; background:#292733; color:#d9d6e0; font-size:10px; }
+        .book-reader-render-progress[hidden] { display:none !important; }
+        .book-reader-render-progress progress { width:100%; height:3px; border:0; border-radius:999px; accent-color:#ff8c42; }
+        .book-reader-render-label { flex:none; min-width:108px; text-align:right; }
         .book-reader-center { flex:1; min-height:0; display:flex; align-items:center; justify-content:center; padding:12px; overflow:hidden; }
-        .book-reader-content { width:100%; height:100%; display:flex; flex-direction:column; align-items:center; justify-content:center; }
+        .book-reader-content { width:100%; height:100%; min-height:0; display:flex; flex-direction:column; align-items:center; justify-content:center; }
         .book-reader-loading, .book-reader-error { max-width:440px; padding:22px; border-radius:15px; background:#292733; color:#eee; text-align:center; line-height:1.5; }
         .book-reader-loading { display:flex; flex-direction:column; align-items:center; gap:12px; }
         .book-reader-loading[data-state="resolving"] { border:1px solid #6b6877; color:#d6d2df; }
@@ -591,6 +601,17 @@
         .book-reader-error a, .book-reader-media a { color:#ffd0a8; text-decoration:underline; overflow-wrap:anywhere; }
         .book-flipbook { width:min(100%,1000px); height:100%; min-height:0; overflow:auto; overscroll-behavior:contain; display:flex; align-items:flex-start; justify-content:center; touch-action:pan-y; }
         .book-flipbook canvas { display:block; max-width:none; flex:none; background:#fff; box-shadow:0 4px 22px rgba(0,0,0,.35); touch-action:pan-x pan-y; }
+        .book-reader-scroll { width:min(100%,1000px); height:100%; min-height:0; overflow-y:auto; overflow-x:hidden; overscroll-behavior:contain; padding:8px; background:#1a1a2e; touch-action:pan-y pinch-zoom; -webkit-overflow-scrolling:touch; }
+        .book-reader-scroll[hidden] { display:none !important; }
+        .book-reader-scroll-offline { position:sticky; z-index:1; top:0; margin:0 auto 8px; padding:7px 10px; border:1px solid #4c755f; border-radius:9px; background:#1e3b2d; color:#d8f3e2; font-size:12px; text-align:center; }
+        .pdf-scroll-page { position:relative; width:100%; max-width:1000px; min-height:200px; margin:0 auto 12px; overflow:hidden; aspect-ratio:.77; border-radius:3px; background:#292733; box-shadow:0 4px 22px rgba(0,0,0,.3); }
+        .pdf-scroll-page canvas, .pdf-scroll-page img { display:block; width:100%; height:auto; max-width:none; background:#fff; }
+        .pdf-scroll-page canvas[hidden], .pdf-scroll-page img[hidden] { display:none !important; }
+        .pdf-scroll-page-status { position:absolute; inset:0; display:flex; flex-direction:column; align-items:center; justify-content:center; gap:9px; padding:20px; color:#eee; font-size:13px; text-align:center; }
+        .pdf-scroll-page-status[hidden] { display:none !important; }
+        .pdf-scroll-page-status button { padding:7px 11px; border:0; border-radius:8px; background:#ff8c42; color:#fff; font:inherit; font-weight:700; cursor:pointer; }
+        .pdf-scroll-page-number { position:absolute; z-index:1; top:8px; right:8px; padding:5px 8px; border-radius:999px; background:rgba(20,19,27,.78); color:#fff; font-size:11px; font-weight:700; pointer-events:none; }
+        .book-reader.night-mode .book-reader-scroll canvas, .book-reader.night-mode .book-reader-scroll img { filter:invert(1) hue-rotate(180deg); }
         .book-reader-media { width:min(100%,1200px); height:100%; min-height:0; display:flex; flex-direction:column; align-items:center; justify-content:center; gap:12px; overflow:auto; }
         .book-reader-media[hidden], .book-reader-controls[hidden] { display:none !important; }
         .book-reader-media iframe { width:100%; height:100%; min-height:0; border:0; border-radius:8px; background:#fff; }
@@ -620,13 +641,25 @@
         .book-reader-controls button { min-width:92px; padding:10px 12px; font-size:13px; font-weight:700; }
         .book-reader-controls button:disabled { opacity:.45; cursor:not-allowed; }
         .book-reader-page-count { min-width:104px; color:#e6e3ec; font-size:13px; text-align:center; }
+        .book-reader-controls[data-mode="scroll"] #bookReaderPrev, .book-reader-controls[data-mode="scroll"] #bookReaderNext { display:none; }
+        .book-reader-controls[data-mode="book"] #bookReaderTop { display:none; }
         @media (max-width:600px) {
-            .book-reader-topbar { gap:8px; padding:8px; }
+            .book-reader-topbar { gap:7px; padding:8px; flex-wrap:wrap; }
             .book-reader-close { padding:8px; font-size:12px !important; }
-            .book-reader-title { font-size:12px; }
+            .book-reader-title-wrap { flex:1 1 calc(100% - 65px); justify-content:flex-start; }
+            .book-reader-title { font-size:12px; text-align:left; }
+            .book-reader-toolbar { flex:1 1 100%; justify-content:space-between; gap:5px; }
+            .book-reader-toolbar button { flex:1 1 auto; padding:7px 8px; font-size:11px; }
+            .book-reader-toolbar select { flex:1 1 94px; max-width:115px; }
+            .book-reader-page-jump { flex:1 1 auto; justify-content:flex-end; }
+            .book-reader-render-progress { padding:2px 8px; }
+            .book-reader-render-label { min-width:96px; font-size:9px; }
             .book-reader-center { padding:8px; }
             .book-reader-actions { gap:8px; padding:8px; }
             .book-reader-actions button, .book-reader-actions a { flex:1 1 140px; }
+            .book-reader-controls { gap:8px; }
+            .book-reader-controls button { min-width:76px; padding:10px 8px; font-size:12px; }
+            .book-reader-page-count { min-width:92px; font-size:12px; }
         }
         body.library-open, body.reader-open { overflow:hidden; }
         #teacherDashboardSection[hidden], .teacher-dashboard[hidden], .teacher-screen[hidden],
@@ -2020,8 +2053,29 @@
     <header class="book-reader-topbar">
         <button type="button" class="book-reader-close" id="closeBookReader">✕ Close</button>
         <div class="book-reader-title-wrap"><span class="book-reader-title-icon" id="bookReaderDocIcon" aria-hidden="true">📄</span><div class="book-reader-title" id="bookReaderTitle">Document Reader</div></div>
+        <div class="book-reader-toolbar" id="bookReaderToolbar" hidden>
+            <button type="button" id="bookReaderModeToggle" aria-pressed="false" aria-label="Switch reading mode" data-i18n-aria-label="reader_mode_toggle">
+                <span id="bookReaderModeIcon" aria-hidden="true">📖</span>
+                <span id="bookReaderBookModeLabel" data-i18n="reader_book_mode">Book Mode</span>
+                <span id="bookReaderScrollModeLabel" data-i18n="reader_scroll_mode" hidden>Scroll Mode</span>
+            </button>
+            <label class="sr-only" for="bookReaderZoom" data-i18n="reader_zoom">Zoom</label>
+            <select id="bookReaderZoom" aria-label="Zoom" data-i18n-aria-label="reader_zoom">
+                <option value="fit-width" data-i18n="reader_fit_width">Fit Width</option>
+                <option value="fit-page" data-i18n="reader_fit_page">Fit Page</option>
+                <option value="actual-size" data-i18n="reader_actual_size">100%</option>
+            </select>
+            <label class="book-reader-page-jump">
+                <span data-i18n="reader_go_to_page">Go to page</span>
+                <input id="bookReaderPageJump" type="number" min="1" step="1" inputmode="numeric" aria-label="Go to page" data-i18n-aria-label="reader_go_to_page" disabled>
+            </label>
+        </div>
         <button type="button" class="book-reader-night" id="bookReaderNightToggle" aria-label="Toggle night mode" aria-pressed="false">🌙</button>
     </header>
+    <div class="book-reader-render-progress" id="bookReaderRenderProgress" role="status" aria-live="polite" hidden>
+        <span class="book-reader-render-label" id="bookReaderRenderLabel" data-i18n="reader_rendering_progress">Rendering page 1 of 1</span>
+        <progress id="bookReaderRenderProgressBar" max="1" value="0"></progress>
+    </div>
     <div class="book-reader-center">
         <div class="book-reader-content">
             <div class="book-reader-loading" id="bookReaderLoading" role="status" aria-live="polite">
@@ -2032,14 +2086,16 @@
             <div class="book-reader-error" id="bookReaderError" hidden></div>
             <div class="book-reader-first-page-preview" id="bookReaderFirstPagePreview" hidden></div>
             <div class="book-flipbook" id="bookFlipbook" hidden></div>
+            <div class="book-reader-scroll" id="pdfScrollContainer" hidden tabindex="0" aria-label="PDF pages"></div>
             <div class="book-reader-media" id="bookReaderMedia" hidden></div>
         </div>
     </div>
     <footer class="book-reader-actions" id="bookReaderActions" hidden></footer>
     <footer class="book-reader-controls" id="bookReaderControls" hidden>
         <button type="button" id="bookReaderPrev" disabled>◀ Prev</button>
-        <div class="book-reader-page-count" id="bookReaderPageCount" aria-live="polite">Page 0 of 0</div>
+        <div class="book-reader-page-count" id="bookReaderPageCount" data-i18n="reader_page_of" aria-live="polite">Page 0 of 0</div>
         <button type="button" id="bookReaderNext" disabled>Next ▶</button>
+        <button type="button" id="bookReaderTop" data-i18n="reader_top">⬆ Top</button>
     </footer>
 </div>
 <div id="notification" class="notification"></div>
@@ -2210,7 +2266,28 @@
     let activePdfDocument = null;
     let activePdfPageRenderTask = null;
     let activePdfPageNumber = 0;
+    let activePdfPageCount = 0;
     let activeBookReaderId = 0;
+    let activePdfReaderDocumentKey = null;
+    let activePdfOfflineOnly = false;
+    const PDF_READER_MODE_KEY = 'pdf_reader_mode';
+    const PDF_READER_ZOOM_KEY = 'pdf_reader_zoom';
+    const PDF_READER_PROGRESS_PREFIX = 'apshule_pdf_reader_progress_v1:';
+    const PDF_READER_OFFLINE_PREFIX = 'apshule_pdf_reader_render_v1:';
+    const PDF_READER_OFFLINE_TTL_SECONDS = 30 * 24 * 60 * 60;
+    const PDF_READER_MAX_RENDERED_SCROLL_PAGES = 10;
+    let pdfReaderMode = 'book';
+    let pdfReaderZoom = 'fit-width';
+    let pdfScrollObserver = null;
+    let pdfScrollPages = new Map();
+    let pdfScrollRenderQueue = [];
+    let pdfScrollQueuedPages = new Set();
+    let pdfScrollRenderActiveCount = 0;
+    let pdfScrollSessionId = 0;
+    let pdfScrollSaveTimer = null;
+    let pdfScrollLastTouch = null;
+    let pdfScrollLastTapAt = 0;
+    let pdfReaderZoomRevision = 0;
     let currentLibraryRequestId = 0;
 
     const classData = {
@@ -3116,11 +3193,226 @@
         currentLibraryPdfs = [];
     }
     function updateBookReaderPages() {
-        const count = activePdfDocument?.numPages || 0;
-        document.getElementById('bookReaderPageCount').textContent = `Page ${count ? activePdfPageNumber : 0} of ${count}`;
+        const count = activePdfPageCount || activePdfDocument?.numPages || 0;
+        const current = count ? Math.max(1, Math.min(count, activePdfPageNumber || 1)) : 0;
+        activePdfPageNumber = current;
+        const pageCount = document.getElementById('bookReaderPageCount');
+        if (pageCount) {
+            const fallback = 'Page {current} of {total}';
+            const translated = typeof window.apshuleTranslate === 'function'
+                ? window.apshuleTranslate('reader_page_of', fallback, { current, total: count })
+                : fallback.replace('{current}', String(current)).replace('{total}', String(count));
+            pageCount.textContent = translated;
+        }
         document.getElementById('bookReaderPrev').disabled = !count || activePdfPageNumber <= 1;
         document.getElementById('bookReaderNext').disabled = !count || activePdfPageNumber >= count;
+        const jump = document.getElementById('bookReaderPageJump');
+        if (jump) {
+            jump.max = String(count || 1);
+            jump.value = count ? String(current) : '';
+            jump.disabled = !count;
+        }
+        const controls = document.getElementById('bookReaderControls');
+        if (controls) controls.dataset.mode = pdfReaderMode;
     }
+    function readerTranslated(key, fallback, values = {}) {
+        if (typeof window.apshuleTranslate === 'function') {
+            return window.apshuleTranslate(key, fallback, values);
+        }
+        return String(fallback).replace(/\{([a-zA-Z0-9_]+)\}/gu, (match, name) =>
+            Object.hasOwn(values, name) ? String(values[name]) : match
+        );
+    }
+    function readPdfReaderSetting(key, fallback, allowedValues) {
+        try {
+            const value = localStorage.getItem(key);
+            return allowedValues.includes(value) ? value : fallback;
+        } catch (_) {
+            return fallback;
+        }
+    }
+    function setPdfReaderModeControls() {
+        const icon = document.getElementById('bookReaderModeIcon');
+        const bookLabel = document.getElementById('bookReaderBookModeLabel');
+        const scrollLabel = document.getElementById('bookReaderScrollModeLabel');
+        const toggle = document.getElementById('bookReaderModeToggle');
+        const isScroll = pdfReaderMode === 'scroll';
+        if (icon) icon.textContent = isScroll ? '📜' : '📖';
+        if (bookLabel) bookLabel.hidden = isScroll;
+        if (scrollLabel) scrollLabel.hidden = !isScroll;
+        if (toggle) {
+            toggle.setAttribute('aria-pressed', String(isScroll));
+            toggle.setAttribute('aria-label', readerTranslated('reader_mode_toggle', 'Switch reading mode'));
+            toggle.disabled = activePdfOfflineOnly;
+            toggle.title = activePdfOfflineOnly
+                ? readerTranslated('reader_offline_book_mode_unavailable', 'Book Mode is unavailable for this offline copy.')
+                : '';
+        }
+        const zoom = document.getElementById('bookReaderZoom');
+        if (zoom) zoom.value = pdfReaderZoom;
+        const toolbar = document.getElementById('bookReaderToolbar');
+        if (toolbar) toolbar.hidden = !activePdfPageCount;
+        const controls = document.getElementById('bookReaderControls');
+        if (controls) controls.dataset.mode = pdfReaderMode;
+    }
+    function pdfReaderStableHash(value) {
+        const text = String(value ?? '');
+        let first = 0x811c9dc5;
+        let second = 0x9e3779b9;
+        for (let index = 0; index < text.length; index += 1) {
+            const code = text.charCodeAt(index);
+            first = Math.imul(first ^ code, 0x01000193);
+            second = Math.imul(second ^ (code + index), 0x85ebca6b);
+        }
+        return `${(first >>> 0).toString(16).padStart(8, '0')}${(second >>> 0).toString(16).padStart(8, '0')}`;
+    }
+    function pdfReaderDocumentKey(pdf) {
+        const recordId = String(pdf?.id || pdf?.pdf_id || '').trim();
+        if (recordId) return `doc-${pdfReaderStableHash(`${pdf?.source_table || 'pdf'}:${recordId}`)}`;
+        const source = safeReaderDocumentUrl(pdf?.original_url || pdf?.url);
+        try {
+            const parsed = new URL(source);
+            return `url-${pdfReaderStableHash(`${parsed.origin}${parsed.pathname}`)}`;
+        } catch (_) {
+            return `url-${pdfReaderStableHash(source)}`;
+        }
+    }
+    function pdfReaderProgressKey(documentKey) {
+        return `${PDF_READER_PROGRESS_PREFIX}${documentKey}`;
+    }
+    function readPdfReaderProgress(documentKey) {
+        if (!documentKey) return null;
+        try {
+            const value = JSON.parse(localStorage.getItem(pdfReaderProgressKey(documentKey)) || 'null');
+            if (!value || typeof value !== 'object') return null;
+            return {
+                page: Math.max(1, Math.floor(Number(value.page) || 1)),
+                scrollTop: Math.max(0, Number(value.scrollTop) || 0),
+                viewportWidth: Math.max(0, Number(value.viewportWidth) || 0)
+            };
+        } catch (_) {
+            return null;
+        }
+    }
+    function savePdfReaderProgress() {
+        if (!activePdfReaderDocumentKey || !activePdfPageCount) return;
+        const scroll = document.getElementById('pdfScrollContainer');
+        const progress = {
+            page: activePdfPageNumber || 1,
+            scrollTop: pdfReaderMode === 'scroll' ? Math.max(0, scroll?.scrollTop || 0) : 0,
+            viewportWidth: pdfReaderMode === 'scroll' ? Math.max(0, scroll?.clientWidth || 0) : 0
+        };
+        try {
+            localStorage.setItem(pdfReaderProgressKey(activePdfReaderDocumentKey), JSON.stringify(progress));
+        } catch (_) {}
+    }
+    function schedulePdfReaderProgressSave() {
+        if (pdfScrollSaveTimer !== null) window.clearTimeout(pdfScrollSaveTimer);
+        pdfScrollSaveTimer = window.setTimeout(() => {
+            pdfScrollSaveTimer = null;
+            savePdfReaderProgress();
+        }, 180);
+    }
+    function pdfReaderOfflineKey(documentKey, suffix) {
+        return `${PDF_READER_OFFLINE_PREFIX}${documentKey}:${suffix}`;
+    }
+    async function savePdfReaderOfflineManifest(documentKey, pageCount) {
+        if (!window.idb?.set || !documentKey || !pageCount) return;
+        try {
+            await window.idb.set(
+                pdfReaderOfflineKey(documentKey, 'manifest'),
+                { pageCount, savedAt: Date.now() },
+                PDF_READER_OFFLINE_TTL_SECONDS
+            );
+        } catch (error) {
+            console.warn('[PDF reader] Offline page index could not be saved.', error);
+        }
+    }
+    async function loadPdfReaderOfflineManifest(documentKey) {
+        if (!window.idb?.get || !documentKey) return null;
+        try {
+            const manifest = await window.idb.get(pdfReaderOfflineKey(documentKey, 'manifest'));
+            const pageCount = Math.floor(Number(manifest?.pageCount));
+            return pageCount > 0 && pageCount <= 10000 ? { pageCount } : null;
+        } catch (_) {
+            return null;
+        }
+    }
+    async function savePdfReaderOfflinePage(documentKey, pageNumber, canvas) {
+        if (!window.idb?.set || !documentKey || !canvas?.toBlob) return;
+        try {
+            const blob = await new Promise(resolve => canvas.toBlob(resolve, 'image/webp', 0.78));
+            if (!blob || blob.size > 2 * 1024 * 1024) return;
+            const cssWidth = Math.max(1, parseFloat(canvas.style.width) || canvas.width);
+            const cssHeight = Math.max(1, parseFloat(canvas.style.height) || canvas.height);
+            await window.idb.set(
+                pdfReaderOfflineKey(documentKey, `page-${pageNumber}`),
+                {
+                    blob,
+                    cssWidth,
+                    cssHeight,
+                    outputScale: Math.max(1, canvas.width / cssWidth)
+                },
+                PDF_READER_OFFLINE_TTL_SECONDS
+            );
+        } catch (error) {
+            console.warn(`[PDF reader] Page ${pageNumber} could not be cached for offline reading.`, error);
+        }
+    }
+    function pdfReaderScaleFor(page, container, zoom = pdfReaderZoom) {
+        const baseViewport = page.getViewport({ scale: 1 });
+        const availableWidth = Math.max(1, Math.min(
+            Math.max(1, (container?.clientWidth || window.innerWidth - 32) - 16),
+            window.innerWidth - 24,
+            1000
+        ));
+        if (zoom === 'actual-size') return 1;
+        const widthScale = availableWidth / baseViewport.width;
+        if (zoom === 'fit-page') {
+            const availableHeight = Math.max(1, (container?.clientHeight || window.innerHeight - 140) - 16);
+            return Math.max(0.1, Math.min(widthScale, availableHeight / baseViewport.height));
+        }
+        return Math.max(0.1, widthScale);
+    }
+    function applyPdfReaderOfflineImageZoom(state, record = null) {
+        if (!state?.image) return;
+        record = record || state.imageMetadata;
+        const image = state.image;
+        const scroll = document.getElementById('pdfScrollContainer');
+        const cssWidth = Math.max(1, Number(record?.cssWidth) || image.naturalWidth / Math.max(1, Number(record?.outputScale) || 2));
+        const cssHeight = Math.max(1, Number(record?.cssHeight) || image.naturalHeight / Math.max(1, Number(record?.outputScale) || 2));
+        state.element.style.aspectRatio = `${cssWidth} / ${cssHeight}`;
+        if (pdfReaderZoom === 'actual-size') {
+            state.element.style.width = `${cssWidth}px`;
+            state.element.style.maxWidth = 'none';
+            state.element.style.overflow = 'visible';
+            image.style.width = `${cssWidth}px`;
+            image.style.maxWidth = 'none';
+            if (scroll) scroll.style.overflowX = 'auto';
+        } else if (pdfReaderZoom === 'fit-page') {
+            state.element.style.width = '100%';
+            state.element.style.maxWidth = '1000px';
+            state.element.style.overflow = 'hidden';
+            image.style.width = 'auto';
+            image.style.height = `${Math.max(1, (scroll?.clientHeight || window.innerHeight) - 32)}px`;
+            image.style.maxWidth = '100%';
+            image.style.objectFit = 'contain';
+            if (scroll) scroll.style.overflowX = 'hidden';
+        } else {
+            state.element.style.width = '100%';
+            state.element.style.maxWidth = '1000px';
+            state.element.style.overflow = 'hidden';
+            image.style.width = '100%';
+            image.style.height = 'auto';
+            image.style.maxWidth = 'none';
+            image.style.objectFit = '';
+            if (scroll) scroll.style.overflowX = 'hidden';
+        }
+    }
+    try {
+        pdfReaderMode = readPdfReaderSetting(PDF_READER_MODE_KEY, 'book', ['book', 'scroll']);
+        pdfReaderZoom = readPdfReaderSetting(PDF_READER_ZOOM_KEY, 'fit-width', ['fit-width', 'fit-page', 'actual-size']);
+    } catch (_) {}
     function enablePdfCanvasPinchZoom(canvas, container) {
         let startDistance = 0;
         let startScale = 1;
@@ -3153,19 +3445,14 @@
         const documentProxy = activePdfDocument;
         const container = document.getElementById('bookFlipbook');
         if (!documentProxy || !container || readerId !== activeBookReaderId) return;
+        const zoomRevision = pdfReaderZoomRevision;
         const safePageNumber = Math.max(1, Math.min(documentProxy.numPages, pageNumber));
         const page = await documentProxy.getPage(safePageNumber);
         if (readerId !== activeBookReaderId) {
             page.cleanup();
             return;
         }
-        const baseViewport = page.getViewport({ scale: 1 });
-        const availableWidth = Math.min(
-            container.clientWidth || window.innerWidth - 32,
-            window.innerWidth - 24,
-            1000,
-        );
-        const viewport = page.getViewport({ scale: Math.max(0.1, availableWidth / baseViewport.width) });
+        const viewport = page.getViewport({ scale: pdfReaderScaleFor(page, container) });
         const outputScale = Math.min(2, Math.max(1, window.devicePixelRatio || 1));
         const canvas = document.createElement('canvas');
         canvas.width = Math.ceil(viewport.width * outputScale);
@@ -3185,6 +3472,7 @@
         activePdfPageNumber = safePageNumber;
         updateBookReaderPages();
         let renderTask = null;
+        let rerenderForZoom = false;
         try {
             renderTask = page.render({
                 canvasContext: context,
@@ -3193,19 +3481,543 @@
             });
             activePdfPageRenderTask = renderTask;
             await renderTask.promise;
-            if (readerId === activeBookReaderId) enablePdfCanvasPinchZoom(canvas, container);
+            if (readerId === activeBookReaderId) {
+                if (zoomRevision !== pdfReaderZoomRevision) {
+                    canvas.width = 0;
+                    canvas.height = 0;
+                    rerenderForZoom = true;
+                    return;
+                }
+                enablePdfCanvasPinchZoom(canvas, container);
+                if (activePdfReaderDocumentKey) {
+                    void savePdfReaderOfflinePage(activePdfReaderDocumentKey, safePageNumber, canvas);
+                }
+                savePdfReaderProgress();
+            }
         } finally {
             if (activePdfPageRenderTask === renderTask) activePdfPageRenderTask = null;
             page.cleanup();
+            if (rerenderForZoom && readerId === activeBookReaderId && pdfReaderMode === 'book') {
+                window.setTimeout(() => {
+                    void renderPdfReaderPage(safePageNumber, readerId).catch(error => {
+                        showReaderError(error, currentReaderPdf?.url);
+                    });
+                }, 0);
+            }
+        }
+    }
+    function setPdfScrollPageStatus(state, messageKey, fallback, retry = false) {
+        if (!state) return;
+        const status = state.status;
+        status.replaceChildren();
+        const message = document.createElement('span');
+        message.dataset.i18n = messageKey;
+        message.textContent = fallback;
+        status.appendChild(message);
+        if (retry) {
+            const button = document.createElement('button');
+            button.type = 'button';
+            button.dataset.pdfPageRetry = String(state.pageNumber);
+            button.dataset.i18n = 'reader_retry';
+            button.textContent = 'Retry';
+            status.appendChild(button);
+        }
+        status.hidden = false;
+    }
+    function makePdfScrollPage(pageNumber, pageCount) {
+        const element = document.createElement('article');
+        element.className = 'pdf-scroll-page';
+        element.dataset.page = String(pageNumber);
+        element.setAttribute('aria-label', readerTranslated('reader_page_badge', 'Page {page}', { page: pageNumber }));
+
+        const badge = document.createElement('span');
+        badge.className = 'pdf-scroll-page-number';
+        badge.dataset.i18n = 'reader_page_badge';
+        badge.textContent = readerTranslated('reader_page_badge', 'Page {page}', { page: pageNumber });
+
+        const canvas = document.createElement('canvas');
+        canvas.className = 'pdf-scroll-canvas';
+        canvas.dataset.page = String(pageNumber);
+        canvas.width = 0;
+        canvas.height = 0;
+        canvas.hidden = true;
+        canvas.setAttribute('aria-label', readerTranslated('reader_page_badge', 'Page {page}', { page: pageNumber }));
+
+        const status = document.createElement('div');
+        status.className = 'pdf-scroll-page-status';
+        status.hidden = true;
+        status.setAttribute('role', 'status');
+        status.setAttribute('aria-live', 'polite');
+        element.append(badge, canvas, status);
+        pdfScrollPages.set(pageNumber, {
+            pageNumber,
+            pageCount,
+            element,
+            badge,
+            canvas,
+            status,
+            rendered: false,
+            queued: false,
+            renderTask: null,
+            lastUsed: 0,
+            image: null,
+            objectUrl: null
+        });
+        return element;
+    }
+    function disposePdfScrollPage(state) {
+        if (!state) return;
+        try { state.renderTask?.cancel(); } catch (_) {}
+        state.renderTask = null;
+        state.canvas.width = 0;
+        state.canvas.height = 0;
+        state.canvas.hidden = true;
+        if (state.objectUrl) URL.revokeObjectURL(state.objectUrl);
+        state.objectUrl = null;
+        state.image?.remove();
+        state.image = null;
+        state.imageMetadata = null;
+        state.rendered = false;
+    }
+    function clearPdfScrollMode() {
+        pdfScrollSessionId += 1;
+        pdfScrollObserver?.disconnect();
+        pdfScrollObserver = null;
+        pdfScrollPages.forEach(disposePdfScrollPage);
+        pdfScrollPages.clear();
+        pdfScrollRenderQueue = [];
+        pdfScrollQueuedPages.clear();
+        pdfScrollRenderActiveCount = 0;
+        const scroll = document.getElementById('pdfScrollContainer');
+        if (scroll) {
+            scroll.hidden = true;
+            scroll.replaceChildren();
+            scroll.scrollTop = 0;
+        }
+    }
+    function updatePdfReaderRenderProgress() {
+        const strip = document.getElementById('bookReaderRenderProgress');
+        const label = document.getElementById('bookReaderRenderLabel');
+        const progress = document.getElementById('bookReaderRenderProgressBar');
+        const count = activePdfPageCount || activePdfDocument?.numPages || 0;
+        if (!strip || !label || !progress) return;
+        strip.hidden = !count || pdfReaderMode !== 'scroll';
+        if (!count) return;
+        progress.max = count;
+        progress.value = Math.min(count, Math.max(0, activePdfPageNumber));
+        label.textContent = readerTranslated(
+            activePdfOfflineOnly ? 'reader_offline_progress' : 'reader_rendering_progress',
+            activePdfOfflineOnly ? 'Offline page {current} of {total}' : 'Rendering page {current} of {total}',
+            { current: activePdfPageNumber || 1, total: count }
+        );
+    }
+    function updatePdfScrollBadges() {
+        pdfScrollPages.forEach(state => {
+            const label = readerTranslated('reader_page_badge', 'Page {page}', { page: state.pageNumber });
+            state.badge.textContent = label;
+            state.element.setAttribute('aria-label', label);
+            state.canvas.setAttribute('aria-label', label);
+        });
+    }
+    function updatePdfReaderVisiblePage() {
+        const scroll = document.getElementById('pdfScrollContainer');
+        if (!scroll || scroll.hidden || !pdfScrollPages.size) return;
+        const center = scroll.getBoundingClientRect().top + scroll.clientHeight / 2;
+        let nearestPage = activePdfPageNumber || 1;
+        let nearestDistance = Number.POSITIVE_INFINITY;
+        pdfScrollPages.forEach(state => {
+            const bounds = state.element.getBoundingClientRect();
+            const distance = center < bounds.top
+                ? bounds.top - center
+                : center > bounds.bottom
+                    ? center - bounds.bottom
+                    : 0;
+            if (distance < nearestDistance) {
+                nearestDistance = distance;
+                nearestPage = state.pageNumber;
+            }
+        });
+        if (nearestPage !== activePdfPageNumber) {
+            activePdfPageNumber = nearestPage;
+            updateBookReaderPages();
+            updatePdfReaderRenderProgress();
+            schedulePdfReaderProgressSave();
+        }
+    }
+    function pdfScrollOffsetForPage(pageElement, scrollElement) {
+        if (!pageElement || !scrollElement) return 0;
+        return Math.max(
+            0,
+            pageElement.getBoundingClientRect().top -
+            scrollElement.getBoundingClientRect().top +
+            scrollElement.scrollTop
+        );
+    }
+    function trimPdfScrollPages(preferredPage = activePdfPageNumber || 1, reserveSlots = 0) {
+        const rendered = [...pdfScrollPages.values()].filter(state => state.rendered || state.renderTask);
+        const targetLimit = Math.max(0, PDF_READER_MAX_RENDERED_SCROLL_PAGES - reserveSlots);
+        if (rendered.length <= targetLimit) return;
+        rendered.sort((left, right) => {
+            const leftDistance = Math.abs(left.pageNumber - preferredPage);
+            const rightDistance = Math.abs(right.pageNumber - preferredPage);
+            if (leftDistance !== rightDistance) return leftDistance - rightDistance;
+            return right.lastUsed - left.lastUsed;
+        });
+        rendered.slice(targetLimit).forEach(state => {
+            disposePdfScrollPage(state);
+            setPdfScrollPageStatus(
+                state,
+                activePdfOfflineOnly ? 'reader_offline_page_missing' : 'reader_scroll_to_load',
+                activePdfOfflineOnly ? 'This page is not saved for offline reading.' : 'Scroll to load this page.'
+            );
+        });
+    }
+    async function renderPdfScrollPage(pageNumber, readerId = activeBookReaderId) {
+        const scrollSession = pdfScrollSessionId;
+        const state = pdfScrollPages.get(pageNumber);
+        if (!state || readerId !== activeBookReaderId) return;
+        if (state.rendered) {
+            state.lastUsed = Date.now();
+            return;
+        }
+        const zoomRevision = pdfReaderZoomRevision;
+        let offlineRecord = null;
+        state.lastUsed = Date.now();
+        setPdfScrollPageStatus(state, 'reader_loading_page', 'Loading page…');
+        state.status.setAttribute('aria-busy', 'true');
+        try {
+            if (activePdfOfflineOnly) {
+                const storedPage = await window.idb?.get?.(pdfReaderOfflineKey(
+                    activePdfReaderDocumentKey,
+                    `page-${pageNumber}`
+                ));
+                if (readerId !== activeBookReaderId || scrollSession !== pdfScrollSessionId) return;
+                offlineRecord = storedPage instanceof Blob ? { blob: storedPage } : storedPage;
+                const blob = offlineRecord?.blob;
+                if (!(blob instanceof Blob)) {
+                    setPdfScrollPageStatus(state, 'reader_offline_page_missing', 'This page is not saved for offline reading.');
+                    return;
+                }
+                const image = document.createElement('img');
+                image.alt = readerTranslated('reader_page_badge', 'Page {page}', { page: pageNumber });
+                image.dataset.page = String(pageNumber);
+                image.src = URL.createObjectURL(blob);
+                state.objectUrl = image.src;
+                const loaded = new Promise((resolve, reject) => {
+                    image.onload = resolve;
+                    image.onerror = () => reject(new Error('The saved page image could not be opened.'));
+                });
+                state.element.insertBefore(image, state.status);
+                await loaded;
+                if (readerId !== activeBookReaderId || scrollSession !== pdfScrollSessionId) {
+                    disposePdfScrollPage(state);
+                    return;
+                }
+                state.image = image;
+                state.imageMetadata = offlineRecord;
+                applyPdfReaderOfflineImageZoom(state, offlineRecord);
+                state.rendered = true;
+                state.status.hidden = true;
+                trimPdfScrollPages(pageNumber);
+                return;
+            }
+            if (!activePdfDocument) throw new Error('The PDF document is no longer available.');
+            const page = await activePdfDocument.getPage(pageNumber);
+            if (readerId !== activeBookReaderId || scrollSession !== pdfScrollSessionId || !activePdfDocument) {
+                page.cleanup();
+                return;
+            }
+            try {
+                const scroll = document.getElementById('pdfScrollContainer');
+                const viewport = page.getViewport({ scale: pdfReaderScaleFor(page, scroll) });
+                state.element.style.aspectRatio = `${viewport.width} / ${viewport.height}`;
+                state.element.style.width = pdfReaderZoom === 'actual-size' ? `${Math.ceil(viewport.width)}px` : '100%';
+                state.element.style.maxWidth = pdfReaderZoom === 'actual-size' ? 'none' : '1000px';
+                state.element.style.overflow = pdfReaderZoom === 'actual-size' ? 'visible' : 'hidden';
+                if (scroll) scroll.style.overflowX = pdfReaderZoom === 'actual-size' ? 'auto' : 'hidden';
+                const pagePixels = Math.max(1, viewport.width * viewport.height);
+                const outputScale = Math.max(0.5, Math.min(
+                    2,
+                    window.devicePixelRatio || 1,
+                    Math.sqrt(4_000_000 / pagePixels)
+                ));
+                const canvas = state.canvas;
+                canvas.width = Math.ceil(viewport.width * outputScale);
+                canvas.height = Math.ceil(viewport.height * outputScale);
+                canvas.style.width = `${Math.ceil(viewport.width)}px`;
+                canvas.style.height = `${Math.ceil(viewport.height)}px`;
+                const context = canvas.getContext('2d', { alpha: false });
+                if (!context) throw new Error(`Could not create a canvas for page ${pageNumber}.`);
+                const task = page.render({
+                    canvasContext: context,
+                    viewport,
+                    transform: [outputScale, 0, 0, outputScale, 0, 0]
+                });
+                state.renderTask = task;
+                await task.promise;
+                if (readerId !== activeBookReaderId || scrollSession !== pdfScrollSessionId) {
+                    canvas.width = 0;
+                    canvas.height = 0;
+                    return;
+                }
+                if (zoomRevision !== pdfReaderZoomRevision) return;
+                canvas.hidden = false;
+                state.rendered = true;
+                state.status.hidden = true;
+                state.lastUsed = Date.now();
+                if (activePdfReaderDocumentKey) {
+                    void savePdfReaderOfflinePage(activePdfReaderDocumentKey, pageNumber, canvas);
+                }
+                trimPdfScrollPages(pageNumber);
+            } finally {
+                page.cleanup();
+            }
+        } catch (error) {
+            if (readerId !== activeBookReaderId || scrollSession !== pdfScrollSessionId) return;
+            console.warn(`[PDF reader] Could not render page ${pageNumber}.`, error);
+            disposePdfScrollPage(state);
+            setPdfScrollPageStatus(state, 'reader_page_failed', '⚠️ Page failed to load', true);
+        } finally {
+            state.renderTask = null;
+            state.status.removeAttribute('aria-busy');
+            if (readerId === activeBookReaderId && scrollSession === pdfScrollSessionId && zoomRevision !== pdfReaderZoomRevision) {
+                state.rendered = false;
+                state.canvas.width = 0;
+                state.canvas.height = 0;
+                state.canvas.hidden = true;
+                state.status.hidden = true;
+                window.setTimeout(() => queuePdfScrollPage(pageNumber), 0);
+            } else if (activePdfOfflineOnly && state.rendered && offlineRecord) {
+                applyPdfReaderOfflineImageZoom(state, offlineRecord);
+            }
+        }
+    }
+    function pumpPdfScrollRenderQueue() {
+        if (pdfScrollRenderActiveCount >= 1 || !pdfScrollRenderQueue.length) return;
+        pdfScrollRenderQueue.sort((left, right) =>
+            Math.abs(left - (activePdfPageNumber || 1)) - Math.abs(right - (activePdfPageNumber || 1))
+        );
+        const pageNumber = pdfScrollRenderQueue.shift();
+        pdfScrollQueuedPages.delete(pageNumber);
+        const state = pdfScrollPages.get(pageNumber);
+        if (!state || state.rendered || state.renderTask) {
+            pumpPdfScrollRenderQueue();
+            return;
+        }
+        trimPdfScrollPages(pageNumber, 1);
+        pdfScrollRenderActiveCount += 1;
+        const scrollSession = pdfScrollSessionId;
+        void renderPdfScrollPage(pageNumber).finally(() => {
+            if (scrollSession !== pdfScrollSessionId) return;
+            pdfScrollRenderActiveCount = Math.max(0, pdfScrollRenderActiveCount - 1);
+            updatePdfReaderRenderProgress();
+            pumpPdfScrollRenderQueue();
+        });
+    }
+    function queuePdfScrollPage(pageNumber) {
+        const state = pdfScrollPages.get(pageNumber);
+        if (!state || state.rendered || state.renderTask || state.queued) return;
+        state.queued = true;
+        pdfScrollQueuedPages.add(pageNumber);
+        pdfScrollRenderQueue.push(pageNumber);
+        pumpPdfScrollRenderQueue();
+    }
+    async function enterPdfScrollMode(readerId, pageCount, startPage = 1, savedProgress = null, offline = false) {
+        clearPdfScrollMode();
+        const scroll = document.getElementById('pdfScrollContainer');
+        const flipbook = document.getElementById('bookFlipbook');
+        const controls = document.getElementById('bookReaderControls');
+        if (!scroll || !flipbook || readerId !== activeBookReaderId) return;
+        activePdfPageCount = pageCount;
+        activePdfOfflineOnly = offline;
+        flipbook.hidden = true;
+        scroll.hidden = false;
+        controls.hidden = false;
+        controls.dataset.mode = 'scroll';
+        const fragment = document.createDocumentFragment();
+        for (let pageNumber = 1; pageNumber <= pageCount; pageNumber += 1) {
+            fragment.appendChild(makePdfScrollPage(pageNumber, pageCount));
+        }
+        if (offline) {
+            const notice = document.createElement('div');
+            notice.className = 'book-reader-scroll-offline';
+            notice.dataset.i18n = 'reader_offline_copy';
+            notice.textContent = 'Offline copy · only pages already saved on this device are available.';
+            fragment.insertBefore(notice, fragment.firstChild);
+        }
+        scroll.replaceChildren(fragment);
+        scroll.style.overflowX = pdfReaderZoom === 'actual-size' ? 'auto' : 'hidden';
+        activePdfPageNumber = 1;
+        updateBookReaderPages();
+        setPdfReaderModeControls();
+        updatePdfReaderRenderProgress();
+        await renderPdfScrollPage(1, readerId);
+        if (readerId !== activeBookReaderId) return;
+
+        const targetPage = Math.max(1, Math.min(pageCount, Math.floor(Number(startPage) || 1)));
+        const target = pdfScrollPages.get(targetPage)?.element;
+        if (savedProgress && targetPage > 1) {
+            const widthMatches = Math.abs((scroll.clientWidth || 0) - savedProgress.viewportWidth) < 80;
+            scroll.scrollTop = widthMatches && savedProgress.scrollTop > 0
+                ? savedProgress.scrollTop
+                : pdfScrollOffsetForPage(target, scroll);
+        } else if (targetPage > 1) {
+            scroll.scrollTop = pdfScrollOffsetForPage(target, scroll);
+        } else {
+            scroll.scrollTop = 0;
+        }
+        updatePdfReaderVisiblePage();
+        if (window.IntersectionObserver) {
+            pdfScrollObserver = new IntersectionObserver(entries => {
+                const visible = entries.filter(entry => entry.isIntersecting);
+                visible.forEach(entry => {
+                    const pageNumber = Number(entry.target.dataset.page);
+                    if (Number.isInteger(pageNumber)) queuePdfScrollPage(pageNumber);
+                });
+                if (visible.length) {
+                    visible.sort((left, right) => right.intersectionRatio - left.intersectionRatio);
+                    const pageNumber = Number(visible[0].target.dataset.page);
+                    if (Number.isInteger(pageNumber) && pageNumber !== activePdfPageNumber) {
+                        activePdfPageNumber = pageNumber;
+                        updateBookReaderPages();
+                        updatePdfReaderRenderProgress();
+                        schedulePdfReaderProgressSave();
+                    }
+                    const nearby = Math.max(1, pageNumber - 1);
+                    for (let nextPage = nearby; nextPage <= Math.min(pageCount, pageNumber + 2); nextPage += 1) {
+                        queuePdfScrollPage(nextPage);
+                    }
+                }
+            }, { root: scroll, rootMargin: '700px 0px', threshold: [0, 0.15, 0.5, 0.8] });
+            pdfScrollPages.forEach(state => pdfScrollObserver.observe(state.element));
+        } else {
+            for (let nextPage = Math.max(1, targetPage - 1); nextPage <= Math.min(pageCount, targetPage + 2); nextPage += 1) {
+                queuePdfScrollPage(nextPage);
+            }
+        }
+        schedulePdfReaderProgressSave();
+    }
+    function leavePdfScrollMode() {
+        updatePdfReaderVisiblePage();
+        savePdfReaderProgress();
+        clearPdfScrollMode();
+        activePdfOfflineOnly = false;
+        const strip = document.getElementById('bookReaderRenderProgress');
+        if (strip) strip.hidden = true;
+        const flipbook = document.getElementById('bookFlipbook');
+        if (flipbook) flipbook.hidden = false;
+        const controls = document.getElementById('bookReaderControls');
+        if (controls) controls.dataset.mode = 'book';
+    }
+    function changePdfReaderZoom(zoom) {
+        if (!['fit-width', 'fit-page', 'actual-size'].includes(zoom)) return;
+        pdfReaderZoom = zoom;
+        pdfReaderZoomRevision += 1;
+        try { localStorage.setItem(PDF_READER_ZOOM_KEY, zoom); } catch (_) {}
+        const selector = document.getElementById('bookReaderZoom');
+        if (selector) selector.value = zoom;
+        if (!activePdfPageCount) return;
+        if (activePdfOfflineOnly) {
+            pdfScrollPages.forEach(state => applyPdfReaderOfflineImageZoom(state));
+            return;
+        }
+        if (!activePdfDocument) return;
+        if (pdfReaderMode === 'book') {
+            if (!activePdfPageRenderTask) {
+                void renderPdfReaderPage(activePdfPageNumber || 1, activeBookReaderId).catch(error => {
+                    showReaderError(error, currentReaderPdf?.url);
+                });
+            }
+            return;
+        }
+        const scroll = document.getElementById('pdfScrollContainer');
+        const currentPage = activePdfPageNumber || 1;
+        const savedTop = scroll?.scrollTop || 0;
+        pdfScrollRenderQueue = [];
+        pdfScrollQueuedPages.clear();
+        pdfScrollPages.forEach(state => {
+            state.queued = false;
+            if (state.renderTask) return;
+            disposePdfScrollPage(state);
+            state.element.style.aspectRatio = '';
+            state.element.style.width = '';
+            state.element.style.maxWidth = '';
+            state.status.hidden = true;
+        });
+        if (scroll) scroll.style.overflowX = zoom === 'actual-size' ? 'auto' : 'hidden';
+        if (scroll) scroll.scrollTop = savedTop;
+        queuePdfScrollPage(currentPage);
+        queuePdfScrollPage(Math.min(activePdfPageCount, currentPage + 1));
+        queuePdfScrollPage(Math.max(1, currentPage - 1));
+    }
+    function togglePdfReaderMode() {
+        if (activePdfOfflineOnly) return;
+        const nextMode = pdfReaderMode === 'book' ? 'scroll' : 'book';
+        if (nextMode === 'scroll') {
+            pdfReaderMode = 'scroll';
+            try { localStorage.setItem(PDF_READER_MODE_KEY, pdfReaderMode); } catch (_) {}
+            setPdfReaderModeControls();
+            updateBookReaderPages();
+            if (activePdfDocument && activePdfPageCount) {
+                void enterPdfScrollMode(activeBookReaderId, activePdfPageCount, activePdfPageNumber || 1);
+            }
+            return;
+        }
+        updatePdfReaderVisiblePage();
+        const pageNumber = activePdfPageNumber || 1;
+        if (pdfReaderMode === 'scroll') leavePdfScrollMode();
+        pdfReaderMode = 'book';
+        try { localStorage.setItem(PDF_READER_MODE_KEY, pdfReaderMode); } catch (_) {}
+        setPdfReaderModeControls();
+        updateBookReaderPages();
+        const flipbook = document.getElementById('bookFlipbook');
+        if (flipbook && activePdfDocument) {
+            flipbook.hidden = false;
+            if (!activePdfPageRenderTask) {
+                void renderPdfReaderPage(pageNumber, activeBookReaderId).catch(error => {
+                    showReaderError(error, currentReaderPdf?.url);
+                });
+            }
+        }
+    }
+    function jumpToPdfReaderPage(pageNumber) {
+        if (!activePdfPageCount) return;
+        const targetPage = Math.max(1, Math.min(activePdfPageCount, Math.floor(Number(pageNumber) || 1)));
+        if (pdfReaderMode === 'scroll') {
+            const scroll = document.getElementById('pdfScrollContainer');
+            const target = pdfScrollPages.get(targetPage)?.element;
+            if (scroll && target) {
+                scroll.scrollTo({
+                    top: pdfScrollOffsetForPage(target, scroll),
+                    behavior: 'smooth'
+                });
+                activePdfPageNumber = targetPage;
+                queuePdfScrollPage(targetPage);
+                updateBookReaderPages();
+                updatePdfReaderRenderProgress();
+                schedulePdfReaderProgressSave();
+            }
+        } else if (activePdfDocument && !activePdfPageRenderTask) {
+            void renderPdfReaderPage(targetPage, activeBookReaderId).catch(error => {
+                showReaderError(error, currentReaderPdf?.url);
+            });
         }
     }
     async function navigatePdfReaderPage(delta) {
+        if (pdfReaderMode === 'scroll') {
+            const scroll = document.getElementById('pdfScrollContainer');
+            if (scroll) scroll.scrollBy({ top: Math.max(260, scroll.clientHeight * 0.78) * delta, behavior: 'smooth' });
+            return;
+        }
         if (!activePdfDocument || activePdfPageRenderTask) return;
         const targetPage = activePdfPageNumber + delta;
-        if (targetPage < 1 || targetPage > activePdfDocument.numPages) return;
+        if (targetPage < 1 || targetPage > activePdfPageCount) return;
         const readerId = activeBookReaderId;
         const loading = document.getElementById('bookReaderLoading');
-        setBookReaderStatus(`📖 Rendering page ${targetPage} of ${activePdfDocument.numPages}…`);
+        setBookReaderStatus(readerTranslated('reader_rendering_progress', 'Rendering page {current} of {total}', {
+            current: targetPage,
+            total: activePdfPageCount
+        }));
         loading.hidden = false;
         document.getElementById('bookReaderPrev').disabled = true;
         document.getElementById('bookReaderNext').disabled = true;
@@ -3999,14 +4811,19 @@
         const readerId = ++activeBookReaderId;
         const originalUrl = safeReaderDocumentUrl(pdf?.original_url || pdf?.url);
         currentReaderPdf = { ...pdf, original_url: originalUrl };
+        activePdfReaderDocumentKey = pdfReaderDocumentKey(currentReaderPdf);
+        activePdfOfflineOnly = false;
         const reader = document.getElementById('bookReader');
         const loading = document.getElementById('bookReaderLoading');
         const errorPanel = document.getElementById('bookReaderError');
         const flipbook = document.getElementById('bookFlipbook');
+        const scroll = document.getElementById('pdfScrollContainer');
         const media = document.getElementById('bookReaderMedia');
         const firstPagePreview = document.getElementById('bookReaderFirstPagePreview');
         const actions = document.getElementById('bookReaderActions');
         const controls = document.getElementById('bookReaderControls');
+        const toolbar = document.getElementById('bookReaderToolbar');
+        const savedProgress = readPdfReaderProgress(activePdfReaderDocumentKey);
         let directUrl = safeReaderDocumentUrl(pdf?.resolved_pdf_url || pdf?.url);
         reader.classList.add('show');
         reader.setAttribute('aria-hidden', 'false');
@@ -4023,6 +4840,10 @@
         errorPanel.replaceChildren();
         flipbook.hidden = true;
         flipbook.innerHTML = '';
+        if (scroll) {
+            scroll.hidden = true;
+            scroll.replaceChildren();
+        }
         firstPagePreview.hidden = true;
         firstPagePreview.replaceChildren();
         reader.dataset.firstPageReady = 'false';
@@ -4031,6 +4852,9 @@
         actions.hidden = true;
         actions.replaceChildren();
         controls.hidden = true;
+        toolbar.hidden = true;
+        document.getElementById('bookReaderRenderProgress').hidden = true;
+        setPdfReaderModeControls();
         updateBookReaderPages();
         if (activeBookReaderTimeoutId !== null) window.clearTimeout(activeBookReaderTimeoutId);
         const loadTimeout = window.setTimeout(() => {
@@ -4151,12 +4975,29 @@
                 if (readerId !== activeBookReaderId) return;
                 activePdfDocument = documentProxy;
                 activePdfPageNumber = 0;
+            activePdfPageCount = Number(documentProxy.numPages) || 0;
                 if (!documentProxy.numPages) throw new Error('The selected PDF contains no pages.');
-                flipbook.hidden = false;
+            void savePdfReaderOfflineManifest(activePdfReaderDocumentKey, activePdfPageCount);
                 controls.hidden = false;
+            toolbar.hidden = false;
                 document.getElementById('bookReaderNightToggle').hidden = false;
-                setBookReaderStatus(`📖 Rendering page 1 of ${documentProxy.numPages}…`);
-                await renderPdfReaderPage(1, readerId);
+            setPdfReaderModeControls();
+            if (pdfReaderMode === 'scroll') {
+                await enterPdfScrollMode(
+                    readerId,
+                    activePdfPageCount,
+                    savedProgress?.page || 1,
+                    savedProgress,
+                    false
+                );
+            } else {
+                flipbook.hidden = false;
+                setBookReaderStatus(readerTranslated('reader_rendering_progress', 'Rendering page {current} of {total}', {
+                    current: savedProgress?.page || 1,
+                    total: activePdfPageCount
+                }));
+                await renderPdfReaderPage(savedProgress?.page || 1, readerId);
+            }
                 if (readerId !== activeBookReaderId) return;
                 reader.dataset.firstPageReady = 'true';
                 loading.hidden = true;
@@ -4206,9 +5047,43 @@
             }
         } catch (error) {
             if (readerId !== activeBookReaderId) return;
+            const offlineManifest = pdfReaderMode === 'scroll'
+                ? await loadPdfReaderOfflineManifest(activePdfReaderDocumentKey)
+                : null;
+            if (offlineManifest && readerId === activeBookReaderId) {
+                console.warn('[PDF reader] Opening the saved offline page copy.', error);
+                activePdfDocument = null;
+                activePdfPageCount = offlineManifest.pageCount;
+                activePdfPageNumber = 1;
+                activePdfOfflineOnly = true;
+                flipbook.hidden = true;
+                media.hidden = true;
+                errorPanel.hidden = true;
+                toolbar.hidden = false;
+                controls.hidden = false;
+                document.getElementById('bookReaderNightToggle').hidden = false;
+                setPdfReaderModeControls();
+                await enterPdfScrollMode(
+                    readerId,
+                    offlineManifest.pageCount,
+                    savedProgress?.page || 1,
+                    savedProgress,
+                    true
+                );
+                if (readerId !== activeBookReaderId) return;
+                reader.dataset.firstPageReady = 'true';
+                loading.hidden = true;
+                updateBookReaderPages();
+                if (activeBookReaderTimeoutId === loadTimeout) {
+                    window.clearTimeout(loadTimeout);
+                    activeBookReaderTimeoutId = null;
+                }
+                return;
+            }
             console.error('Could not load document in the reader:', error);
             loading.hidden = true;
             flipbook.hidden = true;
+            if (scroll) scroll.hidden = true;
             media.hidden = true;
             showReaderError(error, directUrl || originalUrl);
         } finally {
@@ -4217,17 +5092,22 @@
         }
     }
     function closeBookReader() {
+        savePdfReaderProgress();
         activeBookReaderId += 1;
         if (activeBookReaderTimeoutId !== null) {
             window.clearTimeout(activeBookReaderTimeoutId);
             activeBookReaderTimeoutId = null;
         }
+        clearPdfScrollMode();
         try { activePdfPageRenderTask?.cancel(); } catch (_) {}
         activePdfPageRenderTask = null;
         const loadingTask = activePdfLoadingTask;
         activePdfLoadingTask = null;
         activePdfDocument = null;
         activePdfPageNumber = 0;
+        activePdfPageCount = 0;
+        activePdfReaderDocumentKey = null;
+        activePdfOfflineOnly = false;
         if (loadingTask?.destroy) Promise.resolve().then(() => loadingTask.destroy()).catch(() => {});
         if (activeReaderObjectUrl) {
             URL.revokeObjectURL(activeReaderObjectUrl);
@@ -4261,21 +5141,26 @@
         }
         const controls = document.getElementById('bookReaderControls');
         if (controls) controls.hidden = true;
+        const toolbar = document.getElementById('bookReaderToolbar');
+        if (toolbar) toolbar.hidden = true;
+        const progress = document.getElementById('bookReaderRenderProgress');
+        if (progress) progress.hidden = true;
         document.getElementById('bookReaderNightToggle').hidden = true;
         document.getElementById('bookReaderLoading').hidden = true;
         document.getElementById('bookReaderError').hidden = true;
         document.getElementById('bookReaderError').replaceChildren();
-        document.getElementById('bookReaderPageCount').textContent = 'Page 0 of 0';
-        document.getElementById('bookReaderPrev').disabled = true;
-        document.getElementById('bookReaderNext').disabled = true;
+        updateBookReaderPages();
+        setPdfReaderModeControls();
         currentReaderPdf = null;
     }
     let pdfReaderResizeTimer = null;
     window.addEventListener('resize', () => {
-        if (!activePdfDocument || !activePdfPageNumber || activePdfPageRenderTask) return;
+        if (!activePdfDocument || !activePdfPageNumber) return;
         window.clearTimeout(pdfReaderResizeTimer);
         pdfReaderResizeTimer = window.setTimeout(() => {
-            if (activePdfDocument && activePdfPageNumber && !activePdfPageRenderTask) {
+            if (activePdfDocument && activePdfPageNumber && pdfReaderMode === 'scroll') {
+                changePdfReaderZoom(pdfReaderZoom);
+            } else if (activePdfDocument && activePdfPageNumber && !activePdfPageRenderTask) {
                 void renderPdfReaderPage(activePdfPageNumber, activeBookReaderId).catch(error => {
                     showReaderError(error, currentReaderPdf?.url);
                 });
@@ -7611,6 +8496,82 @@
         document.getElementById('cancelBookReaderLoading')?.addEventListener('click', closeBookReader);
         document.getElementById('bookReaderPrev')?.addEventListener('click', () => void navigatePdfReaderPage(-1));
         document.getElementById('bookReaderNext')?.addEventListener('click', () => void navigatePdfReaderPage(1));
+        document.getElementById('bookReaderModeToggle')?.addEventListener('click', togglePdfReaderMode);
+        document.getElementById('bookReaderZoom')?.addEventListener('change', event => {
+            changePdfReaderZoom(event.currentTarget.value);
+        });
+        document.getElementById('bookReaderPageJump')?.addEventListener('change', event => {
+            jumpToPdfReaderPage(event.currentTarget.value);
+        });
+        document.getElementById('bookReaderPageJump')?.addEventListener('keydown', event => {
+            if (event.key === 'Enter') {
+                event.preventDefault();
+                jumpToPdfReaderPage(event.currentTarget.value);
+            }
+        });
+        document.getElementById('bookReaderTop')?.addEventListener('click', () => {
+            const scroll = document.getElementById('pdfScrollContainer');
+            if (scroll) scroll.scrollTo({ top: 0, behavior: 'smooth' });
+        });
+        const pdfScrollContainer = document.getElementById('pdfScrollContainer');
+        pdfScrollContainer?.addEventListener('click', event => {
+            const retryButton = event.target instanceof Element ? event.target.closest('[data-pdf-page-retry]') : null;
+            if (!retryButton) return;
+            const pageNumber = Number(retryButton.dataset.pdfPageRetry);
+            const state = pdfScrollPages.get(pageNumber);
+            if (!state) return;
+            state.status.hidden = true;
+            state.queued = false;
+            queuePdfScrollPage(pageNumber);
+        });
+        pdfScrollContainer?.addEventListener('scroll', () => {
+            if (!pdfScrollObserver) {
+                updatePdfReaderVisiblePage();
+                for (let page = Math.max(1, activePdfPageNumber - 1); page <= Math.min(activePdfPageCount, activePdfPageNumber + 2); page += 1) {
+                    queuePdfScrollPage(page);
+                }
+            }
+            schedulePdfReaderProgressSave();
+        }, { passive: true });
+        window.addEventListener('apshule:language-changed', () => {
+            setPdfReaderModeControls();
+            updateBookReaderPages();
+            updatePdfScrollBadges();
+            updatePdfReaderRenderProgress();
+        });
+        const bookFlipbook = document.getElementById('bookFlipbook');
+        bookFlipbook?.addEventListener('touchstart', event => {
+            if (event.touches.length !== 1) {
+                pdfScrollLastTouch = null;
+                return;
+            }
+            const touch = event.touches[0];
+            pdfScrollLastTouch = { x: touch.clientX, y: touch.clientY, at: Date.now() };
+        }, { passive: true });
+        bookFlipbook?.addEventListener('touchend', event => {
+            if (pdfReaderMode !== 'book' || !pdfScrollLastTouch || event.changedTouches.length !== 1) {
+                pdfScrollLastTouch = null;
+                return;
+            }
+            const touch = event.changedTouches[0];
+            const deltaX = touch.clientX - pdfScrollLastTouch.x;
+            const deltaY = touch.clientY - pdfScrollLastTouch.y;
+            const elapsed = Date.now() - pdfScrollLastTouch.at;
+            pdfScrollLastTouch = null;
+            if (Math.abs(deltaX) > 55 && Math.abs(deltaX) > Math.abs(deltaY) * 1.2 && elapsed < 700) {
+                pdfScrollLastTapAt = 0;
+                void navigatePdfReaderPage(deltaX < 0 ? 1 : -1);
+                return;
+            }
+            if (Math.abs(deltaX) > 14 || Math.abs(deltaY) > 14 || elapsed > 450) return;
+            const now = Date.now();
+            if (now - pdfScrollLastTapAt < 320) {
+                pdfScrollLastTapAt = 0;
+                changePdfReaderZoom(pdfReaderZoom === 'fit-width' ? 'fit-page' : 'fit-width');
+            } else {
+                pdfScrollLastTapAt = now;
+            }
+        }, { passive: true });
         document.getElementById('bookReaderNightToggle')?.addEventListener('click', event => {
             const reader = document.getElementById('bookReader');
             const isNight = reader.classList.toggle('night-mode');
@@ -7622,9 +8583,31 @@
             if (target && currentReaderPdf) openBookReader(currentReaderPdf);
         });
         document.addEventListener('keydown', event => {
-            if (event.key !== 'Escape') return;
-            if (document.getElementById('bookReader').classList.contains('show')) closeBookReader();
-            else if (document.getElementById('elibraryScreen').classList.contains('show')) closeELibraryScreen();
+            const reader = document.getElementById('bookReader');
+            if (event.key === 'Escape') {
+                if (reader.classList.contains('show')) closeBookReader();
+                else if (document.getElementById('elibraryScreen').classList.contains('show')) closeELibraryScreen();
+                return;
+            }
+            if (!reader.classList.contains('show') || !activePdfPageCount) return;
+            if (event.target instanceof Element && event.target.closest('input, select, textarea, button, [contenteditable="true"]')) return;
+            if (pdfReaderMode === 'book' && (event.key === 'ArrowLeft' || event.key === 'ArrowRight')) {
+                event.preventDefault();
+                void navigatePdfReaderPage(event.key === 'ArrowLeft' ? -1 : 1);
+            } else if (pdfReaderMode === 'scroll' && ['PageUp', 'PageDown', ' ', 'Spacebar'].includes(event.key)) {
+                event.preventDefault();
+                const scroll = document.getElementById('pdfScrollContainer');
+                if (scroll) {
+                    const direction = event.key === 'PageUp' ? -1 : 1;
+                    scroll.scrollBy({
+                        top: Math.max(260, scroll.clientHeight * 0.78) * direction,
+                        behavior: 'smooth'
+                    });
+                }
+            } else if (pdfReaderMode === 'book' && [' ', 'Spacebar'].includes(event.key)) {
+                event.preventDefault();
+                void navigatePdfReaderPage(1);
+            }
         });
 
         document.querySelectorAll('.subscribe-btn-small').forEach(btn => {

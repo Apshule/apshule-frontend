@@ -235,20 +235,21 @@ test("document reader uses Microsoft viewer, authenticated downloads, and viewer
   assert.equal((html.match(/openBookReader\(\{\s*\.\.\.pdf, source_table: 'pdfs', original_url: pdf\.url \}\)/gu) || []).length, 2);
   assert.match(reader, /disableStream: true/u);
   assert.match(reader, /disableAutoFetch: true/u);
-  assert.match(reader, /await renderPdfReaderPage\(1, readerId\)/u);
+  assert.match(reader, /await renderPdfReaderPage\(savedProgress\?\.page \|\| 1, readerId\)/u);
+  assert.match(reader, /await enterPdfScrollMode/u);
   assert.match(html, /canvas\.width = Math\.ceil\(viewport\.width \* outputScale\)/u);
   assert.match(html, /const outputScale = Math\.min\(2, Math\.max\(1, window\.devicePixelRatio \|\| 1\)\)/u);
   assert.match(html, /enablePdfCanvasPinchZoom/u);
   assert.doesNotMatch(reader, /loadFromImages|for \(let pageNumber = 1/u);
   assert.match(html, /pdfUnresolvableSummary/u);
-  assert.match(html, /manual URL replacement/u);
+  assert.match(html, /New direct HTTPS PDF URL/u);
   assert.match(html, /p\.resolve_reason/u);
   assert.match(html, /isDirectPdfUrl\(url\)/u);
   assert.doesNotMatch(html, /PageFlip|loadFromImages|page-flip\.browser/u);
 });
 
-test("the service worker uses cache v26 and claims clients on activation", async () => {
+test("the service worker uses cache v29 and claims clients on activation", async () => {
   const sw = await readFile(new URL("../sw.js", import.meta.url), "utf8");
-  assert.match(sw, /const CACHE_NAME = "apshule-cache-v26"/u);
+  assert.match(sw, /const CACHE_NAME = "apshule-cache-v29"/u);
   assert.match(sw, /await self\.clients\.claim\(\)/u);
 });

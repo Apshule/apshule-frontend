@@ -139,10 +139,14 @@ export function initSettingsUI({
         "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;",
     })[char]);
     const safeText = (value, fallback = "—") => value == null || value === "" ? fallback : String(value);
-    const t = (key, fallback) => {
+    const t = (key, fallback, values = {}) => {
         const translated = translations?.[key];
-        return translated == null || translated === "" ? fallback : String(translated);
+        const template = translated == null || translated === "" ? String(fallback ?? "") : String(translated);
+        return template.replace(/\{([a-zA-Z0-9_]+)\}/gu, (match, name) =>
+            Object.hasOwn(values, name) ? String(values[name]) : match
+        );
     };
+    globalThis.apshuleTranslate = t;
     const labelFor = (value) => {
         const key = String(value || "");
         return t(key, key.replaceAll("_", " "));
@@ -259,6 +263,7 @@ export function initSettingsUI({
             loadedLanguage = "en";
             document.querySelectorAll("[data-i18n]").forEach((node) => { if (translationEnglish.has(node)) node.textContent = translationEnglish.get(node); });
         }
+        window.dispatchEvent(new CustomEvent("apshule:language-changed", { detail: { language: lang } }));
     }
     function translateAddedNodes(nodes) {
         if (preferences.language === "en") return;
