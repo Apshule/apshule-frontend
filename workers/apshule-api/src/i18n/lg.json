@@ -142,5 +142,7 @@
   "reader_zoom_increase": "Yongera okuzimba",
   "reader_zoom_slider": "Omutindo gw'okuzimba",
   "reader_more_actions": "Ebikolwa ebirala",
-  "reader_download_progress": "PDF eri kuwanulibwa · {loaded} ku {total}"
+  "reader_download_progress": "PDF eri kuwanulibwa · {loaded} ku {total}",
+  "reader_loading_pages": "⏳ Empapula zitikkibwa...",
+  "reader_zoom_reset": "Ddamu okutegeka okusooma okuba okwaguka kw'olupapula"
 }

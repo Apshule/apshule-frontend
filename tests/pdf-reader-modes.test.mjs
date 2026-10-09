@@ -31,23 +31,31 @@ test("the reader exposes translated book, spread, zoom, and page controls", () =
   }
   assert.match(html, /id="bookReaderModeToggle"/u);
   assert.match(html, /id="bookReaderZoom"/u);
+  assert.match(html, /id="bookReaderZoomReset"/u);
   assert.match(html, /id="bookReaderPageJump"/u);
   assert.match(html, /id="bookReaderTop"/u);
   assert.match(html, /id="bookReaderLayoutToggle"/u);
   assert.match(html, /reader_two_page_spread/u);
-  assert.match(html, /id="bookReaderZoom" min="0" max="100"/u);
+  assert.match(html, /id="bookReaderZoom" min="10" max="300"/u);
   assert.match(html, /id="bookReaderMoreMenu"/u);
   assert.match(html, /window\.apshuleTranslate\('reader_page_of', fallback, \{ current: currentLabel, total: count \}\)/u);
 });
 
-test("Book remains the default, and mode and zoom preferences persist", () => {
+test("Book remains the default, Fit Width is the initial zoom, and manual zoom persists per device", () => {
   assert.match(html, /PDF_READER_MODE_KEY = 'pdf_reader_mode'/u);
-  assert.match(html, /PDF_READER_ZOOM_KEY = 'pdf_reader_zoom'/u);
+  assert.match(html, /PDF_READER_ZOOM_KEY = 'pdf_reader_zoom_mode_v2'/u);
   assert.match(html, /let pdfReaderMode = 'book'/u);
+  assert.match(html, /let pdfReaderZoom = 'fit-width'/u);
   assert.match(html, /readPdfReaderSetting\(PDF_READER_MODE_KEY, 'book', \['book', 'scroll'\]\)/u);
+  assert.match(html, /readPdfReaderSetting\(PDF_READER_ZOOM_KEY, 'fit-width'/u);
   assert.match(html, /localStorage\.setItem\(PDF_READER_MODE_KEY, pdfReaderMode\)/u);
   assert.match(html, /localStorage\.setItem\(PDF_READER_ZOOM_KEY, nextMode\)/u);
-  assert.match(html, /localStorage\.setItem\(PDF_READER_ZOOM_LEVEL_KEY, String\(nextLevel\)\)/u);
+  assert.match(html, /if \(nextMode === 'custom'\) \{\s*localStorage\.setItem\(PDF_READER_ZOOM_LEVEL_KEY, String\(nextLevel\)\)/u);
+  assert.match(html, /function setPdfReaderZoomLevelFromScale\(scale\)/u);
+  assert.match(html, /id="bookReaderZoomReset"[^>]*reader_zoom_reset/u);
+  assert.match(html, /bookReaderZoomReset'\)\?\.addEventListener\('click', \(\) => \{\s*void changePdfReaderZoom\('fit-width'\)/u);
+  assert.match(html, /Math\.max\(10, pdfReaderZoomLevel - 10\)/u);
+  assert.match(html, /Math\.min\(300, pdfReaderZoomLevel \+ 10\)/u);
   assert.match(html, /function togglePdfReaderMode\(\)/u);
   assert.match(html, /function togglePdfReaderLayout\(\)/u);
   assert.match(html, /let pdfReaderBookLayout = window\.innerWidth < 600 \? 'single' : 'spread'/u);
@@ -95,6 +103,8 @@ test("every supported language has the reader controls and streaming progress ke
     "reader_zoom_slider",
     "reader_more_actions",
     "reader_download_progress",
+    "reader_loading_pages",
+    "reader_zoom_reset",
   ];
   for (const [index, dictionary] of localeDictionaries.entries()) {
     for (const key of keys) {
@@ -121,6 +131,20 @@ test("page retry, keyboard controls, Book tap zones, swipe navigation, and pinch
   assert.match(html, /reader_top/u);
 });
 
+test("PDF loading uses a 2px non-blocking progress line and a 3-second toast", () => {
+  assert.match(html, /id="bookReaderRenderProgress"[^>]*role="progressbar"/u);
+  assert.match(html, /\.book-reader-render-progress \{[^}]*height:2px[^}]*background:transparent/su);
+  assert.match(html, /id="bookReaderLoadingToast"[^>]*data-i18n="reader_loading_pages"[^>]*hidden/u);
+  assert.match(html, /function showPdfReaderLoadingToast\(\)/u);
+  assert.match(html, /setTimeout\(\(\) => \{\s*toast\.hidden = true;\s*pdfReaderLoadingToastTimer = null;\s*\}, 3000\)/u);
+  assert.match(html, /const downloading = !activePdfOfflineOnly &&\s*pdfReaderLoadProgress\.active &&\s*reader\?\.dataset\.firstPageReady !== 'true'/u);
+  assert.match(html, /strip\.hidden = !downloading/u);
+  assert.match(html, /loading\.hidden = true;\s*flipbook\.hidden = false;\s*showPdfReaderLoadingToast\(\)/u);
+  assert.doesNotMatch(html, /id="bookReaderProgress"/u);
+  assert.doesNotMatch(html, /\.book-reader-loading progress/u);
+  assert.match(html, /reader\.dataset\.firstPageReady = 'true';\s*pdfReaderLoadProgress\.active = false;\s*updatePdfReaderRenderProgress\(\)/u);
+});
+
 test("the service worker advances its cache namespace for the reader update", () => {
-  assert.match(sw, /const CACHE_NAME = "apshule-cache-v30"/u);
+  assert.match(sw, /const CACHE_NAME = "apshule-cache-v31"/u);
 });

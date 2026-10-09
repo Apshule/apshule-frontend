@@ -581,17 +581,20 @@
         .book-reader-toolbar select, .book-reader-page-jump input { min-height:38px; max-width:126px; padding:6px 8px; border:1px solid #625e6c; border-radius:9px; background:#413e4b; color:#fff; font:inherit; font-size:12px; }
         .book-reader-page-jump { display:flex; align-items:center; gap:5px; color:#dedbe4; font-size:11px; white-space:nowrap; }
         .book-reader-page-jump input { width:60px; max-width:60px; text-align:center; }
-        .book-reader-render-progress { position:relative; z-index:2; flex:none; display:block; width:100%; height:1px; padding:0; background:#292733; color:#d9d6e0; }
+        .book-reader-render-progress { position:relative; z-index:2; flex:none; display:block; width:100%; height:2px; padding:0; overflow:hidden; background:transparent; }
         .book-reader-render-progress[hidden] { display:none !important; }
-        .book-reader-render-progress progress { display:block; width:100%; height:1px; border:0; border-radius:0; accent-color:#ff8c42; }
+        .book-reader-render-progress-fill { display:block; width:0; height:100%; background:#ff8c42; transition:width .16s linear; }
+        .book-reader-render-progress.indeterminate .book-reader-render-progress-fill { width:28%; animation:book-reader-progress-slide 1.15s ease-in-out infinite alternate; }
+        @keyframes book-reader-progress-slide { from { transform:translateX(-35%); } to { transform:translateX(270%); } }
         .book-reader-render-label { position:absolute; width:1px; height:1px; padding:0; margin:-1px; overflow:hidden; clip:rect(0,0,0,0); white-space:nowrap; border:0; }
+        .book-reader-loading-toast { position:fixed; top:calc(env(safe-area-inset-top, 0px) + 10px); right:12px; z-index:7001; max-width:calc(100vw - 24px); padding:8px 12px; border:1px solid #625e6c; border-radius:999px; background:rgba(25,24,33,.94); color:#fff; box-shadow:0 5px 18px rgba(0,0,0,.28); font-size:12px; font-weight:700; pointer-events:none; }
+        .book-reader-loading-toast[hidden] { display:none !important; }
         .book-reader-center { flex:1; min-height:0; display:flex; align-items:center; justify-content:center; padding:12px; overflow:hidden; }
         .book-reader-content { width:100%; height:100%; min-height:0; display:flex; flex-direction:column; align-items:center; justify-content:center; }
         .book-reader-loading, .book-reader-error { max-width:440px; padding:22px; border-radius:15px; background:#292733; color:#eee; text-align:center; line-height:1.5; }
         .book-reader-loading { display:flex; flex-direction:column; align-items:center; gap:12px; }
         .book-reader-loading[data-state="resolving"] { border:1px solid #6b6877; color:#d6d2df; }
         .book-reader-loading[data-state="downloading"], .book-reader-loading[data-state="rendering"] { border:1px solid #4b9ad3; background:#18354b; color:#e4f4ff; }
-        .book-reader-loading progress { width:min(100%,360px); height:12px; accent-color:#ff8c42; }
         .book-reader-cancel-loading { padding:8px 14px; border:1px solid #777282; border-radius:999px; background:transparent; color:#eee; font:inherit; font-size:13px; font-weight:700; cursor:pointer; }
         .book-reader-first-page-preview { width:min(100%,700px); max-height:48vh; display:flex; justify-content:center; overflow:hidden; }
         .book-reader-first-page-preview[hidden] { display:none !important; }
@@ -666,8 +669,7 @@
             .book-reader-toolbar button { flex:1 1 auto; padding:7px 8px; font-size:11px; }
             .book-reader-toolbar select { flex:1 1 94px; max-width:115px; }
             .book-reader-page-jump { flex:1 1 auto; justify-content:flex-end; }
-            .book-reader-render-progress { padding:2px 8px; }
-            .book-reader-render-label { min-width:96px; font-size:9px; }
+            .book-reader-loading-toast { top:calc(env(safe-area-inset-top, 0px) + 8px); right:8px; }
             .book-reader-center { padding:8px; }
             .book-reader-controls { justify-content:space-between; gap:6px; padding:8px; }
             .book-reader-controls > #bookReaderPrev, .book-reader-controls > #bookReaderPageCount, .book-reader-controls > #bookReaderNext, .book-reader-controls > #bookReaderTop { flex:1 1 auto; }
@@ -2066,10 +2068,11 @@
     </section>
 </div>
 <div id="bookReader" class="book-reader" role="dialog" aria-modal="true" aria-hidden="true" aria-label="Document reader">
-    <div class="book-reader-render-progress" id="bookReaderRenderProgress" role="status" aria-live="polite" hidden>
+    <div class="book-reader-render-progress" id="bookReaderRenderProgress" role="progressbar" aria-label="Loading pages" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0" hidden>
         <span class="book-reader-render-label" id="bookReaderRenderLabel" data-i18n="reader_rendering_progress">Rendering page 1 of 1</span>
-        <progress id="bookReaderRenderProgressBar" max="1" value="0"></progress>
+        <span class="book-reader-render-progress-fill" id="bookReaderRenderProgressFill" aria-hidden="true"></span>
     </div>
+    <div class="book-reader-loading-toast" id="bookReaderLoadingToast" role="status" aria-live="polite" data-i18n="reader_loading_pages" hidden>⏳ Loading pages...</div>
     <header class="book-reader-topbar">
         <button type="button" class="book-reader-close" id="closeBookReader">✕ Close</button>
         <div class="book-reader-title-wrap"><span class="book-reader-title-icon" id="bookReaderDocIcon" aria-hidden="true">📄</span><div class="book-reader-title" id="bookReaderTitle">Document Reader</div></div>
@@ -2089,7 +2092,6 @@
         <div class="book-reader-content">
             <div class="book-reader-loading" id="bookReaderLoading" role="status" aria-live="polite">
                 <span id="bookReaderLoadingText">🔍 Resolving link…</span>
-                <progress id="bookReaderProgress" max="100" hidden></progress>
                 <button type="button" class="book-reader-cancel-loading" id="cancelBookReaderLoading">Cancel loading</button>
             </div>
             <div class="book-reader-error" id="bookReaderError" hidden></div>
@@ -2106,10 +2108,11 @@
         <div class="book-reader-zoom-controls" role="group" aria-label="Zoom controls" data-i18n-aria-label="reader_zoom">
             <button type="button" id="bookReaderZoomDecrease" aria-label="Zoom out" data-i18n-aria-label="reader_zoom_decrease">−</button>
             <label class="sr-only" for="bookReaderZoom" data-i18n="reader_zoom">Zoom</label>
-            <input type="range" id="bookReaderZoom" min="0" max="100" step="1" value="50" aria-label="Zoom level" data-i18n-aria-label="reader_zoom_slider">
-            <span class="book-reader-zoom-value" id="bookReaderZoomValue" aria-live="polite">50%</span>
+            <input type="range" id="bookReaderZoom" min="10" max="300" step="1" value="100" aria-label="Zoom level" data-i18n-aria-label="reader_zoom_slider">
+            <span class="book-reader-zoom-value" id="bookReaderZoomValue" aria-live="polite">Fit Width</span>
             <button type="button" id="bookReaderZoomIncrease" aria-label="Zoom in" data-i18n-aria-label="reader_zoom_increase">+</button>
             <button type="button" id="bookReaderZoomActual" aria-label="100% actual size" title="100% actual size" data-i18n-aria-label="reader_actual_size" data-i18n="reader_actual_size">100%</button>
+            <button type="button" id="bookReaderZoomReset" aria-label="Reset zoom to Fit Width" title="Reset zoom to Fit Width" data-i18n-aria-label="reader_zoom_reset">↺</button>
             <button type="button" id="bookReaderFitWidth" data-i18n="reader_fit_width">Fit Width</button>
             <button type="button" id="bookReaderFitPage" data-i18n="reader_fit_page">Fit Page</button>
         </div>
@@ -2300,7 +2303,7 @@
     let activePdfReaderDocumentKey = null;
     let activePdfOfflineOnly = false;
     const PDF_READER_MODE_KEY = 'pdf_reader_mode';
-    const PDF_READER_ZOOM_KEY = 'pdf_reader_zoom';
+    const PDF_READER_ZOOM_KEY = 'pdf_reader_zoom_mode_v2';
     const PDF_READER_ZOOM_LEVEL_KEY = 'pdf_zoom_level';
     const PDF_READER_BOOK_LAYOUT_KEY = 'pdf_book_layout';
     const PDF_READER_PROGRESS_PREFIX = 'apshule_pdf_reader_progress_v1:';
@@ -2308,8 +2311,8 @@
     const PDF_READER_OFFLINE_TTL_SECONDS = 30 * 24 * 60 * 60;
     const PDF_READER_MAX_RENDERED_SCROLL_PAGES = 10;
     let pdfReaderMode = 'book';
-    let pdfReaderZoom = 'custom';
-    let pdfReaderZoomLevel = 50;
+    let pdfReaderZoom = 'fit-width';
+    let pdfReaderZoomLevel = 100;
     let pdfReaderBookLayout = window.innerWidth < 600 ? 'single' : 'spread';
     let pdfBookLayoutWasExplicit = false;
     let pdfBookRenderRevision = 0;
@@ -2325,6 +2328,7 @@
     let pdfReaderSuppressCanvasClickUntil = 0;
     let pdfReaderZoomRevision = 0;
     let pdfReaderLoadProgress = { loaded: 0, total: 0, active: false };
+    let pdfReaderLoadingToastTimer = null;
     let currentLibraryRequestId = 0;
 
     const classData = {
@@ -3309,7 +3313,11 @@
         }
         const zoom = document.getElementById('bookReaderZoom');
         const zoomValue = document.getElementById('bookReaderZoomValue');
-        if (zoom) zoom.value = String(pdfReaderZoomLevel);
+        if (zoom) {
+            zoom.min = '10';
+            zoom.max = '300';
+            zoom.value = String(pdfReaderZoomLevel);
+        }
         document.getElementById('bookReaderZoomActual')?.setAttribute('aria-pressed', String(pdfReaderZoom === 'actual-size'));
         document.getElementById('bookReaderFitWidth')?.setAttribute('aria-pressed', String(pdfReaderZoom === 'fit-width'));
         document.getElementById('bookReaderFitPage')?.setAttribute('aria-pressed', String(pdfReaderZoom === 'fit-page'));
@@ -3463,6 +3471,11 @@
         if (zoom === 'fit-width') return Math.max(0.1, widthScale);
         return Math.max(0.1, pdfReaderZoomLevel / 100);
     }
+    function setPdfReaderZoomLevelFromScale(scale) {
+        pdfReaderZoomLevel = Math.max(10, Math.min(300, Math.round((Number(scale) || 1) * 100)));
+        const zoom = document.getElementById('bookReaderZoom');
+        if (zoom) zoom.value = String(pdfReaderZoomLevel);
+    }
     function applyPdfReaderOfflineImageZoom(state, record = null) {
         if (!state?.image) return;
         record = record || state.imageMetadata;
@@ -3513,12 +3526,15 @@
     }
     try {
         pdfReaderMode = readPdfReaderSetting(PDF_READER_MODE_KEY, 'book', ['book', 'scroll']);
-        pdfReaderZoom = readPdfReaderSetting(PDF_READER_ZOOM_KEY, 'custom', ['fit-width', 'fit-page', 'actual-size', 'custom']);
+        pdfReaderZoom = readPdfReaderSetting(PDF_READER_ZOOM_KEY, 'fit-width', ['fit-width', 'fit-page', 'actual-size', 'custom']);
         const savedZoomLevelValue = localStorage.getItem(PDF_READER_ZOOM_LEVEL_KEY);
         const savedZoomLevel = savedZoomLevelValue === null ? NaN : Number(savedZoomLevelValue);
-        pdfReaderZoomLevel = Number.isFinite(savedZoomLevel) && savedZoomLevel >= 0 && savedZoomLevel <= 100
+        pdfReaderZoomLevel = pdfReaderZoom === 'custom' &&
+            Number.isFinite(savedZoomLevel) &&
+            savedZoomLevel >= 10 &&
+            savedZoomLevel <= 300
             ? Math.round(savedZoomLevel)
-            : (pdfReaderZoom === 'actual-size' ? 100 : 50);
+            : 100;
         const savedLayout = localStorage.getItem(PDF_READER_BOOK_LAYOUT_KEY);
         pdfBookLayoutWasExplicit = savedLayout === 'single' || savedLayout === 'spread';
         pdfReaderBookLayout = pdfBookLayoutWasExplicit
@@ -3639,7 +3655,11 @@
             return;
         }
         container.dataset.layout = pdfReaderBookLayout;
-        const viewport = page.getViewport({ scale: pdfReaderScaleFor(page, container) });
+        const pageScale = pdfReaderScaleFor(page, container);
+        if (pdfReaderZoom === 'fit-width' || pdfReaderZoom === 'fit-page') {
+            setPdfReaderZoomLevelFromScale(pageScale);
+        }
+        const viewport = page.getViewport({ scale: pageScale });
         const outputScale = Math.min(2, Math.max(1, window.devicePixelRatio || 1));
         const canvas = document.createElement('canvas');
         canvas.width = Math.ceil(viewport.width * outputScale);
@@ -3690,6 +3710,10 @@
                 }
                 savePdfReaderProgress();
                 renderedSuccessfully = true;
+                const reader = document.getElementById('bookReader');
+                if (reader) reader.dataset.firstPageReady = 'true';
+                pdfReaderLoadProgress.active = false;
+                updatePdfReaderRenderProgress();
             }
         } catch (error) {
             if (renderRevision === pdfBookRenderRevision) throw error;
@@ -3819,49 +3843,46 @@
     function updatePdfReaderRenderProgress() {
         const strip = document.getElementById('bookReaderRenderProgress');
         const label = document.getElementById('bookReaderRenderLabel');
-        const progress = document.getElementById('bookReaderRenderProgressBar');
-        const count = activePdfPageCount || activePdfDocument?.numPages || 0;
-        if (!strip || !label || !progress) return;
+        const fill = document.getElementById('bookReaderRenderProgressFill');
+        if (!strip || !label || !fill) return;
         const reader = document.getElementById('bookReader');
         const totalBytes = Math.max(0, Number(pdfReaderLoadProgress.total) || 0);
         const loadedBytes = Math.max(0, Number(pdfReaderLoadProgress.loaded) || 0);
-        const firstPageReady = reader?.dataset.firstPageReady === 'true';
-        const downloading = !activePdfOfflineOnly && pdfReaderLoadProgress.active && (
-            (totalBytes > 0 && loadedBytes < totalBytes) ||
-            (totalBytes <= 0 && pdfReaderLoadProgress.active && !firstPageReady)
-        );
-        const renderingScroll = pdfReaderMode === 'scroll' &&
-            (pdfScrollRenderActiveCount > 0 || pdfScrollRenderQueue.length > 0);
-        strip.hidden = !downloading && !renderingScroll;
-        if (downloading) {
-            if (totalBytes > 0) {
-                progress.max = totalBytes;
-                progress.value = Math.min(totalBytes, loadedBytes);
-            } else {
-                progress.max = 1;
-                progress.removeAttribute('value');
-            }
-            const formatBytes = value => value >= 1024 * 1024
-                ? `${(value / (1024 * 1024)).toFixed(1)} MB`
-                : `${Math.ceil(value / 1024)} KB`;
-            label.textContent = readerTranslated(
-                'reader_download_progress',
-                'Downloading PDF · {loaded} of {total}',
-                {
-                    loaded: formatBytes(loadedBytes),
-                    total: totalBytes > 0 ? formatBytes(totalBytes) : '…'
-                }
-            );
+        const downloading = !activePdfOfflineOnly &&
+            pdfReaderLoadProgress.active &&
+            reader?.dataset.firstPageReady !== 'true';
+        strip.hidden = !downloading;
+        if (!downloading) {
+            strip.classList.remove('indeterminate');
+            fill.style.width = '0';
+            strip.removeAttribute('aria-valuenow');
+            strip.removeAttribute('aria-valuetext');
             return;
         }
-        if (!count || !renderingScroll) return;
-        progress.max = count;
-        progress.value = Math.min(count, Math.max(0, activePdfPageNumber));
-        label.textContent = readerTranslated(
-            activePdfOfflineOnly ? 'reader_offline_progress' : 'reader_rendering_progress',
-            activePdfOfflineOnly ? 'Offline page {current} of {total}' : 'Rendering page {current} of {total}',
-            { current: activePdfPageNumber || 1, total: count }
+        const formatBytes = value => value >= 1024 * 1024
+            ? `${(value / (1024 * 1024)).toFixed(1)} MB`
+            : `${Math.ceil(value / 1024)} KB`;
+        const progressLabel = readerTranslated(
+            'reader_download_progress',
+            'Downloading PDF · {loaded} of {total}',
+            {
+                loaded: formatBytes(loadedBytes),
+                total: totalBytes > 0 ? formatBytes(totalBytes) : '…'
+            }
         );
+        label.textContent = progressLabel;
+        strip.setAttribute('aria-label', readerTranslated('reader_loading_pages', '⏳ Loading pages...'));
+        strip.setAttribute('aria-valuetext', progressLabel);
+        if (totalBytes > 0) {
+            const percent = Math.max(0, Math.min(100, (loadedBytes / totalBytes) * 100));
+            strip.classList.remove('indeterminate');
+            fill.style.width = `${percent}%`;
+            strip.setAttribute('aria-valuenow', String(Math.round(percent)));
+        } else {
+            strip.classList.add('indeterminate');
+            fill.style.width = '';
+            strip.removeAttribute('aria-valuenow');
+        }
     }
     function updatePdfScrollBadges() {
         pdfScrollPages.forEach(state => {
@@ -3981,7 +4002,11 @@
             }
             try {
                 const scroll = document.getElementById('pdfScrollContainer');
-                const viewport = page.getViewport({ scale: pdfReaderScaleFor(page, scroll) });
+                const pageScale = pdfReaderScaleFor(page, scroll);
+                if (pdfReaderZoom === 'fit-width' || pdfReaderZoom === 'fit-page') {
+                    setPdfReaderZoomLevelFromScale(pageScale);
+                }
+                const viewport = page.getViewport({ scale: pageScale });
                 state.element.style.aspectRatio = `${viewport.width} / ${viewport.height}`;
                 const intrinsicZoom = ['actual-size', 'custom'].includes(pdfReaderZoom);
                 state.element.style.width = intrinsicZoom ? `${Math.ceil(viewport.width)}px` : '100%';
@@ -4025,6 +4050,12 @@
                         canvas,
                         pdfReaderScaleFor(page, scroll)
                     );
+                }
+                if (pageNumber === 1) {
+                    const reader = document.getElementById('bookReader');
+                    if (reader) reader.dataset.firstPageReady = 'true';
+                    pdfReaderLoadProgress.active = false;
+                    updatePdfReaderRenderProgress();
                 }
                 trimPdfScrollPages(pageNumber);
             } finally {
@@ -4188,7 +4219,7 @@
                 page?.cleanup();
             }
         }
-        nextLevel = Math.max(0, Math.min(100, Math.round(Number(nextLevel) || 0)));
+        nextLevel = Math.max(10, Math.min(300, Math.round(Number(nextLevel) || 100)));
         pdfReaderZoom = nextMode;
         pdfReaderZoomLevel = nextLevel;
         pdfReaderZoomRevision += 1;
@@ -4196,7 +4227,9 @@
         pdfReaderZoomInputTimer = null;
         try {
             localStorage.setItem(PDF_READER_ZOOM_KEY, nextMode);
-            localStorage.setItem(PDF_READER_ZOOM_LEVEL_KEY, String(nextLevel));
+            if (nextMode === 'custom') {
+                localStorage.setItem(PDF_READER_ZOOM_LEVEL_KEY, String(nextLevel));
+            }
         } catch (_) {}
         setPdfReaderModeControls();
         if (!activePdfPageCount) return;
@@ -4966,6 +4999,7 @@
         const panel = document.getElementById('bookReaderError');
         pdfReaderLoadProgress.active = false;
         updatePdfReaderRenderProgress();
+        hidePdfReaderLoadingToast();
         document.getElementById('bookReaderLoading').dataset.state = 'error';
         panel.replaceChildren();
         const message = document.createElement('p');
@@ -4983,29 +5017,32 @@
         panel.appendChild(retry);
         panel.hidden = false;
     }
-    function setBookReaderStatus(message, progress = null) {
+    function setBookReaderStatus(message) {
         const loading = document.getElementById('bookReaderLoading');
         const label = document.getElementById('bookReaderLoadingText');
-        const bar = document.getElementById('bookReaderProgress');
         if (loading) {
             loading.dataset.state = message.includes('Resolving')
                 ? 'resolving'
                 : (message.includes('Downloading') ? 'downloading' : 'rendering');
         }
         if (label) label.textContent = message;
-        if (!bar) return;
-        if (progress === null || progress === undefined) {
-            bar.hidden = true;
-            bar.removeAttribute('value');
-            return;
-        }
-        bar.hidden = false;
-        if (Number.isFinite(progress)) {
-            bar.max = 100;
-            bar.value = Math.max(0, Math.min(100, progress));
-        } else {
-            bar.removeAttribute('value');
-        }
+    }
+    function hidePdfReaderLoadingToast() {
+        window.clearTimeout(pdfReaderLoadingToastTimer);
+        pdfReaderLoadingToastTimer = null;
+        const toast = document.getElementById('bookReaderLoadingToast');
+        if (toast) toast.hidden = true;
+    }
+    function showPdfReaderLoadingToast() {
+        const toast = document.getElementById('bookReaderLoadingToast');
+        if (!toast) return;
+        window.clearTimeout(pdfReaderLoadingToastTimer);
+        toast.textContent = readerTranslated('reader_loading_pages', '⏳ Loading pages...');
+        toast.hidden = false;
+        pdfReaderLoadingToastTimer = window.setTimeout(() => {
+            toast.hidden = true;
+            pdfReaderLoadingToastTimer = null;
+        }, 3000);
     }
     function showPdfResolutionError(error, url) {
         const panel = document.getElementById('bookReaderError');
@@ -5147,6 +5184,8 @@
         firstPagePreview.hidden = true;
         firstPagePreview.replaceChildren();
         reader.dataset.firstPageReady = 'false';
+        hidePdfReaderLoadingToast();
+        pdfReaderLoadProgress = { loaded: 0, total: 0, active: false };
         media.hidden = true;
         media.replaceChildren();
         actions.hidden = true;
@@ -5162,7 +5201,7 @@
         updateBookReaderPages();
         if (activeBookReaderTimeoutId !== null) window.clearTimeout(activeBookReaderTimeoutId);
         const loadTimeout = window.setTimeout(() => {
-            if (readerId !== activeBookReaderId || reader.dataset.firstPageReady === 'true' || loading.hidden) return;
+            if (readerId !== activeBookReaderId || reader.dataset.firstPageReady === 'true') return;
             activeBookReaderTimeoutId = null;
             activeBookReaderId += 1;
             const pendingPdf = activePdfLoadingTask;
@@ -5250,7 +5289,9 @@
                 window.pdfjsLib.GlobalWorkerOptions.workerSrc =
                     'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
                 pdfReaderLoadProgress = { loaded: 0, total: 0, active: true };
-                setBookReaderStatus('📥 Downloading PDF…');
+                loading.hidden = true;
+                flipbook.hidden = false;
+                showPdfReaderLoadingToast();
                 updatePdfReaderRenderProgress();
                 const loadingTask = window.pdfjsLib.getDocument({
                     url: isR2DocumentUrl(directUrl)
@@ -5270,50 +5311,41 @@
                     pdfReaderLoadProgress = {
                         loaded: loadedBytes,
                         total: totalBytes,
-                        active: totalBytes > 0 ? loadedBytes < totalBytes : reader.dataset.firstPageReady !== 'true'
+                        active: reader.dataset.firstPageReady !== 'true'
                     };
                     updatePdfReaderRenderProgress();
-                    const percent = totalBytes > 0 ? (loadedBytes / totalBytes) * 100 : null;
-                    const loadedMb = (loadedBytes / (1024 * 1024)).toFixed(1);
-                    const totalLabel = totalBytes > 0
-                        ? ` of ${(totalBytes / (1024 * 1024)).toFixed(1)} MB`
-                        : '';
-                    if (reader.dataset.firstPageReady !== 'true') {
-                        setBookReaderStatus(
-                            `📥 Downloading PDF… ${loadedMb} MB${totalLabel}`,
-                            percent
-                        );
-                    }
                 };
                 const documentProxy = await loadingTask.promise;
                 if (readerId !== activeBookReaderId) return;
                 activePdfDocument = documentProxy;
                 activePdfPageNumber = 0;
-            activePdfPageCount = Number(documentProxy.numPages) || 0;
+                activePdfPageCount = Number(documentProxy.numPages) || 0;
                 if (!documentProxy.numPages) throw new Error('The selected PDF contains no pages.');
-            void savePdfReaderOfflineManifest(activePdfReaderDocumentKey, activePdfPageCount);
+                void savePdfReaderOfflineManifest(activePdfReaderDocumentKey, activePdfPageCount);
                 controls.hidden = false;
-            toolbar.hidden = false;
+                toolbar.hidden = false;
                 document.getElementById('bookReaderNightToggle').hidden = false;
-            setPdfReaderModeControls();
-            if (pdfReaderMode === 'scroll') {
-                await enterPdfScrollMode(
-                    readerId,
-                    activePdfPageCount,
-                    savedProgress?.page || 1,
-                    savedProgress,
-                    false
-                );
-            } else {
-                flipbook.hidden = false;
-                setBookReaderStatus(readerTranslated('reader_rendering_progress', 'Rendering page {current} of {total}', {
-                    current: savedProgress?.page || 1,
-                    total: activePdfPageCount
-                }));
-                await renderPdfReaderPage(savedProgress?.page || 1, readerId);
-            }
+                setPdfReaderModeControls();
+                if (pdfReaderMode === 'scroll') {
+                    await enterPdfScrollMode(
+                        readerId,
+                        activePdfPageCount,
+                        savedProgress?.page || 1,
+                        savedProgress,
+                        false
+                    );
+                } else {
+                    flipbook.hidden = false;
+                    setBookReaderStatus(readerTranslated('reader_rendering_progress', 'Rendering page {current} of {total}', {
+                        current: savedProgress?.page || 1,
+                        total: activePdfPageCount
+                    }));
+                    await renderPdfReaderPage(savedProgress?.page || 1, readerId);
+                }
                 if (readerId !== activeBookReaderId) return;
                 reader.dataset.firstPageReady = 'true';
+                pdfReaderLoadProgress.active = false;
+                updatePdfReaderRenderProgress();
                 loading.hidden = true;
                 if (activeBookReaderTimeoutId === loadTimeout) {
                     window.clearTimeout(loadTimeout);
@@ -5409,6 +5441,7 @@
         savePdfReaderProgress();
         window.clearTimeout(pdfReaderZoomInputTimer);
         pdfReaderZoomInputTimer = null;
+        hidePdfReaderLoadingToast();
         pdfReaderLoadProgress = { loaded: 0, total: 0, active: false };
         activeBookReaderId += 1;
         pdfBookRenderRevision += 1;
@@ -8833,7 +8866,7 @@
         document.getElementById('bookReaderModeToggle')?.addEventListener('click', togglePdfReaderMode);
         document.getElementById('bookReaderLayoutToggle')?.addEventListener('click', togglePdfReaderLayout);
         document.getElementById('bookReaderZoom')?.addEventListener('input', event => {
-            const level = Math.max(0, Math.min(100, Math.round(Number(event.currentTarget.value) || 0)));
+            const level = Math.max(10, Math.min(300, Math.round(Number(event.currentTarget.value) || 100)));
             const value = document.getElementById('bookReaderZoomValue');
             if (value) value.textContent = `${level}%`;
             window.clearTimeout(pdfReaderZoomInputTimer);
@@ -8842,15 +8875,18 @@
             }, 90);
         });
         document.getElementById('bookReaderZoomDecrease')?.addEventListener('click', () => {
-            void changePdfReaderZoom(Math.max(0, pdfReaderZoomLevel - 10));
+            void changePdfReaderZoom(Math.max(10, pdfReaderZoomLevel - 10));
         });
         document.getElementById('bookReaderZoomIncrease')?.addEventListener('click', () => {
-            void changePdfReaderZoom(Math.min(100, pdfReaderZoomLevel + 10));
+            void changePdfReaderZoom(Math.min(300, pdfReaderZoomLevel + 10));
         });
         document.getElementById('bookReaderZoomActual')?.addEventListener('click', () => {
             void changePdfReaderZoom('actual-size');
         });
         document.getElementById('bookReaderFitWidth')?.addEventListener('click', () => {
+            void changePdfReaderZoom('fit-width');
+        });
+        document.getElementById('bookReaderZoomReset')?.addEventListener('click', () => {
             void changePdfReaderZoom('fit-width');
         });
         document.getElementById('bookReaderFitPage')?.addEventListener('click', () => {

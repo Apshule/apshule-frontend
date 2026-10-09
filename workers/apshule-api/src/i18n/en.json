@@ -661,5 +661,7 @@
   "reader_zoom_increase": "Zoom in",
   "reader_zoom_slider": "Zoom level",
   "reader_more_actions": "More document actions",
-  "reader_download_progress": "Downloading PDF · {loaded} of {total}"
+  "reader_download_progress": "Downloading PDF · {loaded} of {total}",
+  "reader_loading_pages": "⏳ Loading pages...",
+  "reader_zoom_reset": "Reset zoom to Fit Width"
 }
