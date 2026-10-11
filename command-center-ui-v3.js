@@ -106,7 +106,7 @@ export function initCommandCenterUI({ apiBase, getToken, getUser, notify, activa
   root.id = "ccPhase6c";
   root.innerHTML = `
     <header class="cc6-head">
-      <div><div class="cc6-eyebrow" data-i18n="cc_operator_space"></div><h1 data-i18n="cc_command_center"></h1><p data-i18n="cc_dashboard_intro"></p></div>
+      <div><div class="cc6-eyebrow" data-i18n="cc_operator_space"></div><h1 data-i18n="cc_command_center"></h1><p data-i18n="cc_dashboard_intro"></p><p style="font-size:11px;color:#999">Role: <span id="ccDebugRole">loading...</span> · User: <span id="ccDebugEmail">loading...</span> · Tabs: <span id="ccDebugTabs">loading...</span></p></div>
       <span class="cc6-head-status">Command access</span>
     </header>
     <nav class="cc6-tabs" role="tablist" aria-label="Command Center sections">
@@ -116,6 +116,10 @@ export function initCommandCenterUI({ apiBase, getToken, getUser, notify, activa
       <button class="cc6-tab" role="tab" aria-selected="false" data-cc6-tab="analytics" data-i18n="cc_analytics"></button>
       <button class="cc6-tab" role="tab" aria-selected="false" data-cc6-tab="settings" data-i18n="cc_settings"></button>
     </nav>
+    <div id="aiControlQuickAccess" style="display:none;background:#fff;border:2px solid #4B2E9E;border-radius:16px;padding:16px;margin:16px 0;justify-content:space-between;align-items:center;gap:12px">
+      <div><div style="font-weight:bold;color:#4B2E9E;font-size:16px">🤖 AI Credit Management</div><div style="color:#666;font-size:13px">Grant AI tiers to schools and users</div></div>
+      <button type="button" data-open-ai-control style="background:#4B2E9E;color:#fff;border:0;padding:12px 20px;border-radius:24px;font-weight:bold;cursor:pointer">Open →</button>
+    </div>
     <section class="cc6-view" id="cc6-dashboard" role="tabpanel">
       <div class="cc6-grid" id="cc6Metrics"></div>
       <div class="cc6-grid-2">
@@ -198,15 +202,17 @@ export function initCommandCenterUI({ apiBase, getToken, getUser, notify, activa
     <dialog class="cc6-dialog" id="cc6Dialog"><div id="cc6DialogContent"></div></dialog>
   `;
   commandCenter.prepend(root);
-  const aiNav=root.querySelector(".cc6-tabs"),aiButton=document.createElement("button");
-  aiButton.className="cc6-tab";aiButton.type="button";aiButton.setAttribute("role","tab");aiButton.setAttribute("aria-selected","false");aiButton.dataset.cc6Tab="ai-tiers";aiButton.textContent="🤖 AI Control";aiNav.append(aiButton);
-  const aiView=document.createElement("section");aiView.className="cc6-view";aiView.id="cc6-ai-tiers";aiView.hidden=true;
-  aiView.innerHTML='<div class="cc6-section-head"><div><h2>AI Control</h2><p>Platform-wide school and individual AI access.</p></div><button class="cc6-button secondary" type="button" data-ai-refresh>Refresh</button></div><div class="cc6-grid" id="ccAiStats"></div><section class="cc6-panel"><div class="cc6-panel-head"><h3>Top 3 schools by AI usage</h3></div><div class="cc6-panel-body" id="ccAiTopSchools"></div></section><section class="cc6-panel"><div class="cc6-panel-head"><h3>Schools</h3></div><form id="ccAiSchoolGrant" class="cc6-toolbar"><select name="school_id" class="cc6-field" required><option value="">Choose a school…</option></select><select name="tier" class="cc6-field"><option value="school_plan">school_plan</option><option value="student_pro">student_pro</option><option value="teacher_pro">teacher_pro</option><option value="unlimited">unlimited</option></select><input name="duration_days" class="cc6-field" type="number" min="1" max="365" value="30"><input name="reason" class="cc6-field" required placeholder="Reason"><button class="cc6-button" type="submit">Grant School Plan</button></form><div class="cc6-panel-body cc6-table-wrap" id="ccAiSchools"></div></section><section class="cc6-panel"><div class="cc6-panel-head"><h3>Individual users</h3><div class="cc6-toolbar"><input id="ccAiSearch" class="cc6-field" type="search" placeholder="Search email" aria-label="Search AI users"><select id="ccAiFilter" class="cc6-field"><option value="all">All</option><option value="free">Free</option><option value="paid">Paid</option><option value="expired">Expired</option></select><button class="cc6-button secondary" type="button" data-ai-new-grant>Grant</button></div></div><div class="cc6-panel-body cc6-table-wrap" id="ccAiUsers"></div></section>';
+  const aiView=document.createElement("section");aiView.id="aiControlOverlay";aiView.hidden=true;aiView.setAttribute("role","dialog");aiView.setAttribute("aria-modal","true");aiView.style.cssText="position:fixed;inset:0;background:#f5f5f5;z-index:9999;overflow-y:auto;padding:16px";
+  aiView.innerHTML='<div style="background:#4B2E9E;color:#fff;padding:16px;display:flex;justify-content:space-between;align-items:center"><h2 style="margin:0">🤖 AI Credit Management</h2><button type="button" data-ai-close aria-label="Close AI Control" style="font-size:22px">✕</button></div><div id="aiControlBody"><div class="cc6-section-head"><div><h2>Platform AI access</h2><p>Manage school and individual AI access.</p></div><button class="cc6-button secondary" type="button" data-ai-refresh>Refresh</button></div><div class="cc6-grid" id="ccAiStats"></div><section class="cc6-panel"><div class="cc6-panel-head"><h3>Top 3 schools by AI usage</h3></div><div class="cc6-panel-body" id="ccAiTopSchools"></div></section><section class="cc6-panel"><div class="cc6-panel-head"><h3>Schools</h3></div><form id="ccAiSchoolGrant" class="cc6-toolbar"><select name="school_id" class="cc6-field" required><option value="">Choose a school…</option></select><select name="tier" class="cc6-field"><option value="school_plan">school_plan</option><option value="student_pro">student_pro</option><option value="teacher_pro">teacher_pro</option><option value="unlimited">unlimited</option></select><input name="duration_days" class="cc6-field" type="number" min="1" max="365" value="30"><input name="reason" class="cc6-field" required placeholder="Reason"><button class="cc6-button" type="submit">Grant School Plan</button></form><div class="cc6-panel-body cc6-table-wrap" id="ccAiSchools"></div></section><section class="cc6-panel"><div class="cc6-panel-head"><h3>Individual users</h3><div class="cc6-toolbar"><input id="ccAiSearch" class="cc6-field" type="search" placeholder="Search email" aria-label="Search AI users"><select id="ccAiFilter" class="cc6-field"><option value="all">All</option><option value="free">Free</option><option value="paid">Paid</option><option value="expired">Expired</option></select><button class="cc6-button secondary" type="button" data-ai-new-grant>Grant Tier</button></div></div><div class="cc6-panel-body cc6-table-wrap" id="ccAiUsers"></div></section></div>';
   root.append(aiView);
-  const logCommandCenterTabs=(user)=>console.info("[Command Center] tab list", [...root.querySelectorAll("[data-cc6-tab]")].map((btn)=>({id:btn.dataset.cc6Tab,label:btn.textContent.trim()||btn.dataset.i18n||"",hidden:btn.hidden})), "role:",user?.role||"none");
   const initialUser=typeof getUser==="function"?getUser():null;
-  aiButton.hidden=initialUser?.role!=="superadmin";
-  logCommandCenterTabs(initialUser);
+  root.querySelector("#aiControlQuickAccess").style.display=initialUser?.role==="superadmin"?"flex":"none";
+  const refreshDebug=(user)=>{root.querySelector("#ccDebugRole").textContent=user?.role||"none";root.querySelector("#ccDebugEmail").textContent=user?.email||"none";root.querySelector("#ccDebugTabs").textContent=[...root.querySelectorAll("[data-cc6-tab]")].map(b=>b.dataset.cc6Tab).join(", ")||"none";};
+  refreshDebug(initialUser);
+  function openAIControlPanel(){if(getUser?.()?.role!=="superadmin")return;aiView.hidden=false;void loadAiTierControl();}
+  window.openAIControlPanel=openAIControlPanel;
+  root.querySelector("[data-open-ai-control]").addEventListener("click",openAIControlPanel);
+  aiView.querySelector("[data-ai-close]").addEventListener("click",()=>{aiView.hidden=true;});
 
   const legacyHost = root.querySelector("#cc6LegacyContent");
   const legacyHeading = commandCenter.querySelector(":scope > .cc-heading");
@@ -279,7 +285,6 @@ export function initCommandCenterUI({ apiBase, getToken, getUser, notify, activa
     if (name === "institutions") await loadInstitutions();
     if (name === "analytics") await loadAnalytics();
     if (name === "settings") await loadSettings();
-    if (name === "ai-tiers") await loadAiTierControl();
   };
   async function loadAiTierControl() {
     const list=root.querySelector("#ccAiUsers");list.textContent="Loading…";
@@ -300,15 +305,16 @@ export function initCommandCenterUI({ apiBase, getToken, getUser, notify, activa
     const query=String(aiView.querySelector("#ccAiSearch").value||"").trim().toLowerCase();
     const filter=aiView.querySelector("#ccAiFilter").value;
     const filtered=aiTierUsers.filter(u=>`${u.name||""} ${u.email||""}`.toLowerCase().includes(query)&&(filter==="all"||(filter==="free"&&u.tier==="free")||(filter==="paid"&&u.tier!=="free")||(filter==="expired"&&u.ai_tier_expires_at&&new Date(u.ai_tier_expires_at)<=new Date())));
-    const rows=filtered.length?filtered.map(u=>`<tr><td>${esc(u.name)}<br>${esc(u.email)}</td><td>${esc(u.tier)}</td><td>${fmt(u.used_today)}</td><td>${fmt(u.daily_limit)}</td><td>${esc(dateText(u.ai_tier_expires_at))}</td><td><button class="cc6-button small" data-ai-user="${esc(u.id)}" data-ai-action="grant">Grant Tier</button> <button class="cc6-button secondary small" data-ai-user="${esc(u.id)}" data-ai-action="revoke">Revoke</button></td></tr>`).join(""):'<tr><td colspan="6">No users match this search.</td></tr>';
-    root.querySelector("#ccAiUsers").innerHTML=table(["User","Tier","Used Today","Limit","Expires","Actions"],rows);
+    const rows=filtered.length?filtered.map(u=>`<tr><td>${esc(u.email)}</td><td>${esc(u.role)}</td><td>${esc(u.school_name||"—")}</td><td>${esc(u.tier)}</td><td>${fmt(u.used_today)}</td><td>${fmt(u.daily_limit)}</td><td>${esc(dateText(u.ai_tier_expires_at))}</td><td><button class="cc6-button small" data-ai-user="${esc(u.id)}" data-ai-action="grant">Grant Tier</button> <button class="cc6-button secondary small" data-ai-user="${esc(u.id)}" data-ai-action="extend">Extend</button> <button class="cc6-button secondary small" data-ai-user="${esc(u.id)}" data-ai-action="revoke">Revoke</button></td></tr>`).join(""):'<tr><td colspan="8">No users match this search.</td></tr>';
+    root.querySelector("#ccAiUsers").innerHTML=table(["Email","Role","School","Tier","Used","Limit","Expires","Actions"],rows);
   }
-  function openAiGrantDialog(selectedUserId="") {
+  function openAiGrantDialog(selectedUserId="", extend=false) {
+    const selectedUser=aiTierUsers.find(u=>u.id===selectedUserId);
     const userOptions=aiTierUsers.map(u=>`<option value="${esc(u.id)}" ${u.id===selectedUserId?"selected":""}>${esc(u.name)} · ${esc(u.email)}</option>`).join("");
     openDialog(dialogFrame("Grant AI Tier",`<form data-form="ai-tier-grant" class="cc6-form-grid">
       <label class="cc6-label wide">Search users<input class="cc6-field" type="search" name="user_search" placeholder="Name or email"></label>
       <label class="cc6-label wide">User<select class="cc6-select" name="user_id" size="5" required>${userOptions}</select></label>
-      <label class="cc6-label">Tier<select class="cc6-select" name="tier" required>${optionList(["student_pro","teacher_pro","school_plan","unlimited"],"student_pro")}</select></label>
+      <label class="cc6-label">Tier<select class="cc6-select" name="tier" required>${optionList(["free","student_pro","teacher_pro","school_plan","unlimited"],extend?(selectedUser?.tier||"student_pro"):"student_pro")}</select></label>
       <label class="cc6-label">Days<input class="cc6-field" type="number" name="duration_days" min="1" max="365" value="30" required></label>
       <label class="cc6-label wide">Reason<textarea class="cc6-textarea" name="reason" minlength="3" maxlength="500" required placeholder="Reason for granting access"></textarea></label>
       <div class="cc6-toolbar wide"><button class="cc6-button" type="submit">Grant Tier</button><button class="cc6-button secondary" type="button" data-dialog-close>Cancel</button></div>
@@ -327,6 +333,7 @@ export function initCommandCenterUI({ apiBase, getToken, getUser, notify, activa
     if(target.hasAttribute("data-school-revoke")){const reason=prompt("Reason for revoking this school’s AI tier","Access review");if(!reason)return;try{await api("/api/admin/ai-tiers/revoke",{method:"POST",body:{school_id:target.dataset.schoolRevoke,reason}});await loadAiTierControl();}catch(err){showError(err);}return;}
     const userId=target.dataset.aiUser;
     if(target.dataset.aiAction==="grant"){openAiGrantDialog(userId);return;}
+    if(target.dataset.aiAction==="extend"){openAiGrantDialog(userId,true);return;}
     const user=aiTierUsers.find(row=>row.id===userId);
     const reason=prompt(`Reason for revoking AI access for ${user?.email||"this user"}`,"Access review");if(!reason)return;
     try{await api("/api/admin/ai-tiers/revoke",{method:"POST",body:{user_id:userId,reason}});notify?.("AI access revoked.","success");await loadAiTierControl();}catch(err){showError(err);}
@@ -901,7 +908,7 @@ export function initCommandCenterUI({ apiBase, getToken, getUser, notify, activa
       if (form.id === "cc6DeletionFilters") { await loadDeletionRequests(); return; }
       if (form.dataset.form === "ai-tier-grant") {
         const durationDays=Math.max(1,Math.min(365,Number(values.duration_days)||30));
-        await api("/api/admin/ai-tiers/grant",{method:"POST",body:{user_id:values.user_id,tier:values.tier,duration_days:durationDays,reason:String(values.reason||"").trim()}});
+        await api("/api/admin/ai-tiers/grant-user",{method:"POST",body:{user_id:values.user_id,tier:values.tier,duration_days:durationDays,reason:String(values.reason||"").trim()}});
         notify?.("AI tier granted.","success");closeDialog();await loadAiTierControl();return;
       }
       if (form.id === "cc6ExportUserForm") {
@@ -1012,8 +1019,8 @@ export function initCommandCenterUI({ apiBase, getToken, getUser, notify, activa
   return {
     setUser(user) {
       void loadUserSurface(user);
-      aiButton.hidden=user?.role!=="superadmin";
-      logCommandCenterTabs(user);
+       root.querySelector("#aiControlQuickAccess").style.display=user?.role==="superadmin"?"flex":"none";
+       refreshDebug(user);
       if (user?.role === "superadmin") void setTab("dashboard");
     },
   };

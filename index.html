@@ -2193,7 +2193,7 @@
     import { initSettingsUI } from "./settings-ui.js";
     import { initVideoStudioUI } from "./video-studio-ui.js";
     import { initFarmUI } from "./farm-ui.js";
-    import { initCommandCenterUI } from "./command-center-ui-v2.js";
+    import { initCommandCenterUI } from "./command-center-ui-v3.js";
     import { initSchoolAdminAiAccess } from "./school-admin-ui-v2.js";
     import { initVirtualLabUI } from "./virtual-lab-ui.js";
     import { renderDiagram } from "./ai-diagram-renderer.js";
@@ -9016,7 +9016,12 @@
             activateSectorPanel: (sector) => activateCommandTab(sector),
             startImpersonation: (user) => startImpersonation(user),
         });
-        schoolAdminAiAccessUI = initSchoolAdminAiAccess({ api, getCurrentUser: () => currentUser, notify: showNotification, escapeHtml });
+        schoolAdminAiAccessUI = initSchoolAdminAiAccess({
+            api,
+            getCurrentUser: () => currentUser,
+            notify: showNotification,
+            escapeHtml,
+        });
         virtualLabUI = initVirtualLabUI({
             api,
             getCurrentUser: () => currentUser,
@@ -9036,7 +9041,7 @@
         document.getElementById('aiDownloadPng')?.addEventListener('click', downloadAiDiagramPng);
         document.getElementById('aiSummary')?.addEventListener('click', async event => { if(event.target.closest('[data-ai-copy-summary]')) { await navigator.clipboard?.writeText(`${aiCurrentSolution?.final_answer||''}\n${aiCurrentSolution?.formula||''}\n${aiCurrentSolution?.tips||''}`); showNotification('Answer copied.'); } });
         window.launchApshuleAiStudy = mode => { setAiMode(mode); document.getElementById('aiDrawer').classList.add('open'); document.getElementById('drawerOverlay').classList.add('show'); warmupAi(); void loadAiQuota(); void loadAiSessions(); };
-        document.getElementById('openAIDrawerBtn')?.addEventListener('click', () => { document.getElementById('aiDrawer').classList.add('open'); document.getElementById('drawerOverlay').classList.add('show'); void loadAiQuota(); void loadAiSessions(); });
+        document.getElementById('openAIDrawerBtn')?.addEventListener('click', () => { document.getElementById('aiDrawer').classList.add('open'); document.getElementById('drawerOverlay').classList.add('show'); warmupAi(); void loadAiQuota(); void loadAiSessions(); });
         document.getElementById('closeDrawerBtn')?.addEventListener('click', () => { document.getElementById('aiDrawer').classList.remove('open'); document.getElementById('drawerOverlay').classList.remove('show'); });
         document.getElementById('drawerOverlay')?.addEventListener('click', () => { document.getElementById('aiDrawer').classList.remove('open'); document.getElementById('drawerOverlay').classList.remove('show'); });
 

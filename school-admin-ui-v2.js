@@ -4,6 +4,16 @@ export function initSchoolAdminAiAccess({ api, getCurrentUser, notify, escapeHtm
   const panelHost = document.getElementById("adminPanel");
   if (!panelHost) return { setUser() {} };
   let panel = panelHost.querySelector("#schoolAiAccess");
+  let overlayOpen = false;
+  let entryButton = panelHost.querySelector("#schoolAiQuickAccess");
+  if (!entryButton) {
+    entryButton = document.createElement("button");
+    entryButton.id = "schoolAiQuickAccess";
+    entryButton.type = "button";
+    entryButton.className = "cc6-button";
+    entryButton.textContent = "🤖 Grant AI to My Students";
+    panelHost.prepend(entryButton);
+  }
   if (!panel) {
     panel = document.createElement("section");
     panel.id = "schoolAiAccess";
@@ -19,6 +29,19 @@ export function initSchoolAdminAiAccess({ api, getCurrentUser, notify, escapeHtm
       <div id="schoolAiStudents" class="cc6-table-wrap"></div>`;
     panelHost.prepend(panel);
   }
+  panelHost.prepend(entryButton);
+  let closeButton = panel.querySelector("[data-school-ai-close]");
+  if (!closeButton) {
+    closeButton = document.createElement("button");
+    closeButton.type = "button";
+    closeButton.dataset.schoolAiClose = "true";
+    closeButton.className = "cc6-button secondary";
+    closeButton.textContent = "✕ Close";
+    panel.prepend(closeButton);
+  }
+  entryButton.addEventListener("click", () => { overlayOpen = true; void refresh(); });
+  closeButton.addEventListener("click", () => { overlayOpen = false; panel.hidden = true; panel.style.cssText = ""; });
+  panel.style.cssText = "position:fixed;inset:0;z-index:9999;overflow-y:auto;background:#f5f5f5;border-radius:0;margin:0;padding:16px";
   let students = [];
   const showError = (e) => notify?.(e?.message || "AI access could not be loaded.", "error");
   const render = () => {
@@ -27,7 +50,9 @@ export function initSchoolAdminAiAccess({ api, getCurrentUser, notify, escapeHtm
     panel.querySelector("#schoolAiStudents").innerHTML = `<table><thead><tr><th>Name</th><th>Class</th><th>Tier</th><th>Used Today</th><th>Limit</th><th>Expires</th><th>Actions</th></tr></thead><tbody>${rows.map(s=>`<tr><td>${escapeHtml(s.name)}<br>${escapeHtml(s.email)}</td><td>${escapeHtml(s.class_level||"—")}</td><td>${escapeHtml(s.tier)}</td><td>${s.used_today}</td><td>${s.daily_limit}</td><td>${escapeHtml(s.ai_tier_expires_at||"—")}</td><td><button class="cc6-button small" data-grant="${escapeHtml(s.email)}">Grant / Extend</button> <button class="cc6-button secondary small" data-revoke="${escapeHtml(s.email)}">Revoke</button></td></tr>`).join("")||'<tr><td colspan="7">No students found.</td></tr>'}</tbody></table>`;
   };
   const refresh = async () => {
-    if (getCurrentUser()?.role !== "school") { panel.hidden = true; return; }
+    const isSchoolAdmin = getCurrentUser()?.role === "school";
+    entryButton.hidden = !isSchoolAdmin;
+    if (!isSchoolAdmin || !overlayOpen) { panel.hidden = true; return; }
     panel.hidden = false;
     try {
       const [stats, data] = await Promise.all([api("/api/school-admin/ai-tiers/stats"), api("/api/school-admin/ai-tiers/students")]);
