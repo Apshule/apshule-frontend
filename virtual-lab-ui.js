@@ -48,6 +48,7 @@ export function initVirtualLabUI({ api, getCurrentUser, notify = () => {}, escap
   let currentPracticeStarted = 0;
   let attributionData = null;
   let attributionRequested = false;
+  let adoptionPreview = null;
   let iframeLoadTimer = 0;
   let catalog = [];
   let progressRows = [];
@@ -366,6 +367,7 @@ export function initVirtualLabUI({ api, getCurrentUser, notify = () => {}, escap
     if (action === "copy-lab-link") navigator.clipboard?.writeText(target.dataset.link || "").then(()=>notify("Assignment link copied.","success")).catch(()=>notify("Could not copy the link.","error"));
     if (action === "whatsapp-share") window.open(`https://wa.me/?text=${encodeURIComponent(target.dataset.link||"")}`,"_blank","noopener,noreferrer");
     if (action === "adopt-assignment") adoptAssignment();
+    if (action === "preview-adoption") previewAdoption();
     if (action === "provider-filter") {
       providerFilter = target.dataset.provider || "all";
       renderCatalog();
@@ -553,7 +555,9 @@ export function initVirtualLabUI({ api, getCurrentUser, notify = () => {}, escap
 
   function assignmentCard(row, teacher) {
     const card=node("article","vl-card"), head=node("div","vl-card-foot");
-    card.append(node("h3","",safeText(row.title)),node("p","",`${safeText(row.class_level)} · ${safeText(row.subject)} · ${safeText(row.status||row.submission_status||"active")}`));
+    const status=safeText(row.submission_status||row.status||"active");
+    card.append(node("h3","",safeText(row.title)),node("p","",`${safeText(row.class_level)} · ${safeText(row.subject)} · `));
+    const badge=node("span",`vl-assignment-status vl-status-${status.replace(/[^a-z0-9_-]/giu,"")}`,status);card.lastChild.append(badge);
     if(row.due_at)card.append(node("p","","Due "+new Date(row.due_at).toLocaleDateString()));
     if(teacher&&row.share_code)card.append(node("p","vl-share-code",row.share_code));
     if(!teacher) {
@@ -611,6 +615,7 @@ export function initVirtualLabUI({ api, getCurrentUser, notify = () => {}, escap
     catch(error){showNotice(error.message||"That share code could not be joined.","error");}
   }
   async function startAssignment(id,experimentId) {
+    currentPracticeId="";
     try { await api(`/api/lab/submissions/${encodeURIComponent(id)}/start`,{method:"POST"});await openExperiment(experimentId); }
     catch(error){showNotice(error.message||"Assignment could not be started.","error");}
   }
@@ -631,13 +636,21 @@ export function initVirtualLabUI({ api, getCurrentUser, notify = () => {}, escap
   }
   function renderAdoptTab(content) {
     content.append(node("h2","","Adopt an assignment"));
-    addField(content,"Share code","input","adopt_code",{maxLength:12,placeholder:"BENLIGHT-4X9K"});
+    addField(content,"Share code","input","adopt_code",{maxLength:12,placeholder:"BENLI-4X9K"});
     addField(content,"Class level","select","adopt_class",{options:["P4","P5","P6","P7","S1","S2","S3","S4","S5","S6"].map(x=>[x,x])});
-    content.append(button("Preview and adopt","adopt-assignment","arrow","vl-button vl-button-accent"));
+    content.append(button("Preview assignment","preview-adoption","arrow","vl-button vl-button-accent"));
+    const preview=node("section","vl-share-panel");preview.dataset.adoptPreview="";content.append(preview);
+    if(adoptionPreview){preview.append(node("h3","",safeText(adoptionPreview.experiment_title||adoptionPreview.title)),node("p","",`${safeText(adoptionPreview.subject)} · ${safeText(adoptionPreview.class_level)} · ${adoptionPreview.required_time_minutes} min`),node("p","",safeText(adoptionPreview.instructions||"")));preview.append(button("Adopt for this class","adopt-assignment","check","vl-button vl-button-accent"));}
+  }
+  async function previewAdoption() {
+    const code=uiRoot.querySelector('[data-assignment-field="adopt_code"]')?.value?.trim().toUpperCase();
+    try {const result=await api(`/api/lab/assignments/preview/${encodeURIComponent(code)}`);adoptionPreview={...result.preview,share_code:code};renderCatalog();}
+    catch(error){adoptionPreview=null;showNotice(error.message||"Assignment preview could not be loaded.","error");}
   }
   async function adoptAssignment() {
     const share_code=uiRoot.querySelector('[data-assignment-field="adopt_code"]')?.value?.trim();
     const class_level=uiRoot.querySelector('[data-assignment-field="adopt_class"]')?.value;
+    if(!adoptionPreview||adoptionPreview.share_code!==share_code.toUpperCase()){showNotice("Preview the matching assignment before adopting it.","error");return;}
     try { const result=await api("/api/lab/assignments/adopt",{method:"POST",body:{share_code,class_level}});notify(`Adopted: ${result.assignment?.title||"assignment"}`,"success");selectTab("my-assignments"); }
     catch(error){showNotice(error.message||"This assignment could not be adopted.","error");}
   }
