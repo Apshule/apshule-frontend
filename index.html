@@ -1259,6 +1259,7 @@
     <div class="ai-drawer" id="aiDrawer">
       <div class="ai-drawer-header"><h3><i class="fas fa-robot"></i> AI Study Helper</h3><button id="closeDrawerBtn" aria-label="Close" style="background:none;border:none;color:white;font-size:24px;">&times;</button></div>
       <div style="display:flex;gap:8px;padding:12px 16px 0"><button type="button" data-ai-mode="chat" class="ai-mode active">💬 Chat</button><button type="button" data-ai-mode="solve" class="ai-mode">📝 Solve Question</button><span id="aiQuota" style="margin-left:auto;font-size:12px"></span></div>
+      <div id="aiLimitBanner" hidden style="margin:10px 16px;padding:12px;border-radius:10px;background:#fff4d6;color:#533b00">You've reached today's AI limit. <button type="button" id="aiUpgradeOpen">💡 How to upgrade</button></div>
       <div id="chatMessages" class="ai-chat-messages"><div class="message ai"><div class="message-avatar"><i class="fas fa-robot"></i></div><div class="message-bubble">Hello! I'm your APSHULE AI Tutor. Ask me anything! 📚</div></div></div>
       <div id="aiSolveResults" hidden style="padding:12px 16px;overflow:auto"><div role="tablist" style="display:flex;gap:8px"><button type="button" data-ai-result="steps">📝 Steps</button><button type="button" data-ai-result="diagram">📐 Diagram</button><button type="button" data-ai-result="summary">📊 Summary</button></div><section id="aiSteps"></section><section id="aiDiagram" hidden></section><button id="aiDownloadPng" type="button" hidden>⬇️ Download PNG</button><section id="aiSummary" hidden></section></div>
       <div class="ai-chat-input" style="display:grid;gap:8px;padding:12px 16px">
@@ -1269,6 +1270,7 @@
       </div>
       <div id="aiHistory" style="padding:4px 16px 12px;font-size:12px"></div>
     </div>
+    <dialog id="aiUpgradeDialog"><h2>AI access plans</h2><p>Ask your school admin to top up your account.</p><p><a href="mailto:support@appshule.com">📧 Contact Support</a></p><button type="button" id="aiCopyDetails">📋 Copy My Details</button><button type="button" id="aiUpgradeClose">Close</button></dialog>
 
     <div class="main-content">
         <section id="mfiPortalPage" class="page" aria-label="Microfinance workspace">
@@ -6692,17 +6694,20 @@
         aiConversation.push({ role: 'assistant', content: String(payload.reply || '') });
         aiConversation = aiConversation.slice(-20);
         localStorage.setItem(`apshule_ai_chat_${currentUser?.id || 'guest'}`, JSON.stringify(aiConversation));
-        updateAiQuota(payload.used);
+        updateAiQuota(payload);
         return String(payload.reply || '');
     }
-    function updateAiQuota(used) {
+    function updateAiQuota(quota) {
         const el = document.getElementById('aiQuota');
-        if (el && Number.isFinite(Number(used))) el.textContent = `${used} / 20 today`;
+        const used=Number(quota?.used??quota??0),limit=Number(quota?.limit??5),tier=String(quota?.tier||'free');
+        if (el && Number.isFinite(used)) el.textContent = `${tier.replaceAll('_',' ')} · ${used}/${limit} today`;
+        const banner=document.getElementById('aiLimitBanner');
+        if(banner)banner.hidden=used<limit;
     }
     async function loadAiQuota() {
         try {
             const response = await fetch(`${API_BASE}/api/ai/quota`, { headers: AUTH_TOKEN ? { Authorization: `Bearer ${AUTH_TOKEN}` } : {} });
-            if (response.ok) updateAiQuota((await response.json()).used);
+            if (response.ok) updateAiQuota(await response.json());
         } catch (_) {}
     }
     function addMsg(t, s) {
@@ -6720,7 +6725,7 @@
         addMsg("🤔 Thinking...", 'ai');
         const pending = document.querySelector('#chatMessages .message:last-child');
         try { addMsg(await askAI(q), 'ai'); }
-        catch (error) { addMsg(error.message || 'AI service unavailable. Please try again.', 'ai'); }
+        catch (error) { if (/limit reached/i.test(error.message||'')) document.getElementById('aiLimitBanner').hidden=false; addMsg(error.message || 'AI service unavailable. Please try again.', 'ai'); }
         finally { pending?.remove(); }
     }
     function setAiMode(mode) {
@@ -6749,7 +6754,7 @@
             });
             const result = await response.json().catch(() => ({}));
             if (!response.ok) throw new Error(result.error || `Solve request failed (${response.status})`);
-            aiCurrentSolution = result; updateAiQuota(result.used);
+            aiCurrentSolution = result; updateAiQuota(result);
             const steps = document.getElementById('aiSteps'); steps.replaceChildren();
             const given=document.createElement('p'); given.textContent=`Given: ${(result.given||[]).join(', ')||'—'}`; steps.append(given);
             const unknown=document.createElement('p'); unknown.textContent=`Find: ${result.unknown||'—'}`; steps.append(unknown);
@@ -6767,7 +6772,7 @@
             const copy=document.createElement('button'); copy.type='button'; copy.dataset.aiCopySummary=''; copy.textContent='📋 Copy'; summary.append(copy);
             document.getElementById('aiSolveResults').hidden = false; selectAiResult('steps');
             await loadAiSessions();
-        } catch (error) { showNotification(error.message || 'Could not solve this question.'); }
+        } catch (error) { if (/limit reached/i.test(error.message||'')) document.getElementById('aiLimitBanner').hidden=false; showNotification(error.message || 'Could not solve this question.'); }
         finally { send.disabled = false; send.textContent = '✨ Solve'; }
     }
     function selectAiResult(name) {
@@ -8965,6 +8970,9 @@
         document.getElementById('chatInput')?.addEventListener('keydown', e => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); aiMode === 'solve' ? solveAiQuestion() : sendChat(); } });
         document.querySelectorAll('[data-ai-mode]').forEach(button => button.addEventListener('click', () => setAiMode(button.dataset.aiMode)));
         document.querySelectorAll('[data-ai-result]').forEach(button => button.addEventListener('click', () => selectAiResult(button.dataset.aiResult)));
+        document.getElementById('aiUpgradeOpen')?.addEventListener('click',()=>document.getElementById('aiUpgradeDialog')?.showModal());
+        document.getElementById('aiUpgradeClose')?.addEventListener('click',()=>document.getElementById('aiUpgradeDialog')?.close());
+        document.getElementById('aiCopyDetails')?.addEventListener('click',async()=>{const details=`User ID: ${currentUser?.id||''}\nEmail: ${currentUser?.email||''}`;try{await navigator.clipboard.writeText(details);showNotification('Account details copied.');}catch(_){showNotification(details);}});
         document.getElementById('aiDownloadPng')?.addEventListener('click', downloadAiDiagramPng);
         document.getElementById('aiSummary')?.addEventListener('click', async event => { if(event.target.closest('[data-ai-copy-summary]')) { await navigator.clipboard?.writeText(`${aiCurrentSolution?.final_answer||''}\n${aiCurrentSolution?.formula||''}\n${aiCurrentSolution?.tips||''}`); showNotification('Answer copied.'); } });
         window.launchApshuleAiStudy = mode => { setAiMode(mode); document.getElementById('aiDrawer').classList.add('open'); document.getElementById('drawerOverlay').classList.add('show'); void loadAiQuota(); void loadAiSessions(); };
