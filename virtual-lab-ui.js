@@ -40,6 +40,8 @@ export function initVirtualLabUI({ api, getCurrentUser, notify = () => {}, escap
   let currentSession = null;
   let currentSim = null;
   let currentTab = "experiments";
+  let providerFilter = "all";
+  let iframeLoadTimer = 0;
   let catalog = [];
   let progressRows = [];
   let classProgressRows = [];
@@ -347,8 +349,13 @@ export function initVirtualLabUI({ api, getCurrentUser, notify = () => {}, escap
     if (action === "filter") applyFilters();
     if (action === "experiment") openExperiment(target.dataset.id);
     if (action === "tab") selectTab(target.dataset.tab);
+    if (action === "provider-filter") {
+      providerFilter = target.dataset.provider || "all";
+      renderCatalog();
+    }
     if (action === "run-sim") currentSim?.run();
     if (action === "reset-sim") resetSimulator();
+    if (action === "complete-embed") completeEmbeddedExperiment();
     if (action === "create-session") showCreateSession();
     if (action === "join-session") joinSession(target.dataset.id);
     if (action === "start-session") startSession();
@@ -542,11 +549,28 @@ export function initVirtualLabUI({ api, getCurrentUser, notify = () => {}, escap
     const filterButton = button(tr("apply_filters", "Apply filters"), "filter", null, "vl-button vl-button-soft");
     filters.append(levelLabel, subjectLabel, filterButton);
     content.append(filters);
+    const providers = node("div", "vl-provider-filters");
+    providers.setAttribute("role", "group");
+    providers.setAttribute("aria-label", "Filter experiments by simulator");
+    const providerOptions = [
+      ["all", "All"], ["phet", "PhET"], ["geogebra", "GeoGebra"],
+      ["mathigon", "Mathigon"], ["falstad", "Falstad"], ["custom", "Custom"],
+    ];
+    providerOptions.forEach(([value, label]) => {
+      const option = button(label, "provider-filter", null, `vl-provider-chip${providerFilter === value ? " is-active" : ""}`);
+      option.dataset.provider = value;
+      option.setAttribute("aria-pressed", String(providerFilter === value));
+      providers.append(option);
+    });
+    content.append(providers);
+    const visibleCatalog = providerFilter === "all"
+      ? catalog
+      : catalog.filter((experiment) => (experiment.embed_provider || "custom") === providerFilter);
     const catalogHeader = node("div", "vl-section-heading");
     catalogHeader.append(node("h2", "", tr("experiment_catalog", "Experiment catalogue")));
-    catalogHeader.append(node("span", "vl-count", `${catalog.length} ${tr("available", "available")}`));
+    catalogHeader.append(node("span", "vl-count", `${visibleCatalog.length} ${tr("available", "available")}`));
     content.append(catalogHeader);
-    if (!catalog.length) {
+    if (!visibleCatalog.length) {
       const empty = node("div", "vl-empty");
       const mark = node("span", "vl-empty-icon");
       mark.append(icon("flask"));
@@ -557,7 +581,7 @@ export function initVirtualLabUI({ api, getCurrentUser, notify = () => {}, escap
       return;
     }
     const grid = node("div", "vl-experiment-grid");
-    catalog.forEach((experiment, index) => grid.append(renderExperimentCard(experiment, index)));
+    visibleCatalog.forEach((experiment, index) => grid.append(renderExperimentCard(experiment, index)));
     content.append(grid);
   }
 
@@ -694,6 +718,8 @@ export function initVirtualLabUI({ api, getCurrentUser, notify = () => {}, escap
   }
 
   async function openExperiment(id) {
+    window.clearTimeout(iframeLoadTimer);
+    iframeLoadTimer = 0;
     view = "experiment";
     renderLoading(tr("loading_simulator", "Preparing the simulator…"), "experiment");
     try {
@@ -709,6 +735,8 @@ export function initVirtualLabUI({ api, getCurrentUser, notify = () => {}, escap
   function renderExperiment() {
     if (!currentExperiment) return;
     view = "experiment";
+    currentSim?.destroy();
+    currentSim = null;
     const { content } = renderShell(safeText(currentExperiment.title || tr("experiment", "Experiment")));
     const intro = node("div", "vl-sim-intro");
     intro.append(node("p", "vl-eyebrow", `${safeText(currentExperiment.subject)} · ${safeText(currentExperiment.level)}`));
@@ -720,6 +748,50 @@ export function initVirtualLabUI({ api, getCurrentUser, notify = () => {}, escap
       intro.append(list);
     }
     content.append(intro);
+    const provider = currentExperiment.embed_provider || "custom";
+    const embedUrl = safeEmbedUrl(currentExperiment.embed_url, provider);
+    if (embedUrl) {
+      const embedCard = node("section", "vl-embed-card");
+      const frameWrap = node("div", "vl-embed-frame-wrap");
+      const spinner = node("div", "vl-embed-loading");
+      spinner.setAttribute("role", "status");
+      spinner.textContent = tr("embed_loading", "Loading simulation…");
+      const iframe = node("iframe", "vl-embed-frame");
+      iframe.src = embedUrl;
+      iframe.title = safeText(currentExperiment.title || tr("experiment", "Experiment"));
+      iframe.loading = "eager";
+      iframe.referrerPolicy = "strict-origin-when-cross-origin";
+      iframe.allow = "fullscreen";
+      iframe.style.height = `${Math.max(360, Math.min(900, Number(currentExperiment.embed_height) || 550))}px`;
+      iframe.addEventListener("load", () => {
+        window.clearTimeout(iframeLoadTimer);
+        spinner.hidden = true;
+      }, { once: true });
+      iframe.addEventListener("error", () => {
+        window.clearTimeout(iframeLoadTimer);
+        spinner.textContent = tr("embed_failed", "The simulation could not be loaded. Open it in a new tab.");
+      }, { once: true });
+      frameWrap.append(spinner, iframe);
+      iframeLoadTimer = window.setTimeout(() => {
+        if (!iframe.isConnected || !spinner.isConnected || spinner.hidden) return;
+        spinner.textContent = tr("embed_slow", "This simulation is taking a while to load. You can open it in a new tab.");
+      }, 15000);
+      const actions = node("div", "vl-embed-actions");
+      const fallbackUrl = safeEmbedUrl(currentExperiment.fallback_url || embedUrl, provider) || embedUrl;
+      const fallback = node("a", "vl-button vl-button-soft", tr("embed_open_new_tab", "Open in new tab"));
+      fallback.href = fallbackUrl;
+      fallback.target = "_blank";
+      fallback.rel = "noopener noreferrer";
+      actions.append(fallback);
+      const completion = node("p", "vl-completion-note", tr("complete_hint", "Run the experiment to record your completed attempt."));
+      completion.setAttribute("aria-live", "polite");
+      const markComplete = button(tr("mark_complete", "Mark as Complete"), "complete-embed", "save", "vl-button vl-button-accent");
+      markComplete.disabled = isTeacher();
+      actions.append(markComplete, completion);
+      embedCard.append(frameWrap, actions);
+      content.append(embedCard);
+      return;
+    }
     const labLayout = node("div", "vl-sim-layout");
     const canvasWrap = node("div", "vl-sim-canvas-wrap");
     const canvas = node("canvas", "vl-simulator-canvas");
@@ -774,6 +846,33 @@ export function initVirtualLabUI({ api, getCurrentUser, notify = () => {}, escap
       completion.textContent = tr("progress_save_error", "The experiment ran, but your result could not be saved. Retry by running it again.");
       showNotice(tr("progress_save_error", "Your progress could not be saved."), "error");
       console.error("Virtual Lab progress save failed", error);
+    }
+  }
+
+  async function completeEmbeddedExperiment() {
+    if (!currentExperiment) return;
+    if (isTeacher()) {
+      showNotice(tr("preview_complete", "Preview complete. Student progress is not changed."), "info");
+      return;
+    }
+    const completion = uiRoot?.querySelector(".vl-completion-note");
+    if (completion) await saveProgress(100, completion);
+  }
+
+  function safeEmbedUrl(value, provider) {
+    if (typeof value !== "string" || !value.trim()) return "";
+    try {
+      const url = new URL(value);
+      if (url.protocol !== "https:") return "";
+      const hosts = {
+        phet: ["phet.colorado.edu"],
+        geogebra: ["geogebra.org", "www.geogebra.org"],
+        mathigon: ["mathigon.org", "www.mathigon.org"],
+        falstad: ["falstad.com", "www.falstad.com"],
+      };
+      return (hosts[provider] || []).includes(url.hostname.toLowerCase()) ? url.href : "";
+    } catch {
+      return "";
     }
   }
 
@@ -1764,6 +1863,8 @@ export function initVirtualLabUI({ api, getCurrentUser, notify = () => {}, escap
 
   async function closeLab() {
     window.clearInterval(identityCheckTimer);
+    window.clearTimeout(iframeLoadTimer);
+    iframeLoadTimer = 0;
     identityCheckTimer = 0;
     if (recorder || recordingStarting) await stopRecording(true);
     if (view === "session" && isLearner()) await leaveSession();

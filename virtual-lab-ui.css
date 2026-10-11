@@ -132,6 +132,17 @@
 }
 .vl-sim-canvas-wrap { overflow: hidden; padding: 10px; }
 .vl-simulator-canvas { display: block; width: 100%; height: auto; border-radius: 11px; background: #f7f7ef; touch-action: none; }
+.vl-provider-filters { display:flex; flex-wrap:wrap; gap:8px; margin:0 0 18px; }
+.vl-provider-chip { border:1px solid #cbd9d4; border-radius:999px; padding:8px 13px; background:#fff; color:#31544f; cursor:pointer; font-weight:700; font-size:12px; }
+.vl-provider-chip.is-active { background:var(--vl-teal); color:#fff; border-color:var(--vl-teal); }
+.vl-embed-card { display:grid; gap:14px; }
+.vl-embed-frame-wrap { position:relative; overflow:hidden; min-height:360px; border:1px solid #d6dfd8; border-radius:14px; background:#f7f7ef; }
+.vl-embed-frame { display:block; width:100%; border:0; border-radius:12px; background:#fff; }
+.vl-embed-loading { position:absolute; z-index:1; inset:0; display:grid; place-items:center; padding:24px; color:var(--vl-muted); background:rgba(255,254,248,.92); text-align:center; }
+.vl-embed-loading[hidden] { display:none; }
+.vl-embed-actions { display:flex; flex-wrap:wrap; align-items:center; gap:10px; }
+.vl-embed-actions .vl-completion-note { flex-basis:100%; margin:0; color:var(--vl-muted); }
+.vl-embed-actions .vl-button[disabled] { opacity:.55; cursor:not-allowed; }
 .vl-sim-panel { padding: 19px; }
 .vl-sim-panel h2 { margin: 0 0 15px; font: 800 16px Manrope, sans-serif; }
 .vl-controls { display: grid; gap: 15px; }
