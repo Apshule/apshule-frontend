@@ -6681,27 +6681,36 @@
     };
 
     // ---------- AI CHAT ----------
-    async function fetchAiJson(url, options, errorPrefix) {
+    let aiWarmupRequested = false;
+    function warmupAi() {
+        if (aiWarmupRequested || !AUTH_TOKEN) return;
+        aiWarmupRequested = true;
+        fetch(`${API_BASE}/api/ai/warmup`, {
+            method: 'POST',
+            headers: AUTH_TOKEN ? { Authorization: `Bearer ${AUTH_TOKEN}` } : {}
+        }).catch(() => {});
+    }
+    async function fetchAiJson(url, options, errorPrefix = 'AI request failed') {
         const controller = new AbortController();
-        const timer = setTimeout(() => controller.abort(), 20000);
+        const timer = setTimeout(() => controller.abort(), 32000);
         try {
             const response = await fetch(url, { ...options, signal: controller.signal });
             const payload = await response.json().catch(() => ({}));
-            if (!response.ok) throw new Error(payload.error || errorPrefix + ' (' + response.status + ')');
+            if (!response.ok) throw new Error(payload.error || `${errorPrefix} (${response.status})`);
             return payload;
         } catch (error) {
-            if (error.name === 'AbortError') throw new Error('Request timed out. Please try again.');
+            if (error.name === 'AbortError') throw new Error('AI is busy right now. Try again in a moment.');
             throw error;
         } finally {
             clearTimeout(timer);
         }
     }
-    async function askAI(q) {
-        aiConversation.push({ role: 'user', content: q });
+    async function askAI(q, appendUser = true) {
+        if (appendUser) aiConversation.push({ role: 'user', content: q });
         aiConversation = aiConversation.slice(-20);
-        const payload = await fetchAiJson(API_BASE + '/api/ai/chat', {
+        const payload = await fetchAiJson(`${API_BASE}/api/ai/chat`, {
             method: 'POST',
-            headers: { 'Content-Type': 'application/json', ...(AUTH_TOKEN ? { Authorization: 'Bearer ' + AUTH_TOKEN } : {}) },
+            headers: { 'Content-Type': 'application/json', ...(AUTH_TOKEN ? { Authorization: `Bearer ${AUTH_TOKEN}` } : {}) },
             body: JSON.stringify({ messages: aiConversation.slice(-6) })
         }, 'AI request failed');
         aiConversation.push({ role: 'assistant', content: String(payload.reply || '') });
@@ -6729,17 +6738,36 @@
         d.className = `message ${s}`;
         d.innerHTML = `<div class="message-avatar"><i class="fas ${s==='user'?'fa-user':'fa-robot'}"></i></div><div class="message-bubble">${escapeHtml(t)}</div>`;
         c.appendChild(d); c.scrollTop = c.scrollHeight;
+        return d;
+    }
+    function addAiRetryButton(container, retry) {
+        const button = document.createElement('button');
+        button.type = 'button'; button.textContent = '↻ Retry'; button.style.cssText = 'display:block;margin-top:8px;border:0;border-radius:8px;padding:6px 10px;background:#eee8ff;color:#4B2E9E;cursor:pointer';
+        button.addEventListener('click', async () => { button.disabled = true; button.textContent = 'Retrying…'; await retry(); });
+        container.appendChild(button);
     }
     async function sendChat() {
         const inp = document.getElementById('chatInput');
         const q = inp.value.trim();
         if (!q) return;
         addMsg(q, 'user'); inp.value = '';
-        addMsg("🤔 Thinking...", 'ai');
-        const pending = document.querySelector('#chatMessages .message:last-child');
+        const pending = addMsg("🤔 Thinking...", 'ai');
+        const pendingText = pending.querySelector('.message-bubble');
+        const stillTimer = setTimeout(() => { if (pendingText) pendingText.textContent = '⏳ Still working…'; }, 3000);
+        const slowTimer = setTimeout(() => { if (pendingText) pendingText.textContent = '📡 Slow response, hang tight…'; }, 10000);
         try { addMsg(await askAI(q), 'ai'); }
-        catch (error) { if (/limit reached/i.test(error.message||'')) document.getElementById('aiLimitBanner').hidden=false; addMsg(error.message || 'AI service unavailable. Please try again.', 'ai'); }
-        finally { pending?.remove(); }
+        catch (error) {
+            if (/limit reached/i.test(error.message||'')) document.getElementById('aiLimitBanner').hidden=false;
+            const failed = addMsg(error.message || 'AI service unavailable. Please try again.', 'ai');
+            addAiRetryButton(failed.querySelector('.message-bubble'), async () => {
+                try { addMsg(await askAI(q, false), 'ai'); failed.remove(); }
+            catch (retryError) {
+                failed.querySelector('.message-bubble').firstChild.textContent = retryError.message || 'AI is busy right now. Try again in a moment.';
+                const retry = failed.querySelector('button'); if (retry) { retry.disabled = false; retry.textContent = '↻ Retry'; }
+            }
+            });
+        }
+        finally { clearTimeout(stillTimer); clearTimeout(slowTimer); pending.remove(); }
     }
     function setAiMode(mode) {
         aiMode = mode === 'solve' ? 'solve' : 'chat';
@@ -6757,14 +6785,19 @@
         if (file && file.size > 1024 * 1024) { showNotification('Image must be 1 MB or smaller.'); return; }
         const send = document.getElementById('sendBtn'); send.disabled = true; send.textContent = 'Solving…';
         try {
+            document.getElementById('aiSolveResults').querySelector('[data-ai-request-error]')?.remove();
             const image_base64 = file ? await new Promise((resolve, reject) => {
                 const reader = new FileReader(); reader.onload = () => resolve(String(reader.result).split(',')[1]); reader.onerror = reject; reader.readAsDataURL(file);
             }) : '';
-            const result = await fetchAiJson(API_BASE + '/api/ai/solve', {
+            const progressTimer = setTimeout(() => { send.textContent = '⏳ Still working…'; }, 3000);
+            const slowTimer = setTimeout(() => { send.textContent = '📡 Slow response…'; }, 10000);
+            let result;
+            try { result = await fetchAiJson(`${API_BASE}/api/ai/solve`, {
                 method: 'POST',
-                headers: { 'Content-Type': 'application/json', ...(AUTH_TOKEN ? { Authorization: 'Bearer ' + AUTH_TOKEN } : {}) },
+                headers: { 'Content-Type': 'application/json', ...(AUTH_TOKEN ? { Authorization: `Bearer ${AUTH_TOKEN}` } : {}) },
                 body: JSON.stringify({ question_text: question, subject: document.getElementById('aiSubject').value, ...(image_base64 ? { image_base64, image_mime_type: file.type } : {}) })
-            }, 'Solve request failed');
+            }, 'Solve request failed'); }
+            finally { clearTimeout(progressTimer); clearTimeout(slowTimer); }
             aiCurrentSolution = result; updateAiQuota(result);
             const steps = document.getElementById('aiSteps'); steps.replaceChildren();
             const given=document.createElement('p'); given.textContent=`Given: ${(result.given||[]).join(', ')||'—'}`; steps.append(given);
@@ -6783,7 +6816,18 @@
             const copy=document.createElement('button'); copy.type='button'; copy.dataset.aiCopySummary=''; copy.textContent='📋 Copy'; summary.append(copy);
             document.getElementById('aiSolveResults').hidden = false; selectAiResult('steps');
             await loadAiSessions();
-        } catch (error) { if (/limit reached/i.test(error.message||'')) document.getElementById('aiLimitBanner').hidden=false; showNotification(error.message || 'Could not solve this question.'); }
+        } catch (error) {
+            if (/limit reached/i.test(error.message||'')) document.getElementById('aiLimitBanner').hidden=false;
+            const message = error.message || 'Could not solve this question.';
+            showNotification(message, 'error');
+            const results = document.getElementById('aiSolveResults');
+            results.hidden = false;
+            results.querySelector('[data-ai-request-error]')?.remove();
+            const notice = document.createElement('div'); notice.dataset.aiRequestError = ''; notice.style.cssText = 'padding:12px;margin:12px 0;border-radius:10px;background:#fff4d6;color:#533b00';
+            const text = document.createElement('span'); text.textContent = message; notice.append(text);
+            addAiRetryButton(notice, async () => { document.getElementById('chatInput').value = question; await solveAiQuestion(); });
+            results.prepend(notice);
+        }
         finally { send.disabled = false; send.textContent = '✨ Solve'; }
     }
     function selectAiResult(name) {
@@ -8986,7 +9030,7 @@
         document.getElementById('aiCopyDetails')?.addEventListener('click',async()=>{const details=`User ID: ${currentUser?.id||''}\nEmail: ${currentUser?.email||''}`;try{await navigator.clipboard.writeText(details);showNotification('Account details copied.');}catch(_){showNotification(details);}});
         document.getElementById('aiDownloadPng')?.addEventListener('click', downloadAiDiagramPng);
         document.getElementById('aiSummary')?.addEventListener('click', async event => { if(event.target.closest('[data-ai-copy-summary]')) { await navigator.clipboard?.writeText(`${aiCurrentSolution?.final_answer||''}\n${aiCurrentSolution?.formula||''}\n${aiCurrentSolution?.tips||''}`); showNotification('Answer copied.'); } });
-        window.launchApshuleAiStudy = mode => { setAiMode(mode); document.getElementById('aiDrawer').classList.add('open'); document.getElementById('drawerOverlay').classList.add('show'); void loadAiQuota(); void loadAiSessions(); };
+        window.launchApshuleAiStudy = mode => { setAiMode(mode); document.getElementById('aiDrawer').classList.add('open'); document.getElementById('drawerOverlay').classList.add('show'); warmupAi(); void loadAiQuota(); void loadAiSessions(); };
         document.getElementById('openAIDrawerBtn')?.addEventListener('click', () => { document.getElementById('aiDrawer').classList.add('open'); document.getElementById('drawerOverlay').classList.add('show'); void loadAiQuota(); void loadAiSessions(); });
         document.getElementById('closeDrawerBtn')?.addEventListener('click', () => { document.getElementById('aiDrawer').classList.remove('open'); document.getElementById('drawerOverlay').classList.remove('show'); });
         document.getElementById('drawerOverlay')?.addEventListener('click', () => { document.getElementById('aiDrawer').classList.remove('open'); document.getElementById('drawerOverlay').classList.remove('show'); });
