@@ -2193,7 +2193,8 @@
     import { initSettingsUI } from "./settings-ui.js";
     import { initVideoStudioUI } from "./video-studio-ui.js";
     import { initFarmUI } from "./farm-ui.js";
-    import { initCommandCenterUI } from "./command-center-ui.js?v=39";
+    import { initCommandCenterUI } from "./command-center-ui-v2.js";
+    import { initSchoolAdminAiAccess } from "./school-admin-ui-v2.js";
     import { initVirtualLabUI } from "./virtual-lab-ui.js";
     import { renderDiagram } from "./ai-diagram-renderer.js";
     import { createOfflineDataLayer } from "./offline-data.js";
@@ -2284,6 +2285,7 @@
     let settingsUI = null;
     let videoStudioUI = null;
     let commandCenterUI = null;
+    let schoolAdminAiAccessUI = null;
     let virtualLabUI = null;
     const MFI_USER_ROLES = new Set(["mfi_admin", "loan_officer", "loan_manager", "loan_director", "borrower"]);
     const CLINIC_USER_ROLES = new Set(["clinic_admin", "doctor", "nurse", "receptionist", "pharmacist"]);
@@ -7201,6 +7203,7 @@
     async function showAppFor(user) {
         currentUser = user;
         commandCenterUI?.setUser(user);
+        schoolAdminAiAccessUI?.setUser(user);
         void Promise.resolve(virtualLabUI?.setUser(user)).catch(() => {});
         settingsUI?.setUser(user);
         videoStudioUI?.setUser(user);
@@ -8896,6 +8899,7 @@
         currentUser = null;
         pdfAutoResolveAttemptKey = null;
         commandCenterUI?.setUser(null);
+        schoolAdminAiAccessUI?.setUser(null);
         settingsUI?.setUser(null);
         videoStudioUI?.setUser(null);
         await reportCardsUI?.setUser(null);
@@ -9012,6 +9016,7 @@
             activateSectorPanel: (sector) => activateCommandTab(sector),
             startImpersonation: (user) => startImpersonation(user),
         });
+        schoolAdminAiAccessUI = initSchoolAdminAiAccess({ api, getCurrentUser: () => currentUser, notify: showNotification, escapeHtml });
         virtualLabUI = initVirtualLabUI({
             api,
             getCurrentUser: () => currentUser,

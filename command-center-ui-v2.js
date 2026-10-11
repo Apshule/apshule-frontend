@@ -201,12 +201,11 @@ export function initCommandCenterUI({ apiBase, getToken, getUser, notify, activa
   const aiNav=root.querySelector(".cc6-tabs"),aiButton=document.createElement("button");
   aiButton.className="cc6-tab";aiButton.type="button";aiButton.setAttribute("role","tab");aiButton.setAttribute("aria-selected","false");aiButton.dataset.cc6Tab="ai-tiers";aiButton.textContent="🤖 AI Control";aiNav.append(aiButton);
   const aiView=document.createElement("section");aiView.className="cc6-view";aiView.id="cc6-ai-tiers";aiView.hidden=true;
-  aiView.innerHTML='<div class="cc6-section-head"><div><h2>AI Control</h2><p>Daily usage, grants, expiry and provider statistics.</p></div><button class="cc6-button secondary" type="button" data-ai-refresh>Refresh</button></div><div class="cc6-grid" id="ccAiStats"></div><section class="cc6-panel"><div class="cc6-panel-head"><h3>Top 10 usage today</h3></div><div class="cc6-panel-body" id="ccAiTopUsers"></div></section><form id="ccAiSchoolGrant" class="cc6-toolbar"><select name="school_id" class="cc6-field" required><option value="">Choose a school…</option></select><input name="duration_days" class="cc6-field" type="number" min="1" max="365" value="30" aria-label="Grant duration in days"><button class="cc6-button" type="submit">Grant to School</button></form><section class="cc6-panel"><div class="cc6-panel-head"><h3>Users and access tiers</h3><div class="cc6-toolbar"><input id="ccAiSearch" class="cc6-field" type="search" placeholder="Search name or email" aria-label="Search AI users"><button class="cc6-button secondary" type="button" data-ai-new-grant>Grant Tier</button></div></div><div class="cc6-panel-body cc6-table-wrap" id="ccAiUsers"></div></section>';
+  aiView.innerHTML='<div class="cc6-section-head"><div><h2>AI Control</h2><p>Platform-wide school and individual AI access.</p></div><button class="cc6-button secondary" type="button" data-ai-refresh>Refresh</button></div><div class="cc6-grid" id="ccAiStats"></div><section class="cc6-panel"><div class="cc6-panel-head"><h3>Top 3 schools by AI usage</h3></div><div class="cc6-panel-body" id="ccAiTopSchools"></div></section><section class="cc6-panel"><div class="cc6-panel-head"><h3>Schools</h3></div><form id="ccAiSchoolGrant" class="cc6-toolbar"><select name="school_id" class="cc6-field" required><option value="">Choose a school…</option></select><select name="tier" class="cc6-field"><option value="school_plan">school_plan</option><option value="student_pro">student_pro</option><option value="teacher_pro">teacher_pro</option><option value="unlimited">unlimited</option></select><input name="duration_days" class="cc6-field" type="number" min="1" max="365" value="30"><input name="reason" class="cc6-field" required placeholder="Reason"><button class="cc6-button" type="submit">Grant School Plan</button></form><div class="cc6-panel-body cc6-table-wrap" id="ccAiSchools"></div></section><section class="cc6-panel"><div class="cc6-panel-head"><h3>Individual users</h3><div class="cc6-toolbar"><input id="ccAiSearch" class="cc6-field" type="search" placeholder="Search email" aria-label="Search AI users"><select id="ccAiFilter" class="cc6-field"><option value="all">All</option><option value="free">Free</option><option value="paid">Paid</option><option value="expired">Expired</option></select><button class="cc6-button secondary" type="button" data-ai-new-grant>Grant</button></div></div><div class="cc6-panel-body cc6-table-wrap" id="ccAiUsers"></div></section>';
   root.append(aiView);
   const logCommandCenterTabs=(user)=>console.info("[Command Center] tab list", [...root.querySelectorAll("[data-cc6-tab]")].map((btn)=>({id:btn.dataset.cc6Tab,label:btn.textContent.trim()||btn.dataset.i18n||"",hidden:btn.hidden})), "role:",user?.role||"none");
   const initialUser=typeof getUser==="function"?getUser():null;
-  aiButton.hidden=!initialUser;
-  console.info("[Command Center] temporary AI Control visibility debug enabled");
+  aiButton.hidden=initialUser?.role!=="superadmin";
   logCommandCenterTabs(initialUser);
 
   const legacyHost = root.querySelector("#cc6LegacyContent");
@@ -285,20 +284,22 @@ export function initCommandCenterUI({ apiBase, getToken, getUser, notify, activa
   async function loadAiTierControl() {
     const list=root.querySelector("#ccAiUsers");list.textContent="Loading…";
     try {
-      const [users,stats,schools]=await Promise.all([api("/api/admin/ai-tiers"),api("/api/admin/ai-usage-stats"),api("/api/cc/institutions?sector=education")]);
+      const [users,stats,schools,overview]=await Promise.all([api("/api/admin/ai-tiers/users"),api("/api/admin/ai-tiers/stats"),api("/api/admin/ai-tiers/schools"),api("/api/admin/ai-tiers")]);
       aiTierUsers=users.users||[];
-      const topUsers=stats.top_users||[];
-      root.querySelector("#ccAiStats").innerHTML=[["Total Users",stats.total_users],["Paying",stats.paying],["Requests Today",stats.requests_today],["Top 10",topUsers.length]].map(([k,v])=>`<article class="cc6-card"><div class="cc6-metric-label">${esc(k)}</div><div class="cc6-metric-value">${esc(fmt(v))}</div></article>`).join("");
-      root.querySelector("#ccAiTopUsers").innerHTML=topUsers.length?table(["Rank","User","Requests Today"],topUsers.map((u,i)=>`<tr><td>${i+1}</td><td>${esc(u.name||u.email)}<br>${esc(u.email||"")}</td><td>${fmt(u.used_today)}</td></tr>`).join("")):'<div class="cc6-empty">No AI requests today.</div>';
+      const topSchools=stats.top_schools||[];
+      root.querySelector("#ccAiStats").innerHTML=[["Free",stats.free],["Paid",stats.paid],["Requests Today",stats.requests_today],["Top Schools",topSchools.length]].map(([k,v])=>`<article class="cc6-card"><div class="cc6-metric-label">${esc(k)}</div><div class="cc6-metric-value">${esc(fmt(v))}</div></article>`).join("");
+      root.querySelector("#ccAiTopSchools").innerHTML=topSchools.length?table(["School","Users","Requests Today"],topSchools.map(s=>`<tr><td>${esc(s.name)}</td><td>${fmt(s.users)}</td><td>${fmt(s.requests_today)}</td></tr>`).join("")):'<div class="cc6-empty">No school usage today.</div>';
       const schoolSelect=aiView.querySelector('[name="school_id"]'),selected=schoolSelect.value;
-      schoolSelect.innerHTML='<option value="">Choose a school…</option>'+(schools.institutions||[]).map(s=>`<option value="${esc(s.id)}">${esc(s.name)}</option>`).join("");
+      schoolSelect.innerHTML='<option value="">Choose a school…</option>'+(schools.schools||[]).map(s=>`<option value="${esc(s.id)}">${esc(s.name)}</option>`).join("");
       if(selected)schoolSelect.value=selected;
+      root.querySelector("#ccAiSchools").innerHTML=table(["School","Users","Tier","Expires","Actions"],(schools.schools||[]).map(s=>`<tr><td>${esc(s.name)} · ${fmt(s.student_count)} students</td><td>${fmt(s.user_count)}</td><td>${esc(s.tier)}</td><td>${esc(dateText(s.expires_at))}</td><td><button class="cc6-button small" data-school-grant="${esc(s.id)}">Grant / Extend</button> <button class="cc6-button secondary small" data-school-revoke="${esc(s.id)}">Revoke</button></td></tr>`).join("")));
       renderAiTierUsers();
     } catch(e){list.textContent=e.message||"Could not load AI tier data.";}
   }
   function renderAiTierUsers() {
     const query=String(aiView.querySelector("#ccAiSearch").value||"").trim().toLowerCase();
-    const filtered=aiTierUsers.filter(u=>`${u.name||""} ${u.email||""}`.toLowerCase().includes(query));
+    const filter=aiView.querySelector("#ccAiFilter").value;
+    const filtered=aiTierUsers.filter(u=>`${u.name||""} ${u.email||""}`.toLowerCase().includes(query)&&(filter==="all"||(filter==="free"&&u.tier==="free")||(filter==="paid"&&u.tier!=="free")||(filter==="expired"&&u.ai_tier_expires_at&&new Date(u.ai_tier_expires_at)<=new Date())));
     const rows=filtered.length?filtered.map(u=>`<tr><td>${esc(u.name)}<br>${esc(u.email)}</td><td>${esc(u.tier)}</td><td>${fmt(u.used_today)}</td><td>${fmt(u.daily_limit)}</td><td>${esc(dateText(u.ai_tier_expires_at))}</td><td><button class="cc6-button small" data-ai-user="${esc(u.id)}" data-ai-action="grant">Grant Tier</button> <button class="cc6-button secondary small" data-ai-user="${esc(u.id)}" data-ai-action="revoke">Revoke</button></td></tr>`).join(""):'<tr><td colspan="6">No users match this search.</td></tr>';
     root.querySelector("#ccAiUsers").innerHTML=table(["User","Tier","Used Today","Limit","Expires","Actions"],rows);
   }
@@ -317,10 +318,13 @@ export function initCommandCenterUI({ apiBase, getToken, getUser, notify, activa
     search.addEventListener("input",()=>{const q=search.value.trim().toLowerCase();for(const option of select.options){const u=aiTierUsers.find(row=>row.id===option.value);option.hidden=!`${u?.name||""} ${u?.email||""}`.toLowerCase().includes(q);}});
   }
   aiView.querySelector("#ccAiSearch").addEventListener("input",renderAiTierUsers);
+  aiView.querySelector("#ccAiFilter").addEventListener("change",renderAiTierUsers);
   aiView.addEventListener("click",async e=>{
-    const target=e.target.closest("[data-ai-new-grant],[data-ai-action]");if(!target)return;
+    const target=e.target.closest("[data-ai-new-grant],[data-ai-action],[data-school-grant],[data-school-revoke]");if(!target)return;
     e.stopPropagation();
     if(target.hasAttribute("data-ai-new-grant")){openAiGrantDialog();return;}
+    if(target.hasAttribute("data-school-grant")){aiView.querySelector('[name="school_id"]').value=target.dataset.schoolGrant;aiView.querySelector('[name="tier"]').value="school_plan";aiView.querySelector('[name="reason"]').focus();return;}
+    if(target.hasAttribute("data-school-revoke")){const reason=prompt("Reason for revoking this school’s AI tier","Access review");if(!reason)return;try{await api("/api/admin/ai-tiers/revoke",{method:"POST",body:{school_id:target.dataset.schoolRevoke,reason}});await loadAiTierControl();}catch(err){showError(err);}return;}
     const userId=target.dataset.aiUser;
     if(target.dataset.aiAction==="grant"){openAiGrantDialog(userId);return;}
     const user=aiTierUsers.find(row=>row.id===userId);
@@ -328,7 +332,7 @@ export function initCommandCenterUI({ apiBase, getToken, getUser, notify, activa
     try{await api("/api/admin/ai-tiers/revoke",{method:"POST",body:{user_id:userId,reason}});notify?.("AI access revoked.","success");await loadAiTierControl();}catch(err){showError(err);}
   });
   aiView.querySelector("[data-ai-refresh]").addEventListener("click",()=>void loadAiTierControl());
-  aiView.querySelector("#ccAiSchoolGrant").addEventListener("submit",async e=>{e.preventDefault();const f=e.currentTarget;try{const result=await api("/api/admin/ai-tiers/school-grant",{method:"POST",body:{school_id:f.elements.school_id.value,duration_days:Number(f.elements.duration_days.value)}});notify?.(`Granted to ${result.granted} accounts.`,"success");await loadAiTierControl();}catch(err){showError(err);}});
+  aiView.querySelector("#ccAiSchoolGrant").addEventListener("submit",async e=>{e.preventDefault();const f=e.currentTarget;try{const result=await api("/api/admin/ai-tiers/grant-school",{method:"POST",body:{school_id:f.elements.school_id.value,tier:f.elements.tier.value,duration_days:Number(f.elements.duration_days.value),reason:f.elements.reason.value}});notify?.(`Granted to ${result.granted} accounts.`,"success");await loadAiTierControl();}catch(err){showError(err);}});
   const setOpsTab = async (name) => {
     for (const btn of root.querySelectorAll("[data-ops-tab]")) btn.setAttribute("aria-selected", String(btn.dataset.opsTab === name));
     for (const panel of root.querySelectorAll("[data-ops-view]")) panel.hidden = panel.dataset.opsView !== name;
@@ -1008,11 +1012,9 @@ export function initCommandCenterUI({ apiBase, getToken, getUser, notify, activa
   return {
     setUser(user) {
       void loadUserSurface(user);
-      aiButton.hidden=!user;
+      aiButton.hidden=user?.role!=="superadmin";
       logCommandCenterTabs(user);
       if (user?.role === "superadmin") void setTab("dashboard");
-      if (user?.role === "school") loadSchoolAiPanel();
-      else { const schoolPanel=document.getElementById("schoolAiAccess");if(schoolPanel)schoolPanel.hidden=true; }
     },
   };
 }
