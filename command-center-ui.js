@@ -199,10 +199,14 @@ export function initCommandCenterUI({ apiBase, getToken, getUser, notify, activa
   `;
   commandCenter.prepend(root);
   const aiNav=root.querySelector(".cc6-tabs"),aiButton=document.createElement("button");
-  aiButton.className="cc6-tab";aiButton.type="button";aiButton.hidden=true;aiButton.setAttribute("role","tab");aiButton.setAttribute("aria-selected","false");aiButton.dataset.cc6Tab="ai-tiers";aiButton.textContent="🤖 AI Control";aiNav.append(aiButton);
+  aiButton.className="cc6-tab";aiButton.type="button";aiButton.setAttribute("role","tab");aiButton.setAttribute("aria-selected","false");aiButton.dataset.cc6Tab="ai-tiers";aiButton.textContent="🤖 AI Control";aiNav.append(aiButton);
   const aiView=document.createElement("section");aiView.className="cc6-view";aiView.id="cc6-ai-tiers";aiView.hidden=true;
   aiView.innerHTML='<div class="cc6-section-head"><div><h2>AI Control</h2><p>Daily usage, grants, expiry and provider statistics.</p></div><button class="cc6-button secondary" type="button" data-ai-refresh>Refresh</button></div><div class="cc6-grid" id="ccAiStats"></div><section class="cc6-panel"><div class="cc6-panel-head"><h3>Top 10 usage today</h3></div><div class="cc6-panel-body" id="ccAiTopUsers"></div></section><form id="ccAiSchoolGrant" class="cc6-toolbar"><select name="school_id" class="cc6-field" required><option value="">Choose a school…</option></select><input name="duration_days" class="cc6-field" type="number" min="1" max="365" value="30" aria-label="Grant duration in days"><button class="cc6-button" type="submit">Grant to School</button></form><section class="cc6-panel"><div class="cc6-panel-head"><h3>Users and access tiers</h3><div class="cc6-toolbar"><input id="ccAiSearch" class="cc6-field" type="search" placeholder="Search name or email" aria-label="Search AI users"><button class="cc6-button secondary" type="button" data-ai-new-grant>Grant Tier</button></div></div><div class="cc6-panel-body cc6-table-wrap" id="ccAiUsers"></div></section>';
   root.append(aiView);
+  const logCommandCenterTabs=(user)=>console.info("[Command Center] tab list", [...root.querySelectorAll("[data-cc6-tab]")].map((btn)=>({id:btn.dataset.cc6Tab,label:btn.textContent.trim()||btn.dataset.i18n||"",hidden:btn.hidden})), "role:",user?.role||"none");
+  const initialUser=typeof getUser==="function"?getUser():null;
+  aiButton.hidden=initialUser?.role!=="superadmin";
+  logCommandCenterTabs(initialUser);
 
   const legacyHost = root.querySelector("#cc6LegacyContent");
   const legacyHeading = commandCenter.querySelector(":scope > .cc-heading");
@@ -1004,6 +1008,7 @@ export function initCommandCenterUI({ apiBase, getToken, getUser, notify, activa
     setUser(user) {
       void loadUserSurface(user);
       aiButton.hidden=user?.role!=="superadmin";
+      logCommandCenterTabs(user);
       if (user?.role === "superadmin") void setTab("dashboard");
       if (user?.role === "school") loadSchoolAiPanel();
       else { const schoolPanel=document.getElementById("schoolAiAccess");if(schoolPanel)schoolPanel.hidden=true; }
