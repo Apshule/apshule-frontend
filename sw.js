@@ -1,5 +1,5 @@
 // Preserve offline snapshots; activation deletes every other apshule-cache-* namespace.
-const CACHE_NAME = "apshule-cache-v42";
+const CACHE_NAME = "apshule-cache-v44";
 const APP_SHELL_URLS = [
     "/",
     "/index.html",
@@ -7,6 +7,7 @@ const APP_SHELL_URLS = [
     "/idb.js",
     "/offline-data.js",
     "/report-cards-ui.js",
+    "/report-card-foundation-ui.js",
     "/bulk-import-ui.js",
     "/account-profile-ui.js",
     "/retooling-ui.js",

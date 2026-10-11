@@ -1115,7 +1115,9 @@
             <div class="login-tab" data-tab="signup">Sign Up</div>
         </div>
         <div id="loginFormDiv" class="login-form active">
-            <div style="position: relative;"><input type="email" id="loginEmail" placeholder="Email" class="login-input"><span onclick="togglePassword('loginPassword')" style="position: absolute; right: 20px; top: 12px; cursor: pointer;">👁️</span></div>
+            <div class="login-tabs" style="margin:0 0 14px"><button type="button" class="login-tab active" data-login-identity="email">Email</button><button type="button" class="login-tab" data-login-identity="regno">Reg No</button></div>
+            <div id="emailLoginIdentity"><input type="email" id="loginEmail" placeholder="Email" class="login-input"></div>
+            <div id="regNoLoginIdentity" hidden><input id="loginRegNo" placeholder="Registration number" class="login-input" autocomplete="username"><input id="loginSchoolCode" placeholder="School code (optional)" class="login-input" autocomplete="organization"></div>
             <div style="position: relative;"><input type="password" id="loginPassword" placeholder="Password" class="login-input"><span onclick="togglePassword('loginPassword')" style=" position: absolute; right: 20px; top: 12px; cursor: pointer;">👁️</span></div>
             <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px;"><label style="display: flex; align-items: center; gap: 8px; color: #666; font-size: 14px;"><input type="checkbox" id="rememberMeCheckbox"> Remember Me</label><span id="forgotPasswordLink" style="color: #FF8C42; font-size: 14px; cursor: pointer;">Forgot Password?</span></div>
             <button id="loginBtn" class="login-btn">Login</button>
@@ -2185,6 +2187,7 @@
 
     // 🔴 REPLACE THIS with your deployed Worker URL:
     import { initReportCardUI } from "./report-cards-ui.js";
+    import { initReportCardFoundationUI } from "./report-card-foundation-ui.js";
     import { initBulkImportUI } from "./bulk-import-ui.js";
     import { initAccountProfileUI } from "./account-profile-ui.js";
     import { initRetoolingUI } from "./retooling-ui.js";
@@ -8927,6 +8930,13 @@
 
     // ---------- EVENT WIRING (all DOM listeners) ----------
     function wireEvents() {
+        let loginMode = 'email';
+        document.querySelectorAll('[data-login-identity]').forEach(button => button.addEventListener('click', () => {
+            loginMode = button.dataset.loginIdentity;
+            document.querySelectorAll('[data-login-identity]').forEach(tab => tab.classList.toggle('active', tab === button));
+            document.getElementById('emailLoginIdentity').hidden = loginMode !== 'email';
+            document.getElementById('regNoLoginIdentity').hidden = loginMode !== 'regno';
+        }));
         reportCardsUI = initReportCardUI({
             api,
             getCurrentUser: () => currentUser,
@@ -8934,6 +8944,11 @@
             apiBase: API_BASE,
             notify: showNotification,
             escapeHtml,
+        });
+        initReportCardFoundationUI({
+            api,
+            getCurrentUser: () => currentUser,
+            notify: showNotification,
         });
         bulkImportUI = initBulkImportUI({
             api,
@@ -9818,16 +9833,40 @@
             document.getElementById('sessionMessage').style.display = 'none';
             document.getElementById('loginError').style.display = 'none';
             const email = document.getElementById('loginEmail').value.trim();
+            const regNo = document.getElementById('loginRegNo').value.trim();
+            const schoolCode = document.getElementById('loginSchoolCode').value.trim();
             const password = document.getElementById('loginPassword').value;
             const loginError = document.getElementById('loginError');
-            if (!email || !password) {
+            const identity = loginMode === 'email' ? email : regNo;
+            if (!identity || !password) {
                 loginError.className = 'error-message';
                 loginError.style.display = 'block';
-                loginError.innerText = email ? 'Please enter password' : 'Please enter email';
+                loginError.innerText = identity ? 'Please enter password' : loginMode === 'email' ? 'Please enter email' : 'Please enter registration number';
                 return;
             }
             try {
-                const data = await api('/api/auth/login', { method: 'POST', body: { email, password }, auth: false });
+                const data = await api(loginMode === 'email' ? '/api/auth/login' : '/api/auth/login-regno', {
+                    method: 'POST',
+                    body: loginMode === 'email' ? { email, password } : { reg_no: regNo, school_code: schoolCode || undefined, password },
+                    auth: false
+                });
+                if (data.user?.must_change_password) {
+                    AUTH_TOKEN = data.token;
+                    let nextPassword = '';
+                    while (nextPassword.length < 6) {
+                        nextPassword = prompt('First sign-in: create a new password (at least 6 characters). Cancel to sign in later.') || '';
+                        if (!nextPassword) break;
+                        if (nextPassword.length < 6) alert('Password must be at least 6 characters.');
+                    }
+                    if (!nextPassword) { AUTH_TOKEN = null; return; }
+                    const confirmation = prompt('Confirm your new password:');
+                    if (confirmation !== nextPassword) { AUTH_TOKEN = null; alert('Passwords did not match. Please sign in again to change it.'); return; }
+                    await api('/api/user-profile/me/change-password', { method: 'POST', body: { old_password: password, new_password: nextPassword } });
+                    AUTH_TOKEN = null;
+                    document.getElementById('loginPassword').value = '';
+                    showNotification('Password changed. Please sign in again with your new password.');
+                    return;
+                }
                 clearStoredPdfResolverCache();
                 AUTH_TOKEN = data.token; localStorage.setItem('apshule_token', AUTH_TOKEN);
                 if (data.user?.role === 'superadmin') {
@@ -9837,6 +9876,8 @@
                 await showAppFor(data.user);
                 startPolling(); refreshAllData();
             } catch(err) {
+                AUTH_TOKEN = null;
+                localStorage.removeItem('apshule_token');
                 const loginError = document.getElementById('loginError');
                 loginError.className = 'error-message';
                 loginError.style.display = 'block';

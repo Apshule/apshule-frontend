@@ -90,6 +90,7 @@ export async function createAccessToken(
     schoolId: string | null;
     sector: string;
     sessionVersion?: number;
+    mustChangePassword?: boolean;
   },
   options: {
     expiresInSeconds?: number;
@@ -116,6 +117,7 @@ export async function createAccessToken(
     schoolId: user.schoolId,
     sector: user.sector,
     sv: user.sessionVersion ?? 0,
+    mc: user.mustChangePassword === true,
   };
   if (options.impersonatedBy) claims.impersonated_by = options.impersonatedBy;
   const token = await new SignJWT(claims)
@@ -154,6 +156,9 @@ export const authMiddleware = createMiddleware<AppEnv>(async (c, next) => {
 
   if (!payload.sub || !payload.jti || !payload.exp) {
     throw new ApiError(401, "INVALID_TOKEN", "The bearer token is incomplete.");
+  }
+  if (payload.mc === true && !c.req.path.endsWith("/user-profile/me/change-password")) {
+    throw new ApiError(403, "PASSWORD_CHANGE_REQUIRED", "Change your password before using the app.");
   }
   const tokenSessionVersion = payload.sv === undefined ? 0 : payload.sv;
   if (

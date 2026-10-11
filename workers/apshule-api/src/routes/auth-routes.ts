@@ -287,6 +287,7 @@ authRoutes.post("/signup", async (c) => {
     schoolId: user.school_id,
     sector: user.sector,
     sessionVersion: user.session_version ?? 0,
+    mustChangePassword: user.must_change_password === true,
   });
   return c.json({ token: issued.token, user: publicUser(user as unknown as Record<string, unknown>) });
 });
@@ -304,7 +305,7 @@ authRoutes.post("/login", async (c) => {
     SELECT id, name, email, phone, password_hash, role, sector, waitlist,
       school_id, education_level,
       class_level, subjects_taught, assigned_classes, lin, school_verified, address,
-      profile_pic, session_version, subscription, subscription_active, subscription_date, login_count,
+      profile_pic, session_version, must_change_password, subscription, subscription_active, subscription_date, login_count,
       last_login, detected_location, created_at
     FROM users
     WHERE lower(email) = ${email}
@@ -497,7 +498,7 @@ authRoutes.post("/login", async (c) => {
     SET login_count = COALESCE(login_count, 0) + 1, last_login = NOW()
     WHERE id = ${row.id}
     RETURNING id, name, email, phone, role, sector, waitlist, school_id, education_level,
-      class_level, subjects_taught, assigned_classes, lin, school_verified, address,
+      class_level, subjects_taught, assigned_classes, lin, school_verified, address, must_change_password,
       profile_pic, session_version, subscription, subscription_active, subscription_date, login_count,
       last_login, detected_location, created_at
   `;
@@ -509,12 +510,41 @@ authRoutes.post("/login", async (c) => {
     schoolId: user.school_id,
     sector: user.sector,
     sessionVersion: user.session_version ?? 0,
+    mustChangePassword: user.must_change_password === true,
   });
 
   return c.json({
     token: issued.token,
     user: publicUser(user as unknown as Record<string, unknown>),
   });
+});
+
+authRoutes.post("/login-regno", async (c) => {
+  const body = await readJson(c);
+  const regNo = requiredString(body, "reg_no", { max: 80 }).trim().toLowerCase().replace(/\s+/gu, "");
+  const password = requiredString(body, "password", { max: 128 });
+  const schoolCode = typeof body.school_code === "string" ? body.school_code.trim().toLowerCase() : "";
+  if (schoolCode && !/^[a-z0-9-]{2,32}$/u.test(schoolCode)) {
+    throw new ApiError(400, "VALIDATION_ERROR", "School code is invalid.");
+  }
+  const matches = await getDb(c.env)`
+    SELECT u.email
+    FROM learners l
+    JOIN users u ON u.id=l.user_id
+    JOIN schools s ON s.id=l.school_id
+    WHERE lower(regexp_replace(l.reg_no, '\\s+', '', 'g'))=${regNo}
+      AND l.active IS TRUE AND u.role='individual'
+      AND (${schoolCode}='' OR lower(s.short_code)=${schoolCode})
+    LIMIT 2`;
+  if (matches.length !== 1) {
+    throw new ApiError(401, "INVALID_CREDENTIALS", "Registration number or password is incorrect.");
+  }
+  const response = await authRoutes.request(new Request(new URL("/login", c.req.url), {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ email: matches[0]!.email, password }),
+  }), undefined, c.env, c.executionCtx);
+  return new Response(response.body, { status: response.status, headers: response.headers });
 });
 
 authRoutes.post("/reset", async (c) => {

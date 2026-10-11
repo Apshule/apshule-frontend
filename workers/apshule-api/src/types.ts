@@ -1,5 +1,6 @@
 export interface Env {
   DATABASE_URL?: string;
+  AI?: { run(model: string, input: Record<string, unknown>): Promise<any> };
   DOCS_BUCKET?: R2Bucket;
   JWT_SECRET?: string;
   RESEND_API_KEY?: string;
@@ -7,6 +8,8 @@ export interface Env {
   RESEND_FROM_NAME?: string;
   APP_URL?: string;
   PIXABAY_API_KEY?: string;
+  GEMINI_API_KEY?: string;
+  GROQ_API_KEY?: string;
   YO_API_USERNAME?: string;
   YO_API_PASSWORD?: string;
   YO_BASE_URL?: string;
@@ -73,6 +76,7 @@ export interface UserRecord {
   detected_location: string | null;
   created_at: string;
   session_version?: number;
+  must_change_password?: boolean;
 }
 
 export type AppEnv = {

@@ -184,6 +184,7 @@ userProfile.post("/me/change-password", authMiddleware, async (c) => {
     WITH updated_user AS (
       UPDATE users
       SET password_hash = ${passwordHash},
+          must_change_password = FALSE,
           session_version = COALESCE(session_version, 0) + 1,
           updated_at = NOW()
       WHERE id = ${actor.id}
@@ -214,6 +215,7 @@ userProfile.post("/me/change-password", authMiddleware, async (c) => {
       "Your password changed during this request. Log in with the current password.",
     );
   }
+  await sql`UPDATE learners SET must_change_password=FALSE WHERE user_id=${actor.id}`;
   return c.json({ message: "Password changed. Please log in again." });
 });
 
