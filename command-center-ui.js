@@ -205,7 +205,8 @@ export function initCommandCenterUI({ apiBase, getToken, getUser, notify, activa
   root.append(aiView);
   const logCommandCenterTabs=(user)=>console.info("[Command Center] tab list", [...root.querySelectorAll("[data-cc6-tab]")].map((btn)=>({id:btn.dataset.cc6Tab,label:btn.textContent.trim()||btn.dataset.i18n||"",hidden:btn.hidden})), "role:",user?.role||"none");
   const initialUser=typeof getUser==="function"?getUser():null;
-  aiButton.hidden=initialUser?.role!=="superadmin";
+  aiButton.hidden=!initialUser;
+  console.info("[Command Center] temporary AI Control visibility debug enabled");
   logCommandCenterTabs(initialUser);
 
   const legacyHost = root.querySelector("#cc6LegacyContent");
@@ -1007,7 +1008,7 @@ export function initCommandCenterUI({ apiBase, getToken, getUser, notify, activa
   return {
     setUser(user) {
       void loadUserSurface(user);
-      aiButton.hidden=user?.role!=="superadmin";
+      aiButton.hidden=!user;
       logCommandCenterTabs(user);
       if (user?.role === "superadmin") void setTab("dashboard");
       if (user?.role === "school") loadSchoolAiPanel();
