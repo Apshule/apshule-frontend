@@ -589,7 +589,7 @@
         .book-reader-render-label { position:absolute; width:1px; height:1px; padding:0; margin:-1px; overflow:hidden; clip:rect(0,0,0,0); white-space:nowrap; border:0; }
         .book-reader-loading-toast { position:fixed; top:calc(env(safe-area-inset-top, 0px) + 10px); right:12px; z-index:7001; max-width:calc(100vw - 24px); padding:8px 12px; border:1px solid #625e6c; border-radius:999px; background:rgba(25,24,33,.94); color:#fff; box-shadow:0 5px 18px rgba(0,0,0,.28); font-size:12px; font-weight:700; pointer-events:none; }
         .book-reader-loading-toast[hidden] { display:none !important; }
-        .book-reader-center { flex:1; min-height:0; display:flex; align-items:center; justify-content:center; padding:12px; overflow:hidden; }
+        .book-reader-center { flex:1; min-height:0; display:flex; align-items:center; justify-content:center; padding:0; overflow:hidden; }
         .book-reader-content { width:100%; height:100%; min-height:0; display:flex; flex-direction:column; align-items:center; justify-content:center; }
         .book-reader-loading, .book-reader-error { max-width:440px; padding:22px; border-radius:15px; background:#292733; color:#eee; text-align:center; line-height:1.5; }
         .book-reader-loading { display:flex; flex-direction:column; align-items:center; gap:12px; }
@@ -602,13 +602,29 @@
         .book-reader-error { border:1px solid #d96a44; background:#35242b; }
         .book-reader-error button { display:block; margin:14px auto 0; padding:10px 18px; border:0; border-radius:9px; background:#ff8c42; color:#fff; font-weight:700; cursor:pointer; }
         .book-reader-error a, .book-reader-media a { color:#ffd0a8; text-decoration:underline; overflow-wrap:anywhere; }
-        .book-flipbook { width:min(100%,1000px); height:100%; min-height:0; overflow:auto; overscroll-behavior:contain; display:flex; align-items:flex-start; justify-content:center; touch-action:pan-y; }
+        .book-reader-content { position:relative; }
+        .book-reader-loading { display:none !important; }
+        .book-reader-error--banner { position:absolute; z-index:5; right:8px; bottom:8px; left:8px; display:flex; align-items:center; justify-content:center; gap:8px; max-width:none; max-height:84px; overflow:auto; padding:8px 12px; border-radius:10px; background:rgba(53,36,43,.94); font-size:12px; }
+        .book-reader-error--banner p { margin:0; }
+        .book-reader-error--banner button { display:inline-block; flex:none; margin:0; padding:7px 10px; }
+        .book-reader-page-arrow { position:absolute; z-index:4; top:50%; width:50px; height:72px; transform:translateY(-50%); border:0; border-radius:14px; background:rgba(31,30,39,.74); color:#fff; font-size:44px; line-height:1; cursor:pointer; transition:opacity .25s ease; }
+        .book-reader-page-arrow--prev { left:8px; }
+        .book-reader-page-arrow--next { right:8px; }
+        .book-reader-page-arrow[data-hidden="true"] { opacity:0; pointer-events:none; }
+        .elibrary-pdf-row { display:flex; align-items:center; gap:8px; }
+        .elibrary-pdf-row > button:first-child { flex:1; min-width:0; }
+        .elibrary-pdf-row small { display:block; font-size:11px; opacity:.72; }
+        .elibrary-download-button { padding:8px 10px; border:1px solid #ddd; border-radius:8px; background:#fff; color:#302942; cursor:pointer; }
+        #elibraryBreadcrumb { display:flex; align-items:center; gap:8px; flex-wrap:wrap; }
+        #elibraryBreadcrumb button { padding:4px 0; text-decoration:underline; }
+        #elibraryBreadcrumb button[aria-current="page"] { font-weight:700; text-decoration:none; }
+        .book-flipbook { width:100%; height:100%; min-height:0; overflow:auto; overscroll-behavior:contain; display:flex; align-items:flex-start; justify-content:center; touch-action:pan-y; }
         .book-reader-pages { width:100%; min-height:100%; display:flex; align-items:flex-start; justify-content:center; gap:10px; }
         .book-flipbook[data-layout="spread"] .book-reader-pages { width:max-content; min-width:100%; }
         .book-reader-page-placeholder { flex:none; display:flex; align-items:center; justify-content:center; border:1px solid #514d5a; background:#292733; color:#d9d6e0; }
         .book-reader.reader-controls-hidden .book-reader-controls { display:none !important; }
         .book-flipbook canvas { display:block; max-width:none; flex:none; background:#fff; box-shadow:0 4px 22px rgba(0,0,0,.35); touch-action:pan-x pan-y; }
-        .book-reader-scroll { width:min(100%,1000px); height:100%; min-height:0; overflow-y:auto; overflow-x:hidden; overscroll-behavior:contain; padding:8px; background:#1a1a2e; touch-action:pan-y pinch-zoom; -webkit-overflow-scrolling:touch; }
+        .book-reader-scroll { width:100%; height:100%; min-height:0; overflow-y:auto; overflow-x:hidden; overscroll-behavior:contain; padding:4px; background:#1a1a2e; touch-action:pan-y pinch-zoom; -webkit-overflow-scrolling:touch; }
         .book-reader-scroll[hidden] { display:none !important; }
         .book-reader-scroll-offline { position:sticky; z-index:1; top:0; margin:0 auto 8px; padding:7px 10px; border:1px solid #4c755f; border-radius:9px; background:#1e3b2d; color:#d8f3e2; font-size:12px; text-align:center; }
         .pdf-scroll-page { position:relative; width:100%; max-width:1000px; min-height:200px; margin:0 auto 12px; overflow:hidden; aspect-ratio:.77; border-radius:3px; background:#292733; box-shadow:0 4px 22px rgba(0,0,0,.3); }
@@ -1921,6 +1937,8 @@
                     <div class="add-pdf-form" id="pdfUrlAddForm" hidden>
                         <input type="text" id="pdfTitle" placeholder="Document title">
                         <select id="pdfClassLevel" aria-label="Assign document to a class"><option value="">Select class (optional)</option><option value="unassigned">General / Unassigned</option><option value="Baby">Baby Class</option><option value="Middle">Middle Class</option><option value="Top">Top Class</option><option value="Primary 1">Primary 1</option><option value="Primary 2">Primary 2</option><option value="Primary 3">Primary 3</option><option value="Primary 4">Primary 4</option><option value="Primary 5">Primary 5</option><option value="Primary 6">Primary 6</option><option value="Primary 7">Primary 7</option><option value="Senior 1">Senior 1</option><option value="Senior 2">Senior 2</option><option value="Senior 3">Senior 3</option><option value="Senior 4">Senior 4</option><option value="Senior 5">Senior 5</option><option value="Senior 6">Senior 6</option></select>
+                        <select id="pdfCategory" aria-label="Document category"><option value="lesson_notes">📖 Lesson Notes</option><option value="past_papers">📝 Past Papers</option><option value="holiday_packages">🎒 Holiday Packages</option><option value="schemes_of_work">📋 Schemes of Work</option><option value="revision">🔁 Revision</option><option value="topical">📊 Topical</option><option value="pre_ple">🎯 Pre-PLE</option><option value="other">📄 Other</option></select>
+                        <input type="text" id="pdfSubject" list="pdfSubjectOptions" maxlength="120" placeholder="Subject (optional)">
                         <input type="url" id="pdfUrl" placeholder="Document URL">
                         <div id="pdfUrlResolutionBadge" class="pdf-resolution-status" role="status" aria-live="polite" hidden></div>
                         <small>Accepts PDF, Word, Excel, PowerPoint, ODT, images, video, audio, text, and other links.</small>
@@ -1940,7 +1958,8 @@
                         <h3 id="r2UploadTitle">Upload document</h3>
                         <label>Title<input id="r2UploadName" type="text" maxlength="200" required></label>
                         <label>Class (optional)<select id="r2UploadClass"><option value="unassigned">General / Unassigned</option><option value="Baby">Baby Class</option><option value="Middle">Middle Class</option><option value="Top">Top Class</option><option value="Primary 1">Primary 1</option><option value="Primary 2">Primary 2</option><option value="Primary 3">Primary 3</option><option value="Primary 4">Primary 4</option><option value="Primary 5">Primary 5</option><option value="Primary 6">Primary 6</option><option value="Primary 7">Primary 7</option><option value="Senior 1">Senior 1</option><option value="Senior 2">Senior 2</option><option value="Senior 3">Senior 3</option><option value="Senior 4">Senior 4</option><option value="Senior 5">Senior 5</option><option value="Senior 6">Senior 6</option></select></label>
-                        <label>Subject (optional)<input id="r2UploadSubject" type="text" maxlength="120"></label>
+                        <label>Category<select id="r2UploadCategory"><option value="lesson_notes">📖 Lesson Notes</option><option value="past_papers">📝 Past Papers</option><option value="holiday_packages">🎒 Holiday Packages</option><option value="schemes_of_work">📋 Schemes of Work</option><option value="revision">🔁 Revision</option><option value="topical">📊 Topical</option><option value="pre_ple">🎯 Pre-PLE</option><option value="other">📄 Other</option></select></label>
+                        <label>Subject (optional)<input id="r2UploadSubject" type="text" list="pdfSubjectOptions" maxlength="120"></label>
                         <label class="r2-upload-file-label" for="r2UploadFile">📎 Choose File</label>
                         <input id="r2UploadFile" type="file" accept=".pdf,.docx,.doc,.xlsx,.xls,.pptx,.ppt,.jpg,.jpeg,.png,.mp4,.mp3,.txt">
                         <div id="r2UploadFileDetails" class="r2-upload-status">No file selected. Maximum size: 20 MB.</div>
@@ -1951,6 +1970,7 @@
                             <button type="submit" id="submitR2UploadBtn">Upload</button>
                         </div>
                     </form>
+                    <datalist id="pdfSubjectOptions"><option value="Mathematics"><option value="English"><option value="Science"><option value="Social Studies"><option value="Luganda"><option value="Religious Education"></datalist>
                 </div>
             </div>
         </div>
@@ -2063,6 +2083,7 @@
         <header class="elibrary-list-header">
             <button type="button" id="elibraryBackToShelf"><i class="fas fa-arrow-left" aria-hidden="true"></i> Back to Shelf</button>
             <h2 id="elibraryClassTitle"></h2>
+            <nav id="elibraryBreadcrumb" aria-label="Library location"></nav>
         </header>
         <div id="elibraryPDFItems" class="elibrary-pdf-items"></div>
     </section>
@@ -2099,6 +2120,8 @@
             <div class="book-flipbook" id="bookFlipbook" hidden></div>
             <div class="book-reader-scroll" id="pdfScrollContainer" hidden tabindex="0" aria-label="PDF pages"></div>
             <div class="book-reader-media" id="bookReaderMedia" hidden></div>
+            <button type="button" class="book-reader-page-arrow book-reader-page-arrow--prev" id="bookReaderArrowPrev" aria-label="Previous page">‹</button>
+            <button type="button" class="book-reader-page-arrow book-reader-page-arrow--next" id="bookReaderArrowNext" aria-label="Next page">›</button>
         </div>
     </div>
     <footer class="book-reader-controls" id="bookReaderControls" hidden>
@@ -2108,7 +2131,7 @@
         <div class="book-reader-zoom-controls" role="group" aria-label="Zoom controls" data-i18n-aria-label="reader_zoom">
             <button type="button" id="bookReaderZoomDecrease" aria-label="Zoom out" data-i18n-aria-label="reader_zoom_decrease">−</button>
             <label class="sr-only" for="bookReaderZoom" data-i18n="reader_zoom">Zoom</label>
-            <input type="range" id="bookReaderZoom" min="10" max="300" step="1" value="100" aria-label="Zoom level" data-i18n-aria-label="reader_zoom_slider">
+            <input type="range" id="bookReaderZoom" min="0" max="100" step="1" value="31" aria-label="Zoom level" data-i18n-aria-label="reader_zoom_slider">
             <span class="book-reader-zoom-value" id="bookReaderZoomValue" aria-live="polite">Fit Width</span>
             <button type="button" id="bookReaderZoomIncrease" aria-label="Zoom in" data-i18n-aria-label="reader_zoom_increase">+</button>
             <button type="button" id="bookReaderZoomActual" aria-label="100% actual size" title="100% actual size" data-i18n-aria-label="reader_actual_size" data-i18n="reader_actual_size">100%</button>
@@ -2273,6 +2296,9 @@
     let currentSelectedClassId = null;
     let currentLevel = "nursery";
     let currentLibraryClass = null;
+    let currentLibraryCategory = null;
+    let currentLibrarySubject = null;
+    let currentLibraryStage = 'classes';
     let currentLibraryPdfs = [];
     let teacherCurriculumCacheUserId = null;
     let teacherDashboardState = {
@@ -2309,6 +2335,12 @@
     const PDF_READER_PROGRESS_PREFIX = 'apshule_pdf_reader_progress_v1:';
     const PDF_READER_OFFLINE_PREFIX = 'apshule_pdf_reader_render_v1:';
     const PDF_READER_OFFLINE_TTL_SECONDS = 30 * 24 * 60 * 60;
+    try {
+        const savedManualZoom = Number(localStorage.getItem(PDF_READER_ZOOM_LEVEL_KEY));
+        if (Number.isFinite(savedManualZoom) && savedManualZoom >= 10 && savedManualZoom <= 300) {
+            pdfReaderZoomLevel = Math.round(savedManualZoom);
+        }
+    } catch (_) {}
     const PDF_READER_MAX_RENDERED_SCROLL_PAGES = 10;
     let pdfReaderMode = 'book';
     let pdfReaderZoom = 'fit-width';
@@ -2330,6 +2362,7 @@
     let pdfReaderLoadProgress = { loaded: 0, total: 0, active: false };
     let pdfReaderLoadingToastTimer = null;
     let currentLibraryRequestId = 0;
+    let readerArrowTimer = null;
 
     const classData = {
         nursery: [{id:1,name:"Baby Class",icon:"fa-baby",color:"#FF6B9D"},{id:2,name:"Middle Class",icon:"fa-child",color:"#FFB84D"},{id:3,name:"Top Class",icon:"fa-shapes",color:"#4ECDC4"}],
@@ -3151,9 +3184,56 @@
         }
         container.innerHTML = currentLibraryPdfs.map(pdf => {
             const color = /^#[0-9a-f]{6}$/iu.test(pdf.cover_color || '') ? pdf.cover_color : '#FF8C42';
-            return `<button type="button" class="elibrary-pdf-row" data-library-pdf-id="${escapeHtml(pdf.id)}"><span class="elibrary-pdf-cover" style="background:${color}" aria-hidden="true">📄</span><span>${escapeHtml(pdf.title)}</span><i class="fas fa-chevron-right" aria-hidden="true"></i></button>`;
+            const source = pdf.storage_type === 'r2' ? 'R2' : 'Source';
+            const paid = pdf.is_paid === true || Number(pdf.price || 0) > 0 || Number(pdf.fee || 0) > 0;
+            return `<div class="elibrary-pdf-row"><button type="button" data-library-pdf-id="${escapeHtml(pdf.id)}"><span class="elibrary-pdf-cover" style="background:${color}" aria-hidden="true">${escapeHtml(pdf.category_icon || '📄')}</span><span><strong>${escapeHtml(pdf.title)}</strong><small>${paid ? 'Paid' : 'Free'} · ${source}</small></span><span>View</span></button><button type="button" class="elibrary-download-button" data-library-download-id="${escapeHtml(pdf.id)}">Download</button></div>`;
         }).join('');
         prefetchVisiblePdfLinks(container, currentLibraryPdfs);
+    }
+    async function downloadLibraryPdf(pdfId) {
+        const pdf = currentLibraryPdfs.find(item => String(item.id) === String(pdfId));
+        const url = safeReaderDocumentUrl(pdf?.url);
+        if (!pdf || !url) return showNotification('The document URL is unavailable.', 'error');
+        try {
+            const response = await fetch(url, { headers: AUTH_TOKEN ? { Authorization: `Bearer ${AUTH_TOKEN}` } : {} });
+            if (!response.ok) throw new Error(`Download failed (HTTP ${response.status}).`);
+            const blob = await response.blob();
+            const objectUrl = URL.createObjectURL(blob);
+            const link = document.createElement('a');
+            link.href = objectUrl;
+            link.download = String(pdf.title || 'document').replace(/[\\/:*?"<>|]/gu, '_');
+            document.body.appendChild(link);
+            link.click();
+            link.remove();
+            window.setTimeout(() => URL.revokeObjectURL(objectUrl), 30000);
+        } catch (error) {
+            showNotification(error?.message || 'Could not download this document.', 'error');
+        }
+    }
+    function renderLibraryBreadcrumb() {
+        const nav = document.getElementById('elibraryBreadcrumb');
+        if (!nav) return;
+        const parts = [{ label: getPdfClassLabel(currentLibraryClass), stage: 'category' }];
+        if (currentLibraryCategory) parts.push({ label: currentLibraryCategory.name, stage: 'subject' });
+        if (currentLibrarySubject) parts.push({ label: currentLibrarySubject.subject_name, stage: 'files' });
+        nav.innerHTML = parts.map((part, index) =>
+            `<button type="button" data-library-level="${part.stage}"${index === parts.length - 1 ? ' aria-current="page"' : ''}>${escapeHtml(part.label)}</button>`
+        ).join('<span aria-hidden="true">›</span>');
+    }
+    function renderLibraryChoices(items, type) {
+        const container = document.getElementById('elibraryPDFItems');
+        if (!container) return;
+        if (!items.length) {
+            container.innerHTML = '<div class="elibrary-empty">No documents in this section yet.</div>';
+            return;
+        }
+        container.innerHTML = items.map(item => {
+            const isCategory = type === 'category';
+            const code = isCategory ? item.code : item.subject_code;
+            const label = isCategory ? item.name : item.subject_name;
+            const icon = isCategory ? item.icon : '📚';
+            return `<button type="button" class="library-book" data-library-${type}="${escapeHtml(code)}" style="--book-color:#d97938"><span aria-hidden="true">${escapeHtml(icon)}</span><strong>${escapeHtml(label)}</strong><small>${Number(item.count || 0)} ${Number(item.count || 0) === 1 ? 'document' : 'documents'}</small></button>`;
+        }).join('');
     }
     function updateELibraryTitle() {
         const brand = document.getElementById('elibraryBrand');
@@ -3171,6 +3251,9 @@
         updateELibraryTitle();
         const requestId = ++currentLibraryRequestId;
         currentLibraryClass = null;
+        currentLibraryCategory = null;
+        currentLibrarySubject = null;
+        currentLibraryStage = 'classes';
         currentLibraryPdfs = [];
         list.classList.remove('show');
         list.setAttribute('aria-hidden', 'true');
@@ -3209,12 +3292,18 @@
         renderELibrarySearchResults();
         currentLibraryRequestId += 1;
         currentLibraryClass = null;
+        currentLibraryCategory = null;
+        currentLibrarySubject = null;
+        currentLibraryStage = 'classes';
         currentLibraryPdfs = [];
     }
     async function openELibraryClass(classLevel) {
         const requestId = ++currentLibraryRequestId;
         const classInfo = elibraryShelves.flatMap(shelf => shelf.classes).find(item => item.value === classLevel);
         currentLibraryClass = classLevel;
+        currentLibraryCategory = null;
+        currentLibrarySubject = null;
+        currentLibraryStage = 'category';
         currentLibraryPdfs = [];
         document.getElementById('elibraryClassTitle').textContent =
             classInfo?.label || (classLevel === 'unassigned' ? 'General / Unassigned' : classLevel);
@@ -3224,10 +3313,10 @@
         list.setAttribute('aria-hidden', 'false');
         items.innerHTML = '<div class="elibrary-status">Loading materials…</div>';
         try {
-            const response = await api(`/api/pdfs?class_level=${encodeURIComponent(classLevel)}`, { auth: false });
+            const response = await api(`/api/pdfs/categories?class_level=${encodeURIComponent(classLevel)}`, { auth: false });
             if (requestId !== currentLibraryRequestId || currentLibraryClass !== classLevel || !list.classList.contains('show')) return;
-            currentLibraryPdfs = responseList(response, 'pdfs') || [];
-            renderELibraryPDFItems();
+            renderLibraryBreadcrumb();
+            renderLibraryChoices(responseList(response, 'categories') || [], 'category');
         } catch (error) {
             if (requestId !== currentLibraryRequestId || currentLibraryClass !== classLevel) return;
             items.innerHTML = '<div class="elibrary-empty">Could not load materials. <button type="button" data-class-retry>Retry</button></div>';
@@ -3237,10 +3326,59 @@
     function returnToELibraryShelf() {
         currentLibraryRequestId += 1;
         const list = document.getElementById('elibraryPDFList');
-        list.classList.remove('show');
-        list.setAttribute('aria-hidden', 'true');
-        currentLibraryClass = null;
-        currentLibraryPdfs = [];
+        if (currentLibraryStage === 'files') {
+            currentLibrarySubject = null;
+            currentLibraryStage = 'subject';
+            void openELibraryCategory(currentLibraryCategory?.code);
+        } else if (currentLibraryStage === 'subject') {
+            currentLibraryCategory = null;
+            currentLibraryStage = 'category';
+            void openELibraryClass(currentLibraryClass);
+        } else {
+            list.classList.remove('show');
+            list.setAttribute('aria-hidden', 'true');
+            currentLibraryClass = null;
+            currentLibraryCategory = null;
+            currentLibrarySubject = null;
+            currentLibraryStage = 'classes';
+            currentLibraryPdfs = [];
+        }
+    }
+    async function openELibraryCategory(categoryCode) {
+        if (!currentLibraryClass || !categoryCode) return;
+        const requestId = ++currentLibraryRequestId;
+        currentLibraryStage = 'subject';
+        currentLibrarySubject = null;
+        const items = document.getElementById('elibraryPDFItems');
+        items.innerHTML = '<div class="elibrary-status">Loading subjects…</div>';
+        try {
+            const categories = await api(`/api/pdfs/categories?class_level=${encodeURIComponent(currentLibraryClass)}`, { auth: false });
+            currentLibraryCategory = (responseList(categories, 'categories') || []).find(item => item.code === categoryCode) || { code: categoryCode, name: categoryCode, icon: '📄' };
+            const response = await api(`/api/pdfs/subjects?class_level=${encodeURIComponent(currentLibraryClass)}&category=${encodeURIComponent(categoryCode)}`, { auth: false });
+            if (requestId !== currentLibraryRequestId) return;
+            renderLibraryBreadcrumb();
+            renderLibraryChoices(responseList(response, 'subjects') || [], 'subject');
+        } catch (error) {
+            if (requestId === currentLibraryRequestId) items.innerHTML = '<div class="elibrary-empty">Could not load subjects. <button type="button" data-class-retry>Retry</button></div>';
+        }
+    }
+    async function openELibrarySubject(subjectCode) {
+        if (!currentLibraryClass || !currentLibraryCategory || !subjectCode) return;
+        const requestId = ++currentLibraryRequestId;
+        currentLibraryStage = 'files';
+        const subjects = await api(`/api/pdfs/subjects?class_level=${encodeURIComponent(currentLibraryClass)}&category=${encodeURIComponent(currentLibraryCategory.code)}`, { auth: false });
+        currentLibrarySubject = (responseList(subjects, 'subjects') || []).find(item => item.subject_code === subjectCode) || { subject_code: subjectCode, subject_name: subjectCode };
+        const items = document.getElementById('elibraryPDFItems');
+        items.innerHTML = '<div class="elibrary-status">Loading documents…</div>';
+        try {
+            const response = await api(`/api/pdfs?class_level=${encodeURIComponent(currentLibraryClass)}&category=${encodeURIComponent(currentLibraryCategory.code)}&subject=${encodeURIComponent(subjectCode)}`, { auth: false });
+            if (requestId !== currentLibraryRequestId) return;
+            currentLibraryPdfs = responseList(response, 'pdfs') || [];
+            renderLibraryBreadcrumb();
+            renderELibraryPDFItems();
+        } catch (error) {
+            if (requestId === currentLibraryRequestId) items.innerHTML = '<div class="elibrary-empty">Could not load documents. <button type="button" data-class-retry>Retry</button></div>';
+        }
     }
     function pdfReaderSpreadStart(pageNumber, count = activePdfPageCount) {
         const safePage = Math.max(1, Math.min(count || 1, Math.floor(Number(pageNumber) || 1)));
@@ -3314,9 +3452,9 @@
         const zoom = document.getElementById('bookReaderZoom');
         const zoomValue = document.getElementById('bookReaderZoomValue');
         if (zoom) {
-            zoom.min = '10';
-            zoom.max = '300';
-            zoom.value = String(pdfReaderZoomLevel);
+            zoom.min = '0';
+            zoom.max = '100';
+            zoom.value = String(Math.max(0, Math.min(100, Math.round((pdfReaderZoomLevel - 10) / 2.9))));
         }
         document.getElementById('bookReaderZoomActual')?.setAttribute('aria-pressed', String(pdfReaderZoom === 'actual-size'));
         document.getElementById('bookReaderFitWidth')?.setAttribute('aria-pressed', String(pdfReaderZoom === 'fit-width'));
@@ -3455,9 +3593,8 @@
     function pdfReaderScaleFor(page, container, zoom = pdfReaderZoom) {
         const baseViewport = page.getViewport({ scale: 1 });
         const availableWidth = Math.max(1, Math.min(
-            Math.max(1, (container?.clientWidth || window.innerWidth - 32) - 16),
-            window.innerWidth - 24,
-            1000
+            Math.max(1, container?.clientWidth || window.innerWidth),
+            window.innerWidth - 8
         ));
         if (zoom === 'actual-size') return 1;
         const isSpread = container?.id === 'bookFlipbook' &&
@@ -3474,7 +3611,7 @@
     function setPdfReaderZoomLevelFromScale(scale) {
         pdfReaderZoomLevel = Math.max(10, Math.min(300, Math.round((Number(scale) || 1) * 100)));
         const zoom = document.getElementById('bookReaderZoom');
-        if (zoom) zoom.value = String(pdfReaderZoomLevel);
+        if (zoom) zoom.value = String(Math.max(0, Math.min(100, Math.round((pdfReaderZoomLevel - 10) / 2.9))));
     }
     function applyPdfReaderOfflineImageZoom(state, record = null) {
         if (!state?.image) return;
@@ -4222,6 +4359,9 @@
         nextLevel = Math.max(10, Math.min(300, Math.round(Number(nextLevel) || 100)));
         pdfReaderZoom = nextMode;
         pdfReaderZoomLevel = nextLevel;
+        if (nextMode === 'custom') {
+            try { localStorage.setItem(PDF_READER_ZOOM_LEVEL_KEY, String(nextLevel)); } catch (_) {}
+        }
         pdfReaderZoomRevision += 1;
         window.clearTimeout(pdfReaderZoomInputTimer);
         pdfReaderZoomInputTimer = null;
@@ -5001,6 +5141,7 @@
         updatePdfReaderRenderProgress();
         hidePdfReaderLoadingToast();
         document.getElementById('bookReaderLoading').dataset.state = 'error';
+        panel.classList.add('book-reader-error--banner');
         panel.replaceChildren();
         const message = document.createElement('p');
         message.textContent = error?.message || 'Could not load this document.';
@@ -5044,11 +5185,75 @@
             pdfReaderLoadingToastTimer = null;
         }, 3000);
     }
+    function showReaderArrows() {
+        const reader = document.getElementById('bookReader');
+        const arrows = reader?.querySelectorAll('.book-reader-page-arrow');
+        if (!arrows?.length || !reader?.classList.contains('show')) return;
+        arrows.forEach(arrow => arrow.dataset.hidden = 'false');
+        window.clearTimeout(readerArrowTimer);
+        readerArrowTimer = window.setTimeout(() => {
+            arrows.forEach(arrow => arrow.dataset.hidden = 'true');
+        }, 3000);
+    }
+    async function openReaderPageOverview() {
+        if (!activePdfDocument || !activePdfPageCount) return;
+        document.getElementById('bookReaderOverview')?.remove();
+        const overlay = document.createElement('div');
+        overlay.id = 'bookReaderOverview';
+        overlay.setAttribute('role', 'dialog');
+        overlay.setAttribute('aria-modal', 'true');
+        overlay.style.cssText = 'position:fixed;inset:0;z-index:7100;background:rgba(12,12,18,.96);overflow:auto;padding:18px;color:#fff';
+        const close = document.createElement('button');
+        close.type = 'button';
+        close.textContent = 'Close overview';
+        close.style.cssText = 'position:sticky;top:0;padding:10px 14px;border:0;border-radius:8px;background:#ff8c42;color:#fff;font-weight:700';
+        close.addEventListener('click', () => overlay.remove());
+        const grid = document.createElement('div');
+        grid.style.cssText = 'display:grid;grid-template-columns:repeat(auto-fill,minmax(112px,1fr));gap:12px;margin-top:14px';
+        overlay.append(close, grid);
+        document.body.appendChild(overlay);
+        for (let pageNumber = 1; pageNumber <= Math.min(activePdfPageCount, 80); pageNumber += 1) {
+            const button = document.createElement('button');
+            button.type = 'button';
+            button.style.cssText = 'display:grid;gap:5px;padding:6px;border:1px solid #514d5a;border-radius:8px;background:#292733;color:#fff';
+            button.setAttribute('aria-label', `Go to page ${pageNumber}`);
+            const canvas = document.createElement('canvas');
+            const label = document.createElement('span');
+            label.textContent = String(pageNumber);
+            button.append(canvas, label);
+            button.addEventListener('click', () => {
+                const jump = document.getElementById('bookReaderPageJump');
+                if (jump) {
+                    jump.value = String(pageNumber);
+                    jump.dispatchEvent(new Event('change', { bubbles: true }));
+                }
+                overlay.remove();
+            });
+            grid.appendChild(button);
+            try {
+                const page = await activePdfDocument.getPage(pageNumber);
+                const scale = Math.min(0.22, 96 / page.getViewport({ scale: 1 }).width);
+                const viewport = page.getViewport({ scale });
+                canvas.width = Math.ceil(viewport.width);
+                canvas.height = Math.ceil(viewport.height);
+                await page.render({ canvasContext: canvas.getContext('2d'), viewport }).promise;
+            } catch (_) {
+                canvas.width = 80;
+                canvas.height = 110;
+            }
+        }
+        if (activePdfPageCount > 80) {
+            const note = document.createElement('p');
+            note.textContent = 'Showing the first 80 pages. Use the page field to jump further.';
+            grid.after(note);
+        }
+    }
     function showPdfResolutionError(error, url) {
         const panel = document.getElementById('bookReaderError');
         const loading = document.getElementById('bookReaderLoading');
         loading.hidden = true;
         loading.dataset.state = 'error';
+        panel.classList.add('book-reader-error--banner');
         document.getElementById('bookFlipbook').hidden = true;
         document.getElementById('bookReaderMedia').hidden = true;
         panel.replaceChildren();
@@ -5175,6 +5380,7 @@
         setBookReaderStatus('🔍 Resolving link…');
         errorPanel.hidden = true;
         errorPanel.replaceChildren();
+        errorPanel.classList.remove('book-reader-error--banner');
         flipbook.hidden = true;
         flipbook.innerHTML = '';
         if (scroll) {
@@ -5197,6 +5403,43 @@
         controls.hidden = true;
         toolbar.hidden = true;
         document.getElementById('bookReaderRenderProgress').hidden = true;
+        showReaderArrows();
+        const addAction = (label, callback) => {
+            const button = document.createElement('button');
+            button.type = 'button';
+            button.textContent = label;
+            button.addEventListener('click', callback);
+            actions.appendChild(button);
+        };
+        const originalLink = safeReaderDocumentUrl(pdf?.original_url || pdf?.url);
+        if (originalLink) {
+            const direct = document.createElement('a');
+            direct.href = originalLink;
+            direct.target = '_blank';
+            direct.rel = 'noopener noreferrer';
+            direct.textContent = 'Open Original';
+            actions.appendChild(direct);
+            const downloadAction = createReaderDownloadAction(originalLink, pdf.title || 'document');
+            actions.append(downloadAction.download, downloadAction.status);
+        }
+        addAction('Page Overview', () => void openReaderPageOverview());
+        addAction('Bookmark this page', () => {
+            try {
+                localStorage.setItem(`${PDF_READER_PROGRESS_PREFIX}${activePdfReaderDocumentKey}`, JSON.stringify({
+                    page: activePdfPageNumber || 1, savedAt: Date.now(),
+                }));
+                showNotification('Bookmark saved on this device.');
+            } catch (_) {
+                showNotification('Could not save this bookmark.', 'error');
+            }
+        });
+        addAction('Document Info', () => showNotification(`${pdf.title || 'Document'} · ${activePdfPageCount || 0} pages`));
+        addAction('Fit Width', () => void changePdfReaderZoom('fit-width'));
+        addAction('Fit Page', () => void changePdfReaderZoom('fit-page'));
+        addAction('100% Zoom', () => void changePdfReaderZoom('actual-size'));
+        actions.hidden = false;
+        if (moreMenu) moreMenu.hidden = false;
+        showReaderArrows();
         setPdfReaderModeControls();
         updateBookReaderPages();
         if (activeBookReaderTimeoutId !== null) window.clearTimeout(activeBookReaderTimeoutId);
@@ -5742,6 +5985,7 @@
         document.getElementById('r2UploadName').value = replacePdf?.title || '';
         document.getElementById('r2UploadClass').value = replacePdf ? getPdfClassLevel(replacePdf) : 'unassigned';
         document.getElementById('r2UploadSubject').value = replacePdf?.subject || '';
+        document.getElementById('r2UploadCategory').value = replacePdf?.category || 'lesson_notes';
         document.getElementById('r2UploadFileDetails').textContent = 'No file selected. Maximum size: 20 MB.';
         document.getElementById('r2UploadProgress').hidden = true;
         document.getElementById('r2UploadProgress').value = 0;
@@ -5793,6 +6037,8 @@
         formData.append('title', title);
         formData.append('class_level', document.getElementById('r2UploadClass').value);
         formData.append('subject', document.getElementById('r2UploadSubject').value.trim());
+        formData.append('category', document.getElementById('r2UploadCategory').value);
+        formData.append('subject_code', document.getElementById('r2UploadSubject').value.trim());
 
         const xhr = new XMLHttpRequest();
         pdfUploadXhr = xhr;
@@ -5887,6 +6133,10 @@
             return;
         }
         const classOptions = [{ value: 'unassigned', label: 'General / Unassigned' }, ...elibraryShelves.flatMap(shelf => shelf.classes.map(item => ({ value: item.value, label: item.label })))];
+        const categoryOptions = [
+            ['lesson_notes', 'Lesson Notes'], ['past_papers', 'Past Papers'], ['holiday_packages', 'Holiday Packages'],
+            ['schemes_of_work', 'Schemes of Work'], ['revision', 'Revision'], ['topical', 'Topical'], ['pre_ple', 'Pre-PLE'], ['other', 'Other']
+        ];
         c.innerHTML = visiblePdfs.map(p => {
             const selectedClass = getPdfClassLevel(p);
             const safeUrl = /^https?:\/\//iu.test(p.url || '') ? p.url : '#';
@@ -5913,8 +6163,8 @@
             const titleControl = p.storage_type === 'r2'
                 ? `<button type="button" class="admin-doc-open" data-id="${escapeHtml(p.id)}">📄 ${escapeHtml(p.title)}</button>`
                 : `<a href="${escapeHtml(safeUrl)}" target="_blank" rel="noopener noreferrer">📄 ${escapeHtml(p.title)}</a>`;
-            const urlEditor = p.storage_type === 'r2' ? '' : `<button type="button" class="edit-pdf-url" data-id="${escapeHtml(p.id)}">${editLabel}</button><div class="pdf-url-editor" hidden><div><strong>Current URL:</strong> <a class="current-pdf-url" href="${escapeHtml(safeUrl)}" target="_blank" rel="noopener noreferrer">${escapeHtml(p.url || 'Unavailable')}</a></div><div><strong>Resolved URL:</strong> <span class="resolved-pdf-url-empty">Load when opened.</span><a class="resolved-pdf-url" href="#" target="_blank" rel="noopener noreferrer" hidden></a></div><label>New direct HTTPS PDF URL<input type="url" class="pdf-url-input" value="" maxlength="2048" placeholder="Paste a new direct HTTPS .pdf URL" aria-label="New direct PDF URL for ${escapeHtml(p.title)}"></label><small class="pdf-url-save-status" role="status" aria-live="polite"></small><button type="button" class="save-pdf-url" data-id="${escapeHtml(p.id)}">Save and resolve URL</button><button type="button" class="upload-pdf-instead" data-id="${escapeHtml(p.id)}">📤 Or upload instead</button><button type="button" class="cancel-pdf-url">Cancel</button></div>`;
-            return `<div class="pdf-item pdf-admin-row" data-pdf-id="${escapeHtml(p.id)}">${titleControl}<span class="pdf-class-badge">${escapeHtml(getPdfClassLabel(selectedClass))}</span><span class="pdf-source-badge ${source.className}">${source.label}</span>${reason}${urlEditor}<button type="button" class="edit-pdf-class" data-id="${escapeHtml(p.id)}">Edit class</button><select class="pdf-class-edit hidden" data-id="${escapeHtml(p.id)}" aria-label="Assign ${escapeHtml(p.title)} to a class">${options}</select><button type="button" class="save-pdf-class hidden" data-id="${escapeHtml(p.id)}">Save class</button><button type="button" class="cancel-pdf-class hidden" data-id="${escapeHtml(p.id)}">Cancel</button><button type="button" class="delete-pdf" data-id="${escapeHtml(p.id)}">Delete</button></div>`;
+            const urlEditor = p.storage_type === 'r2' ? '' : `<button type="button" class="edit-pdf-url" data-id="${escapeHtml(p.id)}">${editLabel}</button><div class="pdf-url-editor" hidden><div><strong>Current URL:</strong> <a class="current-pdf-url" href="${escapeHtml(safeUrl)}" target="_blank" rel="noopener noreferrer">${escapeHtml(p.url || 'Unavailable')}</a></div><div><strong>Resolved URL:</strong> <span class="resolved-pdf-url-empty">Load when opened.</span><a class="resolved-pdf-url" href="#" target="_blank" rel="noopener noreferrer" hidden></a></div><label>Category<select class="pdf-category-input" aria-label="Category for ${escapeHtml(p.title)}">${categoryOptions.map(([value, label]) => `<option value="${value}"${(p.category || 'lesson_notes') === value ? ' selected' : ''}>${label}</option>`).join('')}</select></label><label>Subject<input class="pdf-subject-input" list="pdfSubjectOptions" maxlength="120" value="${escapeHtml(p.subject || '')}" aria-label="Subject for ${escapeHtml(p.title)}"></label><label>New direct HTTPS PDF URL<input type="url" class="pdf-url-input" value="" maxlength="2048" placeholder="Paste a new direct HTTPS .pdf URL" aria-label="New direct PDF URL for ${escapeHtml(p.title)}"></label><small class="pdf-url-save-status" role="status" aria-live="polite"></small><button type="button" class="save-pdf-url" data-id="${escapeHtml(p.id)}">Save metadata and URL</button><button type="button" class="upload-pdf-instead" data-id="${escapeHtml(p.id)}">📤 Or upload instead</button><button type="button" class="cancel-pdf-url">Cancel</button></div>`;
+            return `<div class="pdf-item pdf-admin-row" data-pdf-id="${escapeHtml(p.id)}">${titleControl}<span class="pdf-class-badge">${escapeHtml(getPdfClassLabel(selectedClass))}</span><span class="pdf-category-badge">${escapeHtml(p.category || 'lesson_notes')}</span><span class="pdf-source-badge ${source.className}">${source.label}</span>${reason}${urlEditor}<button type="button" class="edit-pdf-class" data-id="${escapeHtml(p.id)}">Edit class</button><select class="pdf-class-edit hidden" data-id="${escapeHtml(p.id)}" aria-label="Assign ${escapeHtml(p.title)} to a class">${options}</select><button type="button" class="save-pdf-class hidden" data-id="${escapeHtml(p.id)}">Save class</button><button type="button" class="cancel-pdf-class hidden" data-id="${escapeHtml(p.id)}">Cancel</button><button type="button" class="delete-pdf" data-id="${escapeHtml(p.id)}">Delete</button></div>`;
         }).join('');
         document.querySelectorAll('.admin-doc-open').forEach(btn => btn.addEventListener('click', () => {
             const pdf = pdfMaterials.find(item => String(item.id) === btn.getAttribute('data-id'));
@@ -5979,16 +6229,19 @@
             const row = btn.closest('.pdf-admin-row');
             const url = row?.querySelector('.pdf-url-input')?.value.trim();
             const status = row?.querySelector('.pdf-url-save-status');
-            if (!isDirectPdfUrl(url)) {
+            const category = row?.querySelector('.pdf-category-input')?.value || 'lesson_notes';
+            const subject = row?.querySelector('.pdf-subject-input')?.value.trim() || '';
+            const hasUrl = Boolean(url);
+            if (hasUrl && !isDirectPdfUrl(url)) {
                 if (status) status.textContent = 'Enter an HTTPS URL ending in .pdf.';
                 return;
             }
             btn.disabled = true;
             if (status) status.textContent = 'Saving and resolving this document…';
             try {
-                const response = await api(`/api/pdfs/${encodeURIComponent(btn.getAttribute('data-id'))}`, { method: 'PATCH', body: { url } });
+                const response = await api(`/api/pdfs/${encodeURIComponent(btn.getAttribute('data-id'))}`, { method: 'PATCH', body: { ...(hasUrl ? { url } : {}), category, subject, subject_code: subject } });
                 await refreshAllData();
-                if (response?.pdf?.resolve_status === 'resolved') {
+                if (!hasUrl || response?.pdf?.resolve_status === 'resolved') {
                     showNotification('Direct PDF URL saved and resolved');
                 } else {
                     showNotification('URL saved, but the PDF is not marked resolved.', 'error');
@@ -8840,6 +9093,37 @@
             const pdf = target && pdfMaterials.find(item => item.id === target.getAttribute('data-library-pdf-id'));
             if (pdf) void openBookReader({ ...pdf, source_table: 'pdfs', original_url: pdf.url });
         });
+        document.getElementById('elibraryPDFItems')?.addEventListener('click', event => {
+            const target = event.target instanceof Element ? event.target : null;
+            const download = target?.closest('[data-library-download-id]');
+            if (download) {
+                event.preventDefault();
+                void downloadLibraryPdf(download.getAttribute('data-library-download-id'));
+                return;
+            }
+            const category = target?.closest('[data-library-category]');
+            if (category) return void openELibraryCategory(category.getAttribute('data-library-category'));
+            const subject = target?.closest('[data-library-subject]');
+            if (subject) return void openELibrarySubject(subject.getAttribute('data-library-subject'));
+            const pdfButton = target?.closest('[data-library-pdf-id]');
+            if (pdfButton) {
+                const pdf = currentLibraryPdfs.find(item => String(item.id) === pdfButton.getAttribute('data-library-pdf-id'));
+                if (pdf) void openBookReader(pdf);
+                return;
+            }
+            if (target?.closest('[data-class-retry]')) {
+                if (currentLibraryStage === 'files') void openELibrarySubject(currentLibrarySubject?.subject_code);
+                else if (currentLibraryStage === 'subject') void openELibraryCategory(currentLibraryCategory?.code);
+                else if (currentLibraryClass) void openELibraryClass(currentLibraryClass);
+            }
+        });
+        document.getElementById('elibraryBreadcrumb')?.addEventListener('click', event => {
+            const button = event.target instanceof Element ? event.target.closest('[data-library-level]') : null;
+            const level = button?.getAttribute('data-library-level');
+            if (level === 'category') void openELibraryClass(currentLibraryClass);
+            else if (level === 'subject') void openELibraryCategory(currentLibraryCategory?.code);
+            else if (level === 'files') void openELibrarySubject(currentLibrarySubject?.subject_code);
+        });
         document.getElementById('elibraryStatus')?.addEventListener('click', event => {
             const target = event.target instanceof Element ? event.target.closest('[data-elibrary-retry]') : null;
             if (target) openELibraryScreen();
@@ -8863,10 +9147,14 @@
         document.getElementById('cancelBookReaderLoading')?.addEventListener('click', closeBookReader);
         document.getElementById('bookReaderPrev')?.addEventListener('click', () => void navigatePdfReaderPage(-1));
         document.getElementById('bookReaderNext')?.addEventListener('click', () => void navigatePdfReaderPage(1));
+        document.getElementById('bookReaderArrowPrev')?.addEventListener('click', event => { event.stopPropagation(); showReaderArrows(); void navigatePdfReaderPage(-1); });
+        document.getElementById('bookReaderArrowNext')?.addEventListener('click', event => { event.stopPropagation(); showReaderArrows(); void navigatePdfReaderPage(1); });
+        document.getElementById('bookReader')?.addEventListener('pointerdown', showReaderArrows);
         document.getElementById('bookReaderModeToggle')?.addEventListener('click', togglePdfReaderMode);
         document.getElementById('bookReaderLayoutToggle')?.addEventListener('click', togglePdfReaderLayout);
         document.getElementById('bookReaderZoom')?.addEventListener('input', event => {
-            const level = Math.max(10, Math.min(300, Math.round(Number(event.currentTarget.value) || 100)));
+            const sliderValue = Math.max(0, Math.min(100, Number(event.currentTarget.value) || 0));
+            const level = Math.round(10 + sliderValue * 2.9);
             const value = document.getElementById('bookReaderZoomValue');
             if (value) value.textContent = `${level}%`;
             window.clearTimeout(pdfReaderZoomInputTimer);
@@ -9172,12 +9460,15 @@
             const url = document.getElementById('pdfUrl').value.trim();
             if (!title || !url) { showNotification("Fill both", "error"); return; }
             const classLevel = document.getElementById('pdfClassLevel').value;
+            const category = document.getElementById('pdfCategory').value;
+            const subject = document.getElementById('pdfSubject').value.trim();
             try {
-                await api('/api/pdfs', { method: 'POST', body: { title, url, class_level: classLevel } });
+                await api('/api/pdfs', { method: 'POST', body: { title, url, class_level: classLevel || 'unassigned', category, subject, subject_code: subject } });
                 await prefetchPdfLink(url, { force: true });
                 showNotification("Document added");
-                ['pdfTitle','pdfUrl'].forEach(id => document.getElementById(id).value = '');
+                ['pdfTitle','pdfUrl','pdfSubject'].forEach(id => document.getElementById(id).value = '');
                 document.getElementById('pdfClassLevel').value = '';
+                document.getElementById('pdfCategory').value = 'lesson_notes';
                 pdfUrlBadge.hidden = true;
                 pdfUrlBadge.textContent = '';
                 await refreshAllData();

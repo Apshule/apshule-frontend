@@ -18,6 +18,70 @@ app.route("/api", contentRoutes);
 
 const authHeaders = { authorization: "Bearer test-token" };
 
+test("E-Library category filters return class-specific counts and hide Pre-PLE outside Primary 7", async () => {
+  const sql = async (strings, ...values) => {
+    const query = strings.join(" ").replace(/\s+/gu, " ").trim();
+    if (query.includes("GROUP BY category")) {
+      assert.equal(values[0], values[1]);
+      return [{ code: "lesson_notes", count: 4 }, { code: "pre_ple", count: 2 }];
+    }
+    return [];
+  };
+  const p7 = await app.request("/api/pdfs/categories?class_level=Primary%207", {}, { __sql: sql });
+  assert.equal(p7.status, 200);
+  const p7Categories = (await p7.json()).categories;
+  assert.equal(p7Categories.find((category) => category.code === "pre_ple")?.count, 2);
+  assert.equal(p7Categories.length, 8);
+
+  const senior = await app.request("/api/pdfs/categories?class_level=Senior%201", {}, { __sql: sql });
+  assert.equal(senior.status, 200);
+  assert.equal((await senior.json()).categories.some((category) => category.code === "pre_ple"), false);
+});
+
+test("E-Library file filters use class, category, and subject code without exposing resolved signed URLs", async () => {
+  let queryText = "";
+  let queryValues = [];
+  const sql = async (strings, ...values) => {
+    queryText = strings.join(" ").replace(/\s+/gu, " ").trim();
+    queryValues = values;
+    return [{ id: "pdf-1", title: "Fractions" }];
+  };
+  const response = await app.request(
+    "/api/pdfs?class_level=Primary%204&category=lesson_notes&subject=mathematics",
+    {},
+    { __sql: sql },
+  );
+  assert.equal(response.status, 200);
+  assert.match(queryText, /class_level =/u);
+  assert.match(queryText, /category =/u);
+  assert.ok(queryValues.includes("Primary 4"));
+  assert.ok(queryValues.includes("lesson_notes"));
+  assert.ok(queryValues.includes("mathematics"));
+  assert.doesNotMatch(queryText, /resolved_pdf_url/u);
+  assert.equal((await response.json()).pdfs[0].title, "Fractions");
+});
+
+test("E-Library subject endpoint returns grouped display names and uncategorized records", async () => {
+  const sql = async (strings) => {
+    const query = strings.join(" ").replace(/\s+/gu, " ").trim();
+    if (query.includes("GROUP BY COALESCE")) {
+      return [{ subject_code: "mathematics", subject_name: "Mathematics", count: 3 }];
+    }
+    if (query.includes("subject_code IS NULL")) return [{ count: 1 }];
+    return [];
+  };
+  const response = await app.request(
+    "/api/pdfs/subjects?class_level=Primary%204&category=lesson_notes",
+    {},
+    { __sql: sql },
+  );
+  assert.equal(response.status, 200);
+  assert.deepEqual((await response.json()).subjects, [
+    { subject_code: "mathematics", subject_name: "Mathematics", count: 3 },
+    { subject_code: "uncategorized", subject_name: "General", count: 1 },
+  ]);
+});
+
 function createR2Bucket() {
   const objects = new Map();
   return {
