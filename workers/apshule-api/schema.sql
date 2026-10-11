@@ -141,10 +141,18 @@ ALTER TABLE pdfs
   ADD COLUMN IF NOT EXISTS resolved_pdf_url TEXT,
   ADD COLUMN IF NOT EXISTS resolve_status TEXT DEFAULT 'unresolved',
   ADD COLUMN IF NOT EXISTS resolved_at TIMESTAMPTZ,
-  ADD COLUMN IF NOT EXISTS resolve_reason TEXT;
+  ADD COLUMN IF NOT EXISTS resolve_reason TEXT,
+  ADD COLUMN IF NOT EXISTS category TEXT DEFAULT 'lesson_notes',
+  ADD COLUMN IF NOT EXISTS subject_code TEXT,
+  ADD COLUMN IF NOT EXISTS sort_order INT DEFAULT 0;
 UPDATE pdfs SET class_level = 'unassigned' WHERE class_level IS NULL;
+UPDATE pdfs SET category = 'lesson_notes' WHERE category IS NULL;
 CREATE INDEX IF NOT EXISTS idx_pdfs_class ON pdfs(class_level);
 CREATE INDEX IF NOT EXISTS idx_pdfs_storage_type ON pdfs(storage_type);
+CREATE INDEX IF NOT EXISTS idx_pdfs_class_category_subject
+  ON pdfs(class_level, category, subject_code);
+CREATE INDEX IF NOT EXISTS idx_pdfs_class_category_sort
+  ON pdfs(class_level, category, sort_order, display_order);
 
 CREATE TABLE IF NOT EXISTS video_mappings (
   id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),

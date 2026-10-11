@@ -36,6 +36,41 @@ function normalizePdfDisplayOrder(value: unknown): number {
   return value;
 }
 
+const PDF_CATEGORIES = [
+  { code: "lesson_notes", name: "Lesson Notes", icon: "📖" },
+  { code: "past_papers", name: "Past Papers", icon: "📝" },
+  { code: "holiday_packages", name: "Holiday Packages", icon: "🎒" },
+  { code: "schemes_of_work", name: "Schemes of Work", icon: "📋" },
+  { code: "revision", name: "Revision", icon: "🔁" },
+  { code: "topical", name: "Topical", icon: "📊" },
+  { code: "pre_ple", name: "Pre-PLE", icon: "🎯" },
+  { code: "other", name: "Other", icon: "📄" },
+] as const;
+
+function normalizePdfCategory(value: string | null | undefined): string {
+  const category = value?.trim() || "lesson_notes";
+  if (!PDF_CATEGORIES.some((item) => item.code === category)) {
+    throw new ApiError(400, "VALIDATION_ERROR", "category is not supported.");
+  }
+  return category;
+}
+
+function normalizePdfSubjectCode(value: string | null | undefined, subjectName?: string | null): string | null {
+  const source = value?.trim() || subjectName?.trim() || "";
+  if (!source) return null;
+  const code = source.toLocaleLowerCase().normalize("NFKD")
+    .replace(/[\u0300-\u036f]/gu, "")
+    .replace(/[^a-z0-9]+/gu, "_")
+    .replace(/^_+|_+$/gu, "")
+    .slice(0, 120);
+  if (!code) throw new ApiError(400, "VALIDATION_ERROR", "subject_code must contain letters or numbers.");
+  return code;
+}
+
+function normalizePdfSortOrder(value: unknown): number {
+  return normalizePdfDisplayOrder(value);
+}
+
 function validatePdfUrl(url: string): string {
   try {
     const parsedUrl = new URL(url);
@@ -69,21 +104,85 @@ content.get("/pdfs", async (c) => {
   if (requestedClassLevel && requestedClassLevel.length > 30) {
     throw new ApiError(400, "VALIDATION_ERROR", "class_level must be no longer than 30 characters.");
   }
-  const rows = requestedClassLevel
-    ? await sql`
-        SELECT id, title, url, doc_kind, class_level, subject, cover_color, display_order,
-               storage_type, file_size, mime_type, resolve_status, resolve_reason, resolved_at, created_at
-        FROM pdfs
-        WHERE class_level = ${requestedClassLevel}
-        ORDER BY display_order ASC, created_at DESC
-      `
-    : await sql`
-        SELECT id, title, url, doc_kind, class_level, subject, cover_color, display_order,
-               storage_type, file_size, mime_type, resolve_status, resolve_reason, resolved_at, created_at
-        FROM pdfs
-        ORDER BY display_order ASC, created_at DESC
-      `;
+  const requestedCategory = c.req.query("category")?.trim() || null;
+  const requestedSubject = c.req.query("subject")?.trim().toLocaleLowerCase() || null;
+  if (requestedCategory) normalizePdfCategory(requestedCategory);
+  if (requestedSubject && requestedSubject.length > 120) {
+    throw new ApiError(400, "VALIDATION_ERROR", "subject must be no longer than 120 characters.");
+  }
+  const rows = await sql`
+    SELECT id, title, url, doc_kind, class_level, category, subject, subject_code,
+           cover_color, display_order, sort_order, storage_type, file_size, mime_type,
+           resolve_status, resolve_reason, resolved_at, created_at
+    FROM pdfs
+    WHERE (${requestedClassLevel}::text IS NULL OR class_level = ${requestedClassLevel})
+      AND (${requestedCategory}::text IS NULL OR category = ${requestedCategory})
+      AND (
+        ${requestedSubject}::text IS NULL
+        OR (${requestedSubject} = 'uncategorized' AND subject_code IS NULL AND NULLIF(trim(subject), '') IS NULL)
+        OR lower(COALESCE(subject_code, regexp_replace(trim(subject), '[^a-zA-Z0-9]+', '_', 'g'))) = ${requestedSubject}
+        OR lower(trim(subject)) = ${requestedSubject}
+      )
+    ORDER BY sort_order ASC, display_order ASC, created_at DESC
+  `;
   return c.json({ pdfs: rows });
+});
+
+content.get("/pdfs/categories", async (c) => {
+  const sql = getDb(c.env);
+  const classLevel = c.req.query("class_level")?.trim() || null;
+  if (classLevel && classLevel.length > 30) {
+    throw new ApiError(400, "VALIDATION_ERROR", "class_level must be no longer than 30 characters.");
+  }
+  const rows = await sql`
+    SELECT category AS code, COUNT(*)::int AS count
+    FROM pdfs
+    WHERE (${classLevel}::text IS NULL OR class_level = ${classLevel})
+    GROUP BY category
+  `;
+  const counts = new Map((rows as Array<{ code: string; count: number }>).map((row) => [row.code, row.count]));
+  const isP7 = /^(p7|primary 7)$/iu.test(classLevel || "");
+  return c.json({
+    categories: PDF_CATEGORIES
+      .filter((category) => category.code !== "pre_ple" || isP7)
+      .map((category) => ({ ...category, count: counts.get(category.code) ?? 0 })),
+  });
+});
+
+content.get("/pdfs/subjects", async (c) => {
+  const sql = getDb(c.env);
+  const classLevel = c.req.query("class_level")?.trim() || null;
+  const category = c.req.query("category")?.trim() || null;
+  if (classLevel && classLevel.length > 30) {
+    throw new ApiError(400, "VALIDATION_ERROR", "class_level must be no longer than 30 characters.");
+  }
+  if (category) normalizePdfCategory(category);
+  const rows = await sql`
+    SELECT COALESCE(subject_code, lower(regexp_replace(trim(subject), '[^a-zA-Z0-9]+', '_', 'g'))) AS subject_code,
+           MIN(NULLIF(trim(subject), '')) AS subject_name,
+           COUNT(*)::int AS count
+    FROM pdfs
+    WHERE (${classLevel}::text IS NULL OR class_level = ${classLevel})
+      AND (${category}::text IS NULL OR category = ${category})
+      AND (subject_code IS NOT NULL OR NULLIF(trim(subject), '') IS NOT NULL)
+    GROUP BY COALESCE(subject_code, lower(regexp_replace(trim(subject), '[^a-zA-Z0-9]+', '_', 'g')))
+    ORDER BY subject_name NULLS LAST, subject_code
+  `;
+  const subjects = (rows as Array<{ subject_code: string; subject_name: string | null; count: number }>).map((row) => ({
+      ...row,
+      subject_name: row.subject_name || row.subject_code.replaceAll("_", " "),
+    }));
+  const unassigned = await sql`
+    SELECT COUNT(*)::int AS count
+    FROM pdfs
+    WHERE (${classLevel}::text IS NULL OR class_level = ${classLevel})
+      AND (${category}::text IS NULL OR category = ${category})
+      AND subject_code IS NULL AND NULLIF(trim(subject), '') IS NULL
+  `;
+  if (Number(unassigned[0]?.count ?? 0) > 0) {
+    subjects.push({ subject_code: "uncategorized", subject_name: "General", count: Number(unassigned[0].count) });
+  }
+  return c.json({ subjects });
 });
 
 content.post("/pdfs", authMiddleware, requireRole("superadmin"), async (c) => {
@@ -94,15 +193,22 @@ content.post("/pdfs", authMiddleware, requireRole("superadmin"), async (c) => {
   const classLevel = normalizePdfClassLevel(
     optionalString(body, "class_level", { max: 30, allowNull: true }),
   );
+  const subject = optionalString(body, "subject", { max: 120, allowNull: true });
+  const subjectCode = normalizePdfSubjectCode(
+    optionalString(body, "subject_code", { max: 120, allowNull: true }),
+    subject,
+  );
+  const category = normalizePdfCategory(optionalString(body, "category", { max: 40, allowNull: true }));
   const coverColor = normalizePdfCoverColor(
     optionalString(body, "cover_color", { max: 20, allowNull: true }),
   );
   const displayOrder = normalizePdfDisplayOrder(body.display_order);
+  const sortOrder = normalizePdfSortOrder(body.sort_order ?? body.display_order);
   const sql = getDb(c.env);
   const rows = await sql`
-    INSERT INTO pdfs (title, url, doc_kind, class_level, cover_color, display_order)
-    VALUES (${title}, ${url}, ${docKind}, ${classLevel}, ${coverColor}, ${displayOrder})
-    RETURNING id, title, url, doc_kind, class_level, cover_color, display_order,
+    INSERT INTO pdfs (title, url, doc_kind, class_level, category, subject, subject_code, cover_color, display_order, sort_order)
+    VALUES (${title}, ${url}, ${docKind}, ${classLevel}, ${category}, ${subject}, ${subjectCode}, ${coverColor}, ${displayOrder}, ${sortOrder})
+    RETURNING id, title, url, doc_kind, class_level, category, subject, subject_code, cover_color, display_order, sort_order,
               resolve_status, resolve_reason, resolved_at, created_at
   `;
   return c.json({ pdf: rows[0] }, 201);
@@ -111,8 +217,8 @@ content.post("/pdfs", authMiddleware, requireRole("superadmin"), async (c) => {
 content.get("/pdfs/:id", authMiddleware, requireRealSuperAdmin(), async (c) => {
   const sql = getDb(c.env);
   const rows = await sql`
-    SELECT id, title, url, resolved_pdf_url, doc_kind, class_level, cover_color,
-           display_order, subject, storage_type, r2_key, file_size, mime_type,
+    SELECT id, title, url, resolved_pdf_url, doc_kind, class_level, category, cover_color,
+           display_order, sort_order, subject, subject_code, storage_type, r2_key, file_size, mime_type,
            resolve_status, resolve_reason, resolved_at, created_at
     FROM pdfs
     WHERE id = ${c.req.param("id")}
@@ -124,7 +230,7 @@ content.get("/pdfs/:id", authMiddleware, requireRealSuperAdmin(), async (c) => {
 
 content.patch("/pdfs/:id", authMiddleware, requireRole("superadmin"), async (c) => {
   const body = await readJson(c);
-  const editableFields = ["title", "url", "class_level", "cover_color", "display_order"] as const;
+  const editableFields = ["title", "url", "class_level", "category", "subject", "subject_code", "cover_color", "display_order", "sort_order"] as const;
   if (!editableFields.some((field) => field in body)) {
     throw new ApiError(400, "VALIDATION_ERROR", "Provide at least one PDF field to update.");
   }
@@ -132,8 +238,12 @@ content.patch("/pdfs/:id", authMiddleware, requireRole("superadmin"), async (c) 
   const hasTitle = "title" in body;
   const hasUrl = "url" in body;
   const hasClassLevel = "class_level" in body;
+  const hasCategory = "category" in body;
+  const hasSubject = "subject" in body;
+  const hasSubjectCode = "subject_code" in body;
   const hasCoverColor = "cover_color" in body;
   const hasDisplayOrder = "display_order" in body;
+  const hasSortOrder = "sort_order" in body;
   const title = hasTitle ? requiredString(body, "title", { max: 200 }) : null;
   const url = hasUrl ? validatePdfUrl(requiredString(body, "url", { max: 2048 })) : null;
   const docKind = hasUrl ? detectDocKind(url) : null;
@@ -141,10 +251,21 @@ content.patch("/pdfs/:id", authMiddleware, requireRole("superadmin"), async (c) 
   const classLevel = hasClassLevel
     ? normalizePdfClassLevel(optionalString(body, "class_level", { max: 30, allowNull: true }))
     : null;
+  const subject = hasSubject ? optionalString(body, "subject", { max: 120, allowNull: true }) : null;
+  const subjectCode = hasSubjectCode || hasSubject
+    ? normalizePdfSubjectCode(
+      hasSubjectCode ? optionalString(body, "subject_code", { max: 120, allowNull: true }) : null,
+      subject,
+    )
+    : null;
+  const category = hasCategory
+    ? normalizePdfCategory(optionalString(body, "category", { max: 40, allowNull: true }))
+    : null;
   const coverColor = hasCoverColor
     ? normalizePdfCoverColor(optionalString(body, "cover_color", { max: 20, allowNull: true }))
     : null;
   const displayOrder = hasDisplayOrder ? normalizePdfDisplayOrder(body.display_order) : null;
+  const sortOrder = hasSortOrder ? normalizePdfSortOrder(body.sort_order) : null;
   const sql = getDb(c.env);
   const rows = await sql`
     UPDATE pdfs
@@ -156,11 +277,15 @@ content.patch("/pdfs/:id", authMiddleware, requireRole("superadmin"), async (c) 
         resolve_reason = CASE WHEN ${hasUrl} THEN NULL ELSE resolve_reason END,
         resolved_at = CASE WHEN ${hasUrl} THEN CASE WHEN ${directPdf} THEN NOW() ELSE NULL END ELSE resolved_at END,
         class_level = CASE WHEN ${hasClassLevel} THEN ${classLevel} ELSE class_level END,
+        category = CASE WHEN ${hasCategory} THEN ${category} ELSE category END,
+        subject = CASE WHEN ${hasSubject} THEN ${subject} ELSE subject END,
+        subject_code = CASE WHEN ${hasSubjectCode || hasSubject} THEN ${subjectCode} ELSE subject_code END,
         cover_color = CASE WHEN ${hasCoverColor} THEN ${coverColor} ELSE cover_color END,
-        display_order = CASE WHEN ${hasDisplayOrder} THEN ${displayOrder} ELSE display_order END
+        display_order = CASE WHEN ${hasDisplayOrder} THEN ${displayOrder} ELSE display_order END,
+        sort_order = CASE WHEN ${hasSortOrder} THEN ${sortOrder} ELSE sort_order END
      WHERE id = ${c.req.param("id")}
        AND (NOT ${hasUrl} OR COALESCE(storage_type, 'url') <> 'r2')
-    RETURNING id, title, url, resolved_pdf_url, doc_kind, class_level, cover_color, display_order,
+     RETURNING id, title, url, resolved_pdf_url, doc_kind, class_level, category, subject, subject_code, cover_color, display_order, sort_order,
               resolve_status, resolve_reason, resolved_at, created_at
   `;
   if (!rows[0]) {

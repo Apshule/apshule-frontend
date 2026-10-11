@@ -166,6 +166,32 @@ async function readStreamLimited(stream: ReadableStream<Uint8Array>, maxBytes: n
   return output;
 }
 
+const PDF_CATEGORY_CODES = new Set([
+  "lesson_notes", "past_papers", "holiday_packages", "schemes_of_work",
+  "revision", "topical", "pre_ple", "other",
+]);
+
+function normalizeLibraryMetadata(categoryValue: FormDataEntryValue | null, subjectValue: FormDataEntryValue | null) {
+  const category = typeof categoryValue === "string" && categoryValue.trim()
+    ? categoryValue.trim()
+    : "lesson_notes";
+  if (!PDF_CATEGORY_CODES.has(category)) {
+    throw new ApiError(400, "VALIDATION_ERROR", "category is not supported.");
+  }
+  const subject = typeof subjectValue === "string" ? subjectValue.trim() || null : null;
+  if (subject && subject.length > 120) {
+    throw new ApiError(400, "VALIDATION_ERROR", "subject must be no longer than 120 characters.");
+  }
+  const subjectCode = subject
+    ? subject.toLocaleLowerCase().normalize("NFKD")
+      .replace(/[\u0300-\u036f]/gu, "")
+      .replace(/[^a-z0-9]+/gu, "_")
+      .replace(/^_+|_+$/gu, "")
+      .slice(0, 120) || null
+    : null;
+  return { category, subject, subjectCode };
+}
+
 async function requireDocsBucket(bucket: R2Bucket | undefined): Promise<R2Bucket> {
   if (!bucket) {
     throw new ApiError(503, "R2_NOT_CONFIGURED", "Document storage is not configured.");
@@ -214,9 +240,15 @@ documents.post(
     const classLevel = typeof classValue === "string" && classValue.trim()
       ? classValue.trim()
       : "unassigned";
-    const subjectValue = form.get("subject");
-    const subject = typeof subjectValue === "string" ? subjectValue.trim() || null : null;
-    if (classLevel.length > 30 || (subject && subject.length > 120)) {
+    const { category, subject, subjectCode } = normalizeLibraryMetadata(
+      form.get("category"),
+      form.get("subject"),
+    );
+    const subjectCodeValue = form.get("subject_code");
+    const normalizedSubjectCode = typeof subjectCodeValue === "string" && subjectCodeValue.trim()
+      ? subjectCodeValue.trim().toLocaleLowerCase().replace(/[^a-z0-9]+/gu, "_").replace(/^_+|_+$/gu, "").slice(0, 120)
+      : subjectCode;
+    if (classLevel.length > 30) {
       throw new ApiError(400, "VALIDATION_ERROR", "Class or subject is too long.");
     }
 
@@ -238,11 +270,13 @@ documents.post(
       const rows = await sql`
         INSERT INTO pdfs (
           id, title, url, doc_kind, class_level, subject, storage_type, r2_key,
-          file_size, mime_type, resolve_status, resolve_reason, resolved_pdf_url, resolved_at
+          file_size, mime_type, resolve_status, resolve_reason, resolved_pdf_url, resolved_at,
+          category, subject_code
         )
         VALUES (
           ${id}::uuid, ${title}, ${url}, ${type.kind}, ${classLevel}, ${subject},
-          'r2', ${key}, ${file.size}, ${type.mime}, 'resolved', NULL, NULL, NOW()
+          'r2', ${key}, ${file.size}, ${type.mime}, 'resolved', NULL, NULL, NOW(),
+          ${category}, ${normalizedSubjectCode}
         )
         RETURNING id
       `;
