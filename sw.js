@@ -29,6 +29,7 @@ const APP_SHELL_URLS = [
     "/privacy.html",
     "/terms/",
     "/privacy/",
+    "/ai-diagram-renderer.js",
     "/ai-upgrade.html",
     "/clinic-billing-ui.css",
     "/clinic-pharmacy-ui.js",
