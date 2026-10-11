@@ -201,7 +201,7 @@ export function initCommandCenterUI({ apiBase, getToken, getUser, notify, activa
   const aiNav=root.querySelector(".cc6-tabs"),aiButton=document.createElement("button");
   aiButton.className="cc6-tab";aiButton.type="button";aiButton.setAttribute("role","tab");aiButton.setAttribute("aria-selected","false");aiButton.dataset.cc6Tab="ai-tiers";aiButton.textContent="🤖 AI Control";aiNav.append(aiButton);
   const aiView=document.createElement("section");aiView.className="cc6-view";aiView.id="cc6-ai-tiers";aiView.hidden=true;
-  aiView.innerHTML='<div class="cc6-section-head"><div><h2>AI Control</h2><p>Daily usage, grants, expiry and provider statistics.</p></div><button class="cc6-button secondary" type="button" data-ai-refresh>Refresh</button></div><div class="cc6-grid" id="ccAiStats"></div><form id="ccAiSchoolGrant" class="cc6-toolbar"><input name="school_id" class="cc6-field" placeholder="School ID" required><input name="duration_days" class="cc6-field" type="number" min="1" max="365" value="30"><button class="cc6-button" type="submit">Grant school plan</button></form><section class="cc6-panel"><div class="cc6-panel-body cc6-table-wrap" id="ccAiUsers"></div></section>';
+  aiView.innerHTML='<div class="cc6-section-head"><div><h2>AI Control</h2><p>Daily usage, grants, expiry and provider statistics.</p></div><button class="cc6-button secondary" type="button" data-ai-refresh>Refresh</button></div><div class="cc6-grid" id="ccAiStats"></div><div class="cc6-card" id="ccAiTopUsers"></div><form id="ccAiSchoolGrant" class="cc6-toolbar"><select name="school_id" class="cc6-field" required><option value="">Choose a school…</option></select><input name="duration_days" class="cc6-field" type="number" min="1" max="365" value="30"><button class="cc6-button" type="submit">Grant school plan</button></form><section class="cc6-panel"><div class="cc6-panel-body cc6-table-wrap" id="ccAiUsers"></div></section>';
   root.append(aiView);
 
   const legacyHost = root.querySelector("#cc6LegacyContent");
@@ -279,9 +279,13 @@ export function initCommandCenterUI({ apiBase, getToken, getUser, notify, activa
   async function loadAiTierControl() {
     const list=root.querySelector("#ccAiUsers");list.textContent="Loading…";
     try {
-      const [users,stats]=await Promise.all([api("/api/admin/ai-tiers"),api("/api/admin/ai-usage-stats")]);
+      const [users,stats,schools]=await Promise.all([api("/api/admin/ai-tiers"),api("/api/admin/ai-usage-stats"),api("/api/cc/institutions?sector=education")]);
       root.querySelector("#ccAiStats").innerHTML=[["Users",stats.total_users],["Paying",stats.paying],["Requests today",stats.requests_today],["Tiers",(stats.by_tier||[]).map(x=>`${esc(x.tier)} ${x.users}`).join(" · ")]].map(([k,v])=>`<article class="cc6-card"><div class="cc6-metric-label">${k}</div><div class="cc6-metric-value">${v}</div></article>`).join("");
-      list.innerHTML=table(["User","Tier","Used / limit","Expires","Actions"],(users.users||[]).map(u=>`<tr><td>${esc(u.name)}<br>${esc(u.email)}</td><td>${esc(u.tier)}</td><td>${u.used_today}/${u.daily_limit}</td><td>${esc(dateText(u.ai_tier_expires_at))}</td><td><button class="cc6-button small" data-ai-user="${esc(u.id)}" data-ai-action="grant">Grant / extend</button> <button class="cc6-button secondary small" data-ai-user="${esc(u.id)}" data-ai-action="revoke">Revoke</button></td></tr>`).join(""));
+      root.querySelector("#ccAiTopUsers").innerHTML=`<strong>Top 10 usage</strong><p>${(stats.top_users||[]).map((u,i)=>`${i+1}. ${esc(u.name||u.email)} — ${u.requests} requests`).join(" · ")||"No AI requests today."}</p>`;
+      const schoolSelect=aiView.querySelector('[name="school_id"]'),selected=schoolSelect.value;
+      schoolSelect.innerHTML='<option value="">Choose a school…</option>'+(schools.institutions||[]).map(s=>`<option value="${esc(s.id)}">${esc(s.name)}</option>`).join("");
+      if(selected)schoolSelect.value=selected;
+      list.innerHTML=table(["User","Tier","Used Today","Limit","Expires","Actions"],(users.users||[]).map(u=>`<tr><td>${esc(u.name)}<br>${esc(u.email)}</td><td>${esc(u.tier)}</td><td>${u.used_today}</td><td>${u.daily_limit}</td><td>${esc(dateText(u.ai_tier_expires_at))}</td><td><button class="cc6-button small" data-ai-user="${esc(u.id)}" data-ai-action="grant">Grant / extend</button> <button class="cc6-button secondary small" data-ai-user="${esc(u.id)}" data-ai-action="revoke">Revoke</button></td></tr>`).join(""));
     } catch(e){list.textContent=e.message||"Could not load AI tier data.";}
   }
   aiButton.addEventListener("click",()=>void setTab("ai-tiers"));
