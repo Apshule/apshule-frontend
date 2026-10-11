@@ -15,7 +15,11 @@ UPDATE lab_experiments SET embed_provider = 'phet',
 UPDATE lab_experiments SET embed_provider = 'phet',
   embed_url = 'https://phet.colorado.edu/sims/html/magnets-and-electromagnets/latest/magnets-and-electromagnets_en.html',
   fallback_url = 'https://phet.colorado.edu/sims/html/magnets-and-electromagnets/latest/magnets-and-electromagnets_en.html'
-  WHERE code IN ('PRIM_MAGNETS', 'OL_FIELDS');
+  WHERE code = 'PRIM_MAGNETS';
+UPDATE lab_experiments SET embed_provider = 'phet',
+  embed_url = 'https://phet.colorado.edu/sims/html/charges-and-fields/latest/charges-and-fields_en.html',
+  fallback_url = 'https://phet.colorado.edu/sims/html/charges-and-fields/latest/charges-and-fields_en.html'
+  WHERE code = 'AL_FIELDS';
 UPDATE lab_experiments SET embed_provider = 'phet',
   embed_url = 'https://phet.colorado.edu/sims/html/wave-on-a-string/latest/wave-on-a-string_en.html',
   fallback_url = 'https://phet.colorado.edu/sims/html/wave-on-a-string/latest/wave-on-a-string_en.html'
