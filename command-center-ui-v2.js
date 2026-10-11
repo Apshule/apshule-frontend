@@ -292,7 +292,7 @@ export function initCommandCenterUI({ apiBase, getToken, getUser, notify, activa
       const schoolSelect=aiView.querySelector('[name="school_id"]'),selected=schoolSelect.value;
       schoolSelect.innerHTML='<option value="">Choose a school…</option>'+(schools.schools||[]).map(s=>`<option value="${esc(s.id)}">${esc(s.name)}</option>`).join("");
       if(selected)schoolSelect.value=selected;
-      root.querySelector("#ccAiSchools").innerHTML=table(["School","Users","Tier","Expires","Actions"],(schools.schools||[]).map(s=>`<tr><td>${esc(s.name)} · ${fmt(s.student_count)} students</td><td>${fmt(s.user_count)}</td><td>${esc(s.tier)}</td><td>${esc(dateText(s.expires_at))}</td><td><button class="cc6-button small" data-school-grant="${esc(s.id)}">Grant / Extend</button> <button class="cc6-button secondary small" data-school-revoke="${esc(s.id)}">Revoke</button></td></tr>`).join("")));
+      root.querySelector("#ccAiSchools").innerHTML=table(["School","Users","Tier","Expires","Actions"],(schools.schools||[]).map(s=>`<tr><td>${esc(s.name)} · ${fmt(s.student_count)} students</td><td>${fmt(s.user_count)}</td><td>${esc(s.tier)}</td><td>${esc(dateText(s.expires_at))}</td><td><button class="cc6-button small" data-school-grant="${esc(s.id)}">Grant / Extend</button> <button class="cc6-button secondary small" data-school-revoke="${esc(s.id)}">Revoke</button></td></tr>`).join(""));
       renderAiTierUsers();
     } catch(e){list.textContent=e.message||"Could not load AI tier data.";}
   }
