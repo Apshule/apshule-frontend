@@ -6681,16 +6681,29 @@
     };
 
     // ---------- AI CHAT ----------
+    async function fetchAiJson(url, options, errorPrefix) {
+        const controller = new AbortController();
+        const timer = setTimeout(() => controller.abort(), 20000);
+        try {
+            const response = await fetch(url, { ...options, signal: controller.signal });
+            const payload = await response.json().catch(() => ({}));
+            if (!response.ok) throw new Error(payload.error || errorPrefix + ' (' + response.status + ')');
+            return payload;
+        } catch (error) {
+            if (error.name === 'AbortError') throw new Error('Request timed out. Please try again.');
+            throw error;
+        } finally {
+            clearTimeout(timer);
+        }
+    }
     async function askAI(q) {
         aiConversation.push({ role: 'user', content: q });
         aiConversation = aiConversation.slice(-20);
-        const response = await fetch(`${API_BASE}/api/ai/chat`, {
+        const payload = await fetchAiJson(API_BASE + '/api/ai/chat', {
             method: 'POST',
-            headers: { 'Content-Type': 'application/json', ...(AUTH_TOKEN ? { Authorization: `Bearer ${AUTH_TOKEN}` } : {}) },
-            body: JSON.stringify({ messages: aiConversation })
-        });
-        const payload = await response.json().catch(() => ({}));
-        if (!response.ok) throw new Error(payload.error || `AI request failed (${response.status})`);
+            headers: { 'Content-Type': 'application/json', ...(AUTH_TOKEN ? { Authorization: 'Bearer ' + AUTH_TOKEN } : {}) },
+            body: JSON.stringify({ messages: aiConversation.slice(-6) })
+        }, 'AI request failed');
         aiConversation.push({ role: 'assistant', content: String(payload.reply || '') });
         aiConversation = aiConversation.slice(-20);
         localStorage.setItem(`apshule_ai_chat_${currentUser?.id || 'guest'}`, JSON.stringify(aiConversation));
@@ -6747,13 +6760,11 @@
             const image_base64 = file ? await new Promise((resolve, reject) => {
                 const reader = new FileReader(); reader.onload = () => resolve(String(reader.result).split(',')[1]); reader.onerror = reject; reader.readAsDataURL(file);
             }) : '';
-            const response = await fetch(`${API_BASE}/api/ai/solve`, {
+            const result = await fetchAiJson(API_BASE + '/api/ai/solve', {
                 method: 'POST',
-                headers: { 'Content-Type': 'application/json', ...(AUTH_TOKEN ? { Authorization: `Bearer ${AUTH_TOKEN}` } : {}) },
+                headers: { 'Content-Type': 'application/json', ...(AUTH_TOKEN ? { Authorization: 'Bearer ' + AUTH_TOKEN } : {}) },
                 body: JSON.stringify({ question_text: question, subject: document.getElementById('aiSubject').value, ...(image_base64 ? { image_base64, image_mime_type: file.type } : {}) })
-            });
-            const result = await response.json().catch(() => ({}));
-            if (!response.ok) throw new Error(result.error || `Solve request failed (${response.status})`);
+            }, 'Solve request failed');
             aiCurrentSolution = result; updateAiQuota(result);
             const steps = document.getElementById('aiSteps'); steps.replaceChildren();
             const given=document.createElement('p'); given.textContent=`Given: ${(result.given||[]).join(', ')||'—'}`; steps.append(given);
