@@ -1256,7 +1256,19 @@
     <div id="attendanceModal" class="attendance-modal"><div class="attendance-modal-content"><div style="display: flex; justify-content: space-between; margin-bottom: 20px;"><h3><i class="fas fa-face-recognition"></i> Facial Attendance <span id="attendanceSchoolName"></span></h3><button id="closeAttendanceModal" style="background:none; border:none; font-size:28px; cursor:pointer;">&times;</button></div><div class="attendance-tabs"><button class="attendance-tab active" data-attendance-tab="mark">📝 Mark Attendance</button><button class="attendance-tab" data-attendance-tab="enroll">👤 Enroll Person</button><button class="attendance-tab" data-attendance-tab="manage">📋 Manage</button></div><div id="markTab" class="attendance-tab-content active"><div class="camera-container"><video id="attendanceVideo" autoplay playsinline style="width:100%"></video></div><div class="attendance-controls" style="display:flex; gap:10px; margin:15px 0;"><button id="switchAttendanceCamera" class="btn-secondary"><i class="fas fa-sync-alt"></i> Switch Camera</button><button id="markAttendanceBtn" class="btn-primary"><i class="fas fa-face-smile"></i> Mark Attendance</button></div><div id="attendanceResult" class="recognition-result" style="display:none;"></div><h4>📋 Today's Attendance</h4><div id="recentAttendanceList" class="recent-attendance-list"></div></div><div id="enrollTab" class="attendance-tab-content"><div class="camera-container"><video id="enrollVideo" autoplay playsinline style="width:100%"></video></div><div class="attendance-controls" style="display:flex; gap:10px; margin:15px 0;"><button id="switchEnrollCamera" class="btn-secondary"><i class="fas fa-sync-alt"></i> Switch Camera</button><button id="captureEnrollBtn" class="btn-primary"><i class="fas fa-camera"></i> Capture Face</button></div><div style="text-align:center;"><label class="file-input-label" for="faceImageUpload"><i class="fas fa-folder-open"></i> 📁 Import Image</label><input type="file" id="faceImageUpload" accept="image/*"></div><div id="enrollPreview" style="text-align:center;"></div><div class="form-group"><label>Full Name</label><input type="text" id="enrollName" placeholder="Enter full name"></div><div class="form-group"><label>Category</label><select id="enrollCategory"><option>Student</option><option>Teacher</option><option>Staff</option><option>Visitor</option></select></div><div class="form-group"><label>Phone</label><input type="tel" id="enrollPhone" placeholder="Phone number"></div><button id="saveEnrolledPersonBtn" class="btn-primary">✅ Save Person</button></div><div id="manageTab" class="attendance-tab-content"><h4>📋 Enrolled Persons</h4><div id="enrolledPersonsList" class="enrolled-list"></div><button id="clearAllAttendanceBtn" class="btn-danger" style="width:100%; margin-top:15px;">🗑️ Clear All Records</button></div></div></div>
 
     <div class="overlay" id="drawerOverlay"></div>
-    <div class="ai-drawer" id="aiDrawer"><div class="ai-drawer-header"><h3><i class="fas fa-robot"></i> AI Tutor</h3><button id="closeDrawerBtn" style="background:none; border:none; color:white; font-size:24px;">&times;</button></div><div class="ai-chat-messages" id="chatMessages"><div class="message ai"><div class="message-avatar"><i class="fas fa-robot"></i></div><div class="message-bubble">Hello! I'm your APSHULE AI Tutor. Ask me anything! 📚</div></div></div><div class="ai-chat-input"><input type="text" id="chatInput" placeholder="Ask me..."><button id="sendBtn">Send</button></div></div>
+    <div class="ai-drawer" id="aiDrawer">
+      <div class="ai-drawer-header"><h3><i class="fas fa-robot"></i> AI Study Helper</h3><button id="closeDrawerBtn" aria-label="Close" style="background:none;border:none;color:white;font-size:24px;">&times;</button></div>
+      <div style="display:flex;gap:8px;padding:12px 16px 0"><button type="button" data-ai-mode="chat" class="ai-mode active">💬 Chat</button><button type="button" data-ai-mode="solve" class="ai-mode">📝 Solve Question</button><span id="aiQuota" style="margin-left:auto;font-size:12px"></span></div>
+      <div id="chatMessages" class="ai-chat-messages"><div class="message ai"><div class="message-avatar"><i class="fas fa-robot"></i></div><div class="message-bubble">Hello! I'm your APSHULE AI Tutor. Ask me anything! 📚</div></div></div>
+      <div id="aiSolveResults" hidden style="padding:12px 16px;overflow:auto"><div role="tablist" style="display:flex;gap:8px"><button type="button" data-ai-result="steps">📝 Steps</button><button type="button" data-ai-result="diagram">📐 Diagram</button><button type="button" data-ai-result="summary">📊 Summary</button></div><section id="aiSteps"></section><section id="aiDiagram" hidden></section><button id="aiDownloadPng" type="button" hidden>⬇️ Download PNG</button><section id="aiSummary" hidden></section></div>
+      <div class="ai-chat-input" style="display:grid;gap:8px;padding:12px 16px">
+        <select id="aiSubject" aria-label="Subject" hidden><option>Physics</option><option>Mathematics</option><option>Chemistry</option><option>Biology</option></select>
+        <label id="aiImageLabel" hidden>Optional question photo <input id="aiImage" type="file" accept="image/*"></label>
+        <textarea id="chatInput" rows="2" maxlength="2000" placeholder="Ask a question or paste a problem (up to 2,000 characters)" style="resize:none;overflow-y:auto;max-height:100px;width:100%"></textarea>
+        <button id="sendBtn" type="button">Send</button>
+      </div>
+      <div id="aiHistory" style="padding:4px 16px 12px;font-size:12px"></div>
+    </div>
 
     <div class="main-content">
         <section id="mfiPortalPage" class="page" aria-label="Microfinance workspace">
@@ -1983,6 +1995,7 @@
         <div id="aboutPage" class="page">
             <div class="section-title">📖 About APSHULE</div>
             <div id="dynamicAbout" class="about-card">Loading...</div>
+            <section class="about-card" aria-label="Virtual Lab credits"><h3>Virtual Lab credits</h3><p>External simulations are provided by PhET Interactive Simulations, GeoGebra, Mathigon and Falstad under their respective terms. APSHULE’s Plane Mirror Reflection and Perpendicular Mirrors activities are original offline simulations.</p></section>
         </div>
     </div>
 
@@ -2180,6 +2193,7 @@
     import { initFarmUI } from "./farm-ui.js";
     import { initCommandCenterUI } from "./command-center-ui.js";
     import { initVirtualLabUI } from "./virtual-lab-ui.js";
+    import { renderDiagram } from "./ai-diagram-renderer.js";
     import { createOfflineDataLayer } from "./offline-data.js";
 
     const API_BASE = "https://apshule-api.apshule-migration.workers.dev";
@@ -2206,6 +2220,9 @@
         } catch (_) {}
     }
     let currentUser = null;
+    let aiMode = 'chat';
+    let aiConversation = [];
+    let aiCurrentSolution = null;
 
     const offlineData = createOfflineDataLayer({
         apiBase: API_BASE,
@@ -6663,11 +6680,30 @@
 
     // ---------- AI CHAT ----------
     async function askAI(q) {
-        if (typeof puter !== 'undefined' && puter.ai) {
-            try { const resp = await puter.ai.chat(q); return resp.message.content; }
-            catch(e) { return "Connection error"; }
-        }
-        return "📚 I'm a demo AI. Full version coming soon!";
+        aiConversation.push({ role: 'user', content: q });
+        aiConversation = aiConversation.slice(-20);
+        const response = await fetch(`${API_BASE}/api/ai/chat`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', ...(AUTH_TOKEN ? { Authorization: `Bearer ${AUTH_TOKEN}` } : {}) },
+            body: JSON.stringify({ messages: aiConversation })
+        });
+        const payload = await response.json().catch(() => ({}));
+        if (!response.ok) throw new Error(payload.error || `AI request failed (${response.status})`);
+        aiConversation.push({ role: 'assistant', content: String(payload.reply || '') });
+        aiConversation = aiConversation.slice(-20);
+        localStorage.setItem(`apshule_ai_chat_${currentUser?.id || 'guest'}`, JSON.stringify(aiConversation));
+        updateAiQuota(payload.used);
+        return String(payload.reply || '');
+    }
+    function updateAiQuota(used) {
+        const el = document.getElementById('aiQuota');
+        if (el && Number.isFinite(Number(used))) el.textContent = `${used} / 20 today`;
+    }
+    async function loadAiQuota() {
+        try {
+            const response = await fetch(`${API_BASE}/api/ai/quota`, { headers: AUTH_TOKEN ? { Authorization: `Bearer ${AUTH_TOKEN}` } : {} });
+            if (response.ok) updateAiQuota((await response.json()).used);
+        } catch (_) {}
     }
     function addMsg(t, s) {
         const c = document.getElementById('chatMessages');
@@ -6682,10 +6718,77 @@
         if (!q) return;
         addMsg(q, 'user'); inp.value = '';
         addMsg("🤔 Thinking...", 'ai');
-        const ans = await askAI(q);
-        const msgs = document.querySelectorAll('#chatMessages .message');
-        if (msgs.length && msgs[msgs.length-1].querySelector('.message-bubble')?.innerText === "🤔 Thinking...") msgs[msgs.length-1].remove();
-        addMsg(ans, 'ai');
+        const pending = document.querySelector('#chatMessages .message:last-child');
+        try { addMsg(await askAI(q), 'ai'); }
+        catch (error) { addMsg(error.message || 'AI service unavailable. Please try again.', 'ai'); }
+        finally { pending?.remove(); }
+    }
+    function setAiMode(mode) {
+        aiMode = mode === 'solve' ? 'solve' : 'chat';
+        document.querySelectorAll('[data-ai-mode]').forEach(button => button.classList.toggle('active', button.dataset.aiMode === aiMode));
+        document.getElementById('aiSubject').hidden = aiMode !== 'solve';
+        document.getElementById('aiImageLabel').hidden = aiMode !== 'solve';
+        document.getElementById('sendBtn').textContent = aiMode === 'solve' ? '✨ Solve' : 'Send';
+        document.getElementById('chatMessages').hidden = aiMode === 'solve';
+        document.getElementById('aiSolveResults').hidden = aiMode !== 'solve' || !aiCurrentSolution;
+    }
+    async function solveAiQuestion() {
+        const question = document.getElementById('chatInput').value.trim();
+        if (question.length < 10 || question.length > 2000) { showNotification('Enter a question between 10 and 2,000 characters.'); return; }
+        const file = document.getElementById('aiImage').files?.[0];
+        if (file && file.size > 1024 * 1024) { showNotification('Image must be 1 MB or smaller.'); return; }
+        const send = document.getElementById('sendBtn'); send.disabled = true; send.textContent = 'Solving…';
+        try {
+            const image_base64 = file ? await new Promise((resolve, reject) => {
+                const reader = new FileReader(); reader.onload = () => resolve(String(reader.result).split(',')[1]); reader.onerror = reject; reader.readAsDataURL(file);
+            }) : '';
+            const response = await fetch(`${API_BASE}/api/ai/solve`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json', ...(AUTH_TOKEN ? { Authorization: `Bearer ${AUTH_TOKEN}` } : {}) },
+                body: JSON.stringify({ question_text: question, subject: document.getElementById('aiSubject').value, ...(image_base64 ? { image_base64, image_mime_type: file.type } : {}) })
+            });
+            const result = await response.json().catch(() => ({}));
+            if (!response.ok) throw new Error(result.error || `Solve request failed (${response.status})`);
+            aiCurrentSolution = result; updateAiQuota(result.used);
+            const steps = document.getElementById('aiSteps'); steps.replaceChildren();
+            const given=document.createElement('p'); given.textContent=`Given: ${(result.given||[]).join(', ')||'—'}`; steps.append(given);
+            const unknown=document.createElement('p'); unknown.textContent=`Find: ${result.unknown||'—'}`; steps.append(unknown);
+            const formulaStep=document.createElement('p'); formulaStep.textContent=`Formula: ${result.formula||'—'}`; steps.append(formulaStep);
+            for (const item of (result.steps || [])) {
+                const p = document.createElement('p'); p.textContent = `${item.step}. ${item.description}${item.math ? ` — ${item.math}` : ''}`; steps.append(p);
+            }
+            const diagram = document.getElementById('aiDiagram');
+            if (result.diagram_spec && result.diagram_spec.type !== 'none') { renderDiagram(result.diagram_spec, diagram); document.getElementById('aiDownloadPng').hidden=false; }
+            else { diagram.textContent = 'No diagram is needed for this question.'; document.getElementById('aiDownloadPng').hidden=true; }
+            const summary = document.getElementById('aiSummary'); summary.replaceChildren();
+            const answer = document.createElement('h3'); answer.textContent = result.final_answer || 'Answer not provided'; summary.append(answer);
+            const formula = document.createElement('p'); formula.textContent = `Formula: ${result.formula || '—'}`; summary.append(formula);
+            const tips = document.createElement('p'); tips.textContent = result.tips || ''; summary.append(tips);
+            const copy=document.createElement('button'); copy.type='button'; copy.dataset.aiCopySummary=''; copy.textContent='📋 Copy'; summary.append(copy);
+            document.getElementById('aiSolveResults').hidden = false; selectAiResult('steps');
+            await loadAiSessions();
+        } catch (error) { showNotification(error.message || 'Could not solve this question.'); }
+        finally { send.disabled = false; send.textContent = '✨ Solve'; }
+    }
+    function selectAiResult(name) {
+        document.querySelectorAll('[data-ai-result]').forEach(button => button.setAttribute('aria-selected', String(button.dataset.aiResult === name)));
+        for (const key of ['steps','diagram','summary']) document.getElementById(`ai${key[0].toUpperCase()}${key.slice(1)}`).hidden = key !== name;
+    }
+    async function downloadAiDiagramPng() {
+        const svg=document.querySelector('#aiDiagram svg'); if(!svg)return;
+        const url=URL.createObjectURL(new Blob([new XMLSerializer().serializeToString(svg)],{type:'image/svg+xml;charset=utf-8'}));
+        try { const image=new Image(); await new Promise((resolve,reject)=>{image.onload=resolve;image.onerror=reject;image.src=url;}); const canvas=document.createElement('canvas');canvas.width=800;canvas.height=500;canvas.getContext('2d').drawImage(image,0,0,800,500);const blob=await new Promise(resolve=>canvas.toBlob(resolve,'image/png'));if(!blob)throw Error();const href=URL.createObjectURL(blob);const link=document.createElement('a');link.href=href;link.download='apshule-study-diagram.png';link.click();URL.revokeObjectURL(href); }
+        catch(_) { showNotification('Could not export the diagram.'); } finally { URL.revokeObjectURL(url); }
+    }
+    async function loadAiSessions() {
+        const target = document.getElementById('aiHistory');
+        try {
+            const response = await fetch(`${API_BASE}/api/ai/sessions?limit=10`, { headers: AUTH_TOKEN ? { Authorization: `Bearer ${AUTH_TOKEN}` } : {} });
+            if (!response.ok) return;
+            const data = await response.json(); target.replaceChildren();
+            const title = document.createElement('strong'); title.textContent = 'Recent study questions'; target.append(title);
+            (data.sessions || []).slice(0,10).forEach(session => { const p=document.createElement('button');p.type='button';p.className='ai-history-item';p.textContent=`${session.subject || 'Study'} · ${session.topic || session.question_text}`;p.addEventListener('click',()=>{document.getElementById('chatInput').value=session.question_text||'';setAiMode('solve');});target.append(p); });
+        } catch (_) {}
     }
 
     // ---------- NAVIGATION ----------
@@ -8858,9 +8961,14 @@
         });
         void loadSubscriptionPlans();
         wireTeacherDashboardEvents();
-        document.getElementById('sendBtn')?.addEventListener('click', sendChat);
-        document.getElementById('chatInput')?.addEventListener('keypress', e => { if (e.key === 'Enter') sendChat(); });
-        document.getElementById('openAIDrawerBtn')?.addEventListener('click', () => { document.getElementById('aiDrawer').classList.add('open'); document.getElementById('drawerOverlay').classList.add('show'); });
+        document.getElementById('sendBtn')?.addEventListener('click', () => aiMode === 'solve' ? solveAiQuestion() : sendChat());
+        document.getElementById('chatInput')?.addEventListener('keydown', e => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); aiMode === 'solve' ? solveAiQuestion() : sendChat(); } });
+        document.querySelectorAll('[data-ai-mode]').forEach(button => button.addEventListener('click', () => setAiMode(button.dataset.aiMode)));
+        document.querySelectorAll('[data-ai-result]').forEach(button => button.addEventListener('click', () => selectAiResult(button.dataset.aiResult)));
+        document.getElementById('aiDownloadPng')?.addEventListener('click', downloadAiDiagramPng);
+        document.getElementById('aiSummary')?.addEventListener('click', async event => { if(event.target.closest('[data-ai-copy-summary]')) { await navigator.clipboard?.writeText(`${aiCurrentSolution?.final_answer||''}\n${aiCurrentSolution?.formula||''}\n${aiCurrentSolution?.tips||''}`); showNotification('Answer copied.'); } });
+        window.launchApshuleAiStudy = mode => { setAiMode(mode); document.getElementById('aiDrawer').classList.add('open'); document.getElementById('drawerOverlay').classList.add('show'); void loadAiQuota(); void loadAiSessions(); };
+        document.getElementById('openAIDrawerBtn')?.addEventListener('click', () => { document.getElementById('aiDrawer').classList.add('open'); document.getElementById('drawerOverlay').classList.add('show'); void loadAiQuota(); void loadAiSessions(); });
         document.getElementById('closeDrawerBtn')?.addEventListener('click', () => { document.getElementById('aiDrawer').classList.remove('open'); document.getElementById('drawerOverlay').classList.remove('show'); });
         document.getElementById('drawerOverlay')?.addEventListener('click', () => { document.getElementById('aiDrawer').classList.remove('open'); document.getElementById('drawerOverlay').classList.remove('show'); });
 

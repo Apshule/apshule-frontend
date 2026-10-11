@@ -233,6 +233,8 @@ export class LabSimulator {
       reaction_rate: () => this.renderReaction(),
       genetics_cross: () => this.renderGenetics(),
       electric_field: () => this.renderElectricField(),
+      plane_mirror: () => this.renderPlaneMirror(),
+      perp_mirrors: () => this.renderPerpendicularMirrors(),
     };
     const previousText = activeCanvasText;
     activeCanvasText = (text) => {
@@ -551,6 +553,31 @@ export class LabSimulator {
     label(ctx, "Select the canvas to add a positive charge.", 257, 455, 14, PALETTE.muted);
   }
 
+  renderPlaneMirror() {
+    const ctx=this.ctx, distance=Number(this.params.objectDistance??6);
+    this.drawBase("Plane mirror reflection","Move the object and compare its distance to the virtual image");
+    line(ctx,400,105,400,420,PALETTE.teal,6);
+    for(let y=115;y<415;y+=18)line(ctx,406,y,416,y-8,"#8fb7b2",1);
+    const x=400-distance*25, imageX=400+distance*25;
+    circle(ctx,x,270,18,PALETTE.coral);circle(ctx,imageX,270,18,"#fffefa",PALETTE.blue);
+    line(ctx,x,305,imageX,305,PALETTE.muted,1,[6,5]);
+    label(ctx,"Object",x-28,315,14,PALETTE.ink,700);label(ctx,"Virtual image",imageX-42,315,14,PALETTE.blue,700);
+    label(ctx,`${distance} cm from mirror`,x-50,365,15,PALETTE.ink,700);
+    label(ctx,"Image distance = object distance",250,450,15,PALETTE.teal,700);
+  }
+
+  renderPerpendicularMirrors() {
+    const ctx=this.ctx, dx=Number(this.params.distanceX??4),dy=Number(this.params.distanceY??3);
+    this.drawBase("Perpendicular mirrors","Two plane mirrors meet at 90°; compare the three virtual images");
+    line(ctx,390,110,390,390,PALETTE.teal,6);line(ctx,390,390,700,390,PALETTE.teal,6);
+    const ox=390-dx*24,oy=390-dy*24;
+    const points=[[ox,oy,PALETTE.coral,"Object"],[390+dx*24,oy,PALETTE.blue,"Image 1"],[ox,390+dy*24,PALETTE.gold,"Image 2"],[390+dx*24,390+dy*24,PALETTE.muted,"Image 3"]];
+    for(const [x,y,color,name] of points){circle(ctx,x,y,13,color);label(ctx,name,x-24,y-20,12,color,700);}
+    const distance=Math.hypot(2*dx,2*dy);
+    label(ctx,`Closest pair: ${distance.toFixed(1)} cm`,65,455,16,PALETTE.teal,700);
+    label(ctx,`Object distances: ${dx} cm and ${dy} cm`,470,455,13,PALETTE.ink,600);
+  }
+
   destroy() {
     this.destroyed = true;
     this.running = false;
@@ -643,6 +670,8 @@ const DEFAULT_CONTROLS = {
     ["select", { name: "parentB", labelText: "Parent B", options: ["Aa", "AA", "aa"], value: "Aa" }],
   ],
   electric_field: [],
+  plane_mirror: [["range",{name:"objectDistance",labelText:"Object distance",min:2,max:10,value:6,suffix:" cm"}]],
+  perp_mirrors: [["range",{name:"distanceX",labelText:"Distance from mirror 1",min:1,max:8,value:4,suffix:" cm"}],["range",{name:"distanceY",labelText:"Distance from mirror 2",min:1,max:8,value:3,suffix:" cm"}]],
 };
 
 export function createLabSimulator(canvas, controlsEl, type, options = {}) {

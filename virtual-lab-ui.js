@@ -41,6 +41,13 @@ export function initVirtualLabUI({ api, getCurrentUser, notify = () => {}, escap
   let currentSim = null;
   let currentTab = "experiments";
   let providerFilter = "all";
+  let assignmentRows = [];
+  let assignmentLoading = false;
+  let assignmentLoaded = false;
+  let currentPracticeId = "";
+  let currentPracticeStarted = 0;
+  let attributionData = null;
+  let attributionRequested = false;
   let iframeLoadTimer = 0;
   let catalog = [];
   let progressRows = [];
@@ -349,6 +356,16 @@ export function initVirtualLabUI({ api, getCurrentUser, notify = () => {}, escap
     if (action === "filter") applyFilters();
     if (action === "experiment") openExperiment(target.dataset.id);
     if (action === "tab") selectTab(target.dataset.tab);
+    if (action === "create-assignment") createAssignment();
+    if (action === "join-code") joinAssignmentCode();
+    if (action === "practice-experiment") startFreePractice(target.dataset.id);
+    if (action === "complete-practice") completeFreePractice();
+    if (action === "start-assignment") startAssignment(target.dataset.id, target.dataset.experiment);
+    if (action === "ai-study") window.launchApshuleAiStudy?.(target.dataset.mode || "solve");
+    if (action === "copy-share-code") navigator.clipboard?.writeText(target.dataset.code || "").then(()=>notify("Share code copied.","success")).catch(()=>notify("Could not copy the code.","error"));
+    if (action === "copy-lab-link") navigator.clipboard?.writeText(target.dataset.link || "").then(()=>notify("Assignment link copied.","success")).catch(()=>notify("Could not copy the link.","error"));
+    if (action === "whatsapp-share") window.open(`https://wa.me/?text=${encodeURIComponent(target.dataset.link||"")}`,"_blank","noopener,noreferrer");
+    if (action === "adopt-assignment") adoptAssignment();
     if (action === "provider-filter") {
       providerFilter = target.dataset.provider || "all";
       renderCatalog();
@@ -479,6 +496,152 @@ export function initVirtualLabUI({ api, getCurrentUser, notify = () => {}, escap
     return progressRows.find((row) => String(row.experiment_id) === String(experimentId));
   }
 
+  function addField(parent, labelText, tag, dataset, props = {}) {
+    const label = node("label", "vl-filter");
+    label.append(node("span", "", labelText));
+    const input = node(tag);
+    Object.entries(props).forEach(([key,value]) => { if (key === "options") return; input[key] = value; });
+    input.dataset.assignmentField = dataset;
+    if (props.options) for (const [value,text] of props.options) {
+      const option=node("option","",text); option.value=value; input.append(option);
+    }
+    label.append(input); parent.append(label);
+    return input;
+  }
+
+  function renderAssignments(content) {
+    const teacher=isTeacher();
+    const heading=node("div","vl-section-heading");
+    heading.append(node("h2","",teacher?"My Assignments":"My Assignments"));
+    content.append(heading);
+    if (teacher) {
+      const form=node("section","vl-card");
+      form.append(node("h3","","Assign a lab"));
+      addField(form,"Experiment","select","experiment_id",{options:catalog.map(x=>[x.id,x.title])});
+      addField(form,"Class level","select","class_level",{options:["P4","P5","P6","P7","S1","S2","S3","S4","S5","S6"].map(x=>[x,x])});
+      addField(form,"Title","input","title",{placeholder:"Lab assignment title",maxLength:160});
+      addField(form,"Instructions","textarea","instructions",{rows:3,maxLength:4000});
+      addField(form,"Due date","input","due_at",{type:"datetime-local"});
+      addField(form,"Required time (minutes)","input","required_time_minutes",{type:"number",min:0,max:1440,value:15});
+      addField(form,"Minimum interactions","input","require_min_interactions",{type:"number",min:0,max:10000,value:5});
+      const mode=addField(form,"Access mode","select","access_mode",{options:[["class_only","Only my class"],["school","My school"],["share_code","Share code"]]});
+      const adopt=document.createElement("label");const adoptInput=document.createElement("input");adoptInput.type="checkbox";adoptInput.dataset.assignmentField="adoptable";adopt.append(adoptInput,doc.createTextNode(" Allow other teachers to adopt"));form.append(adopt);
+      for(let i=1;i<=5;i++)addField(form,`Question ${i} (optional)`,"textarea",`question_${i}`,{rows:2,maxLength:1000,placeholder:""});
+      const save=button("Save & Assign","create-assignment","save","vl-button vl-button-accent");
+      save.dataset.accessModeField=mode.dataset.assignmentField;
+      form.append(save);content.append(form);
+      const sharePanel=node("div","vl-share-panel");sharePanel.dataset.sharePanel="";content.append(sharePanel);
+    }
+    if(assignmentLoading){content.append(node("p","vl-loading-copy","Loading assignments…"));return;}
+    const rows=teacher?assignmentRows:(assignmentRows||[]);
+    if(!teacher){
+      for(const [title,filter] of [["From My Teacher",r=>r.access_mode!=="share_code"],["Joined via Code",r=>r.access_mode==="share_code"]]){
+        const section=node("section","vl-section");section.append(node("h3","",title));
+        const selected=rows.filter(filter);
+        if(!selected.length)section.append(node("p","vl-empty","No assignments here yet."));
+        for(const row of selected)section.append(assignmentCard(row,false));
+        content.append(section);
+      }
+    } else {
+      const section=node("section","vl-section");
+      if(!rows.length)section.append(node("p","vl-empty","No assignments created yet."));
+      for(const row of rows)section.append(assignmentCard(row,true));
+      content.append(section);
+    }
+    if(!assignmentLoaded)void loadAssignments();
+  }
+
+  function assignmentCard(row, teacher) {
+    const card=node("article","vl-card"), head=node("div","vl-card-foot");
+    card.append(node("h3","",safeText(row.title)),node("p","",`${safeText(row.class_level)} · ${safeText(row.subject)} · ${safeText(row.status||row.submission_status||"active")}`));
+    if(row.due_at)card.append(node("p","","Due "+new Date(row.due_at).toLocaleDateString()));
+    if(teacher&&row.share_code)card.append(node("p","vl-share-code",row.share_code));
+    if(!teacher) {
+      const start=button(row.submission_status==="submitted"||row.submission_status==="graded"?"View status":"Start lab","start-assignment","play","vl-button vl-button-accent");
+      start.dataset.id=row.assignment_id;start.dataset.experiment=row.experiment_id;head.append(start);
+    }
+    if(teacher) {
+      const code=button("Copy code","copy-share-code",null,"vl-button vl-button-soft");code.dataset.code=row.share_code||"";head.append(code);
+    }
+    card.append(head);return card;
+  }
+
+  async function loadAssignments() {
+    if(!active||currentTab!=="my-assignments"||assignmentLoading||assignmentLoaded)return;
+    assignmentLoading=true;
+    try {
+      const response=await api(isTeacher()?"/api/lab/assignments":"/api/lab/my-assignments");
+      assignmentRows=isTeacher()?(response.assignments||[]):[...(response.class_assignments||[]),...(response.joined_assignments||[])];
+      assignmentLoaded=true;
+    } catch(error) { assignmentRows=[]; if(active)showNotice(error.message||"Assignments could not be loaded.","error"); }
+    finally { assignmentLoading=false; assignmentLoaded=true; if(active&&view==="catalog"&&currentTab==="my-assignments")renderCatalog(); }
+  }
+
+  async function createAssignment() {
+    const form=uiRoot.querySelector(".vl-card");
+    if(!form)return;
+    const read=name=>form.querySelector(`[data-assignment-field="${name}"]`)?.value||"";
+    const questions=Array.from({length:5},(_,i)=>read(`question_${i+1}`)).filter(x=>x.trim()).map(question_text=>({question_text,question_type:"text"}));
+    const access_mode=read("access_mode");
+    try {
+      const response=await api("/api/lab/assignments",{method:"POST",body:{experiment_id:read("experiment_id"),class_level:read("class_level"),title:read("title"),instructions:read("instructions"),due_at:read("due_at")||null,required_time_minutes:Number(read("required_time_minutes")||15),require_min_interactions:Number(read("require_min_interactions")||5),access_mode,adoptable:!!form.querySelector('[data-assignment-field="adoptable"]')?.checked,questions}});
+      const assignment=response.assignment||{};
+      const panel=uiRoot.querySelector("[data-share-panel]");
+      panel.replaceChildren(node("h3","","Assignment saved"),node("p","vl-share-code",assignment.share_code||"Class assignment created"));
+      if(assignment.share_code){
+        const copy=button("📋 Copy code","copy-share-code",null,"vl-button vl-button-soft");copy.dataset.code=assignment.share_code;
+        const link=`https://appshule.com/?lab_code=${encodeURIComponent(assignment.share_code)}`;
+        const whatsapp=button("📱 WhatsApp share","whatsapp-share",null,"vl-button vl-button-soft");whatsapp.dataset.link=link;
+        const copyLink=button("🔗 Copy link","copy-lab-link",null,"vl-button vl-button-soft");copyLink.dataset.link=link;
+        const qr=node("img","vl-qr");qr.alt="QR code for this lab assignment";qr.width=160;qr.height=160;qr.src=`https://api.qrserver.com/v1/create-qr-code/?size=160x160&data=${encodeURIComponent(link)}`;
+        panel.append(copy,whatsapp,copyLink,qr);
+      }
+      assignmentLoaded=false;void loadAssignments();
+    } catch(error){showNotice(error.message||"Assignment could not be saved.","error");}
+  }
+
+  function renderJoinByCode(content) {
+    content.append(node("h2","","Join by Code"));
+    addField(content,"12-character share code","input","join_code",{maxLength:12,placeholder:"BENLI-4X9K",autocomplete:"off"});
+    content.append(button("Join","join-code","arrow","vl-button vl-button-accent"));
+  }
+  async function joinAssignmentCode() {
+    const code=uiRoot.querySelector('[data-assignment-field="join_code"]')?.value?.trim();
+    try { await api("/api/lab/join-code",{method:"POST",body:{share_code:code}});notify("Joined the lab assignment.","success");selectTab("my-assignments"); }
+    catch(error){showNotice(error.message||"That share code could not be joined.","error");}
+  }
+  async function startAssignment(id,experimentId) {
+    try { await api(`/api/lab/submissions/${encodeURIComponent(id)}/start`,{method:"POST"});await openExperiment(experimentId); }
+    catch(error){showNotice(error.message||"Assignment could not be started.","error");}
+  }
+  async function startFreePractice(id) {
+    try { const result=await api("/api/lab/practice/start",{method:"POST",body:{experiment_id:id}});currentPracticeId=result.practice?.id||"";currentPracticeStarted=Date.now();await openExperiment(id); }
+    catch(error){showNotice(error.message||"Practice could not be started.","error");}
+  }
+  async function completeFreePractice() {
+    if(!currentPracticeId)return;
+    try { await api(`/api/lab/practice/${encodeURIComponent(currentPracticeId)}/complete`,{method:"POST",body:{duration_seconds:Math.max(0,Math.floor((Date.now()-currentPracticeStarted)/1000)),interactions:currentSim?.interactions||0}});currentPracticeId="";notify("Practice saved.","success");goBack(); }
+    catch(error){showNotice(error.message||"Practice could not be saved.","error");}
+  }
+  function renderFreePractice(content) {
+    content.append(node("h2","","Free Practice"),node("p","vl-intro-copy","Practice any available experiment. Your activity is saved to your account."));
+    const grid=node("div","vl-grid");
+    catalog.forEach((exp,index)=>{const card=renderExperimentCard(exp,index);card.append(button("Start practice","practice-experiment","play","vl-button vl-button-soft"));card.querySelector('[data-lab-action="practice-experiment"]').dataset.id=exp.id;grid.append(card);});
+    content.append(grid);
+  }
+  function renderAdoptTab(content) {
+    content.append(node("h2","","Adopt an assignment"));
+    addField(content,"Share code","input","adopt_code",{maxLength:12,placeholder:"BENLIGHT-4X9K"});
+    addField(content,"Class level","select","adopt_class",{options:["P4","P5","P6","P7","S1","S2","S3","S4","S5","S6"].map(x=>[x,x])});
+    content.append(button("Preview and adopt","adopt-assignment","arrow","vl-button vl-button-accent"));
+  }
+  async function adoptAssignment() {
+    const share_code=uiRoot.querySelector('[data-assignment-field="adopt_code"]')?.value?.trim();
+    const class_level=uiRoot.querySelector('[data-assignment-field="adopt_class"]')?.value;
+    try { const result=await api("/api/lab/assignments/adopt",{method:"POST",body:{share_code,class_level}});notify(`Adopted: ${result.assignment?.title||"assignment"}`,"success");selectTab("my-assignments"); }
+    catch(error){showNotice(error.message||"This assignment could not be adopted.","error");}
+  }
+
   function renderCatalog() {
     if (!active || view !== "catalog") return;
     const { content } = renderShell();
@@ -488,27 +651,28 @@ export function initVirtualLabUI({ api, getCurrentUser, notify = () => {}, escap
     {
       const tabs = node("div", "vl-tabs");
       tabs.setAttribute("role", "tablist");
-      const expTab = button(tr("experiments", "Experiments"), "tab", "flask", `vl-tab ${currentTab === "experiments" ? "is-active" : ""}`);
-      expTab.dataset.tab = "experiments";
-      expTab.setAttribute("role", "tab");
-      expTab.setAttribute("aria-selected", String(currentTab === "experiments"));
-      const sessionTab = button(tr("live_sessions", "Live sessions"), "tab", "class", `vl-tab ${currentTab === "sessions" ? "is-active" : ""}`);
-      sessionTab.dataset.tab = "sessions";
-      sessionTab.setAttribute("role", "tab");
-      sessionTab.setAttribute("aria-selected", String(currentTab === "sessions"));
-      tabs.append(expTab, sessionTab);
-      if (canViewClassProgress()) {
-        const progressTab = button(tr("class_progress", "Class progress"), "tab", "chart", `vl-tab ${currentTab === "progress" ? "is-active" : ""}`);
-        progressTab.dataset.tab = "progress";
-        progressTab.setAttribute("role", "tab");
-        progressTab.setAttribute("aria-selected", String(currentTab === "progress"));
-        tabs.append(progressTab);
+      const tabDefs = isTeacher()
+        ? [["my-assignments","📝 My Assignments"],["experiments","🔬 Browse Simulators"],["adopt","📚 Adopt"],["sessions",tr("live_sessions","Live sessions")],...(canViewClassProgress()?[["progress",tr("class_progress","Class progress")]]:[]),["ai-study","🤖 AI Study"]]
+        : [["experiments","📚 Catalogue"],["my-assignments","📝 My Assignments"],["join-code","🔗 Join by Code"],["free-practice","🎓 Free Practice"],["sessions",tr("live_sessions","Live sessions")],["ai-study","🤖 AI Study"]];
+      for (const [tab,label] of tabDefs) {
+        const tabButton=button(label,"tab",null,`vl-tab ${currentTab===tab?"is-active":""}`);
+        tabButton.dataset.tab=tab; tabButton.setAttribute("role","tab");
+        tabButton.setAttribute("aria-selected",String(currentTab===tab)); tabs.append(tabButton);
       }
       intro.append(tabs);
     }
     content.append(intro);
     if (currentTab === "sessions") {
       renderSessions(content);
+      return;
+    }
+    if (currentTab === "my-assignments") { renderAssignments(content); return; }
+    if (currentTab === "join-code") { renderJoinByCode(content); return; }
+    if (currentTab === "free-practice") { renderFreePractice(content); return; }
+    if (currentTab === "adopt") { renderAdoptTab(content); return; }
+    if (currentTab === "ai-study") {
+      content.append(node("p","vl-intro-copy","Open AI Study Helper for guided explanations and worked solutions."));
+      content.append(button("Open AI Study Helper","ai-study",null,"vl-button vl-button-accent"));
       return;
     }
     if (currentTab === "progress" && canViewClassProgress()) {
@@ -578,11 +742,20 @@ export function initVirtualLabUI({ api, getCurrentUser, notify = () => {}, escap
       empty.append(node("h3", "", tr("no_experiments", "No experiments found")));
       empty.append(node("p", "", tr("no_experiments_detail", "Try another class level or subject filter.")));
       content.append(empty);
+      renderAttribution(content);
       return;
     }
     const grid = node("div", "vl-experiment-grid");
     visibleCatalog.forEach((experiment, index) => grid.append(renderExperimentCard(experiment, index)));
     content.append(grid);
+    renderAttribution(content);
+  }
+
+  function renderAttribution(parent) {
+    const footer=node("footer","vl-attribution");
+    footer.textContent=attributionData?.footer_text||"External simulations by their respective providers. APSHULE custom offline mirror simulations.";
+    parent.append(footer);
+    if(!attributionRequested){attributionRequested=true;api("/api/lab/attribution").then(r=>{attributionData=r.attribution||null;if(active&&view==="catalog")renderCatalog();}).catch(()=>{});}
   }
 
   function renderClassProgress(content) {
@@ -748,6 +921,7 @@ export function initVirtualLabUI({ api, getCurrentUser, notify = () => {}, escap
       intro.append(list);
     }
     content.append(intro);
+    if(currentPracticeId)content.append(button("Finish & save practice","complete-practice","check","vl-button vl-button-accent"));
     const provider = currentExperiment.embed_provider || "custom";
     const embedUrl = safeEmbedUrl(currentExperiment.embed_url, provider);
     if (embedUrl) {
@@ -907,15 +1081,14 @@ export function initVirtualLabUI({ api, getCurrentUser, notify = () => {}, escap
 
   function selectTab(tab) {
     currentTab = tab;
+    if (tab === "my-assignments") { assignmentLoaded=false; renderCatalog(); return; }
+    if (tab === "ai-study") { renderCatalog(); window.launchApshuleAiStudy?.("solve"); return; }
     if (tab === "sessions") {
       renderCatalog();
       loadSessions();
     } else if (tab === "progress" && canViewClassProgress()) {
       loadClassProgress();
-    } else {
-      currentTab = "experiments";
-      renderCatalog();
-    }
+    } else renderCatalog();
   }
 
   let sessions = [];
@@ -1901,7 +2074,11 @@ export function initVirtualLabUI({ api, getCurrentUser, notify = () => {}, escap
       sessions = [];
       currentExperiment = null;
       currentSession = null;
-      currentTab = "experiments";
+      currentTab = isTeacher() ? "my-assignments" : "experiments";
+      assignmentRows = [];
+      assignmentLoaded = false;
+      attributionData = null;
+      attributionRequested = false;
     }
     await ensureTranslations(currentUser);
     if (destroyed) return;

@@ -218,6 +218,14 @@
 @keyframes vl-enter { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: translateY(0); } }
 @keyframes vl-shimmer { from { opacity: .64; } to { opacity: 1; } }
 
+.vl-share-panel, .vl-section { margin: 16px 0; padding: 18px; border: 1px solid #e3ebe7; border-radius: 16px; background: #fff; }
+.vl-share-panel { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; }
+.vl-share-panel h3 { flex-basis: 100%; margin: 0; }
+.vl-share-code { font: 700 1.1rem ui-monospace, monospace; letter-spacing: .12em; }
+.vl-qr { flex-basis: 100%; width: 160px; height: 160px; object-fit: contain; }
+.vl-attribution { margin: 28px 0 12px; padding: 14px; border-top: 1px solid #e3ebe7; color: #607377; font-size: .85rem; }
+.ai-history-item { display: block; margin: 6px 0; padding: 6px 0; border: 0; background: transparent; color: inherit; text-align: left; cursor: pointer; }
+.vl-assignment-status { border-radius: 999px; padding: 4px 8px; background: #edf5e8; color: #406741; }
 @media (max-width: 900px) {
   .vl-experiment-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .vl-live-grid { grid-template-columns: 1fr; }
