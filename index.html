@@ -8635,27 +8635,9 @@
         clinic: 'Clinic & Pharmacy',
         farm: 'Farming'
     };
-    const ccSectorViews = { mfi: 'ccMfiView', clinic: 'ccClinicView', farm: 'ccFarmView' };
-
     function formatCount(value) {
         const count = Number(value);
         return Number.isFinite(count) ? count.toLocaleString() : '—';
-    }
-
-    async function loadSectorWaitlist(code) {
-        const container = document.getElementById(ccSectorViews[code]);
-        if (!container) return;
-        container.innerHTML = `<div class="cc-sector-message"><div class="cc-eyebrow">Sector rollout</div><h2>${escapeHtml(ccSectorNames[code])}</h2><p>Loading live waitlist count…</p></div>`;
-        try {
-            const sectors = await api('/api/sectors');
-            if (!Array.isArray(sectors)) throw new Error('Unexpected sector response');
-            const sector = sectors.find(item => item.code === code);
-            const count = sector ? formatCount(sector.waitlist_count) : '0';
-            container.innerHTML = `<div class="cc-sector-message"><div class="cc-eyebrow">Sector rollout</div><h2>${escapeHtml(ccSectorNames[code])}</h2><p>Coming soon. ${count} users on waitlist.</p><div class="cc-sector-count-big">${count} on the waitlist</div></div>`;
-        } catch (error) {
-            container.innerHTML = `<div class="cc-sector-message"><div class="cc-eyebrow">Sector rollout</div><h2>${escapeHtml(ccSectorNames[code])}</h2><div class="cc-state error">Could not load the live waitlist count. <button type="button" data-cc-retry="${code}">Try again</button></div></div>`;
-            container.querySelector('[data-cc-retry]')?.addEventListener('click', () => loadSectorWaitlist(code));
-        }
     }
 
     async function loadGlobalOverview() {
