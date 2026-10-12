@@ -1119,7 +1119,9 @@
                     <button type="button" data-auth-sector="mfi">💰 Microfinance</button>
                     <button type="button" data-auth-sector="clinic">🏥 Clinic</button>
                     <button type="button" data-auth-sector="farm">🌾 Farming</button>
+                    <button type="button" class="auth-superadmin-tile" data-auth-superadmin>👑 Super Admin</button>
                 </div>
+                <button type="button" class="auth-superadmin-link" data-auth-superadmin>🔐 Super Admin Login</button>
             </div>
             <div id="authRoleStep" hidden><button type="button" data-auth-back="sector">← Sectors</button><h2 id="authRoleTitle">Choose your role</h2><div id="authRoleOptions" class="auth-sector-grid"></div></div>
             <div id="authTeamApply" hidden><button type="button" data-auth-back="roles">← Roles</button><h2>Apply to join Apshule Team</h2>
@@ -1130,7 +1132,7 @@
                 <input class="login-input" name="team_referral" placeholder="Referral code (optional)"><button class="login-btn" type="button" data-team-submit>Submit application</button>
             </div>
         </section>
-        <style>.auth-sector-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px;margin:12px 0}.auth-sector-grid button{min-height:62px;border:1px solid #ded7ea;border-radius:14px;background:#fff;color:#392d58;font-weight:700;padding:12px;cursor:pointer}.auth-sector-grid button:hover{border-color:#6849a9;background:#f7f3ff}#authRoleStep,#authTeamApply{margin-bottom:14px}#authTeamApply{max-height:55vh;overflow:auto}#authTeamApply input{margin-bottom:8px}@media(max-width:480px){.auth-sector-grid{grid-template-columns:1fr}}</style>
+        <style>.auth-sector-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px;margin:12px 0}.auth-sector-grid button{min-height:62px;border:1px solid #ded7ea;border-radius:14px;background:#fff;color:#392d58;font-weight:700;padding:12px;cursor:pointer}.auth-sector-grid button:hover{border-color:#6849a9;background:#f7f3ff}.auth-sector-grid .auth-superadmin-tile{min-height:48px;max-width:230px;justify-self:center;grid-column:1/-1;background:#33240b;color:#ffe29a;border-color:#9a7022;font-size:.9rem}.auth-superadmin-link{display:block;margin:8px auto 0;border:0;background:none;color:#71541c;text-decoration:underline;font-size:.82rem;cursor:pointer}#authRoleStep,#authTeamApply{margin-bottom:14px}#authTeamApply{max-height:55vh;overflow:auto}#authTeamApply input{margin-bottom:8px}@media(max-width:480px){.auth-sector-grid{grid-template-columns:1fr}}</style>
         <div class="login-tabs" id="mainLoginTabs" style="display:none">
             <div class="login-tab active" data-tab="login">Login</div>
             <div class="login-tab" data-tab="signup">Sign Up</div>
@@ -6384,7 +6386,7 @@
         const c = document.getElementById('schoolsAdminList');
         if (!c) return;
         if (!schools.length) { c.innerHTML = '<div>No schools</div>'; return; }
-        c.innerHTML = schools.map(s => `<div class="school-item"><img class="school-logo" src="${s.logo || 'https://via.placeholder.com/50'}" onerror="this.src='https://via.placeholder.com/50'"><div><strong>${escapeHtml(s.name)}</strong><br>${escapeHtml(s.loginEmail)}</div><div><button class="edit-school" data-id="${s.id}">Edit</button><button class="delete-school" data-id="${s.id}">Delete</button></div></div>`).join('');
+        c.innerHTML = schools.map(s => `<div class="school-item"><img class="school-logo" src="${s.logo || 'https://via.placeholder.com/50'}" onerror="this.src='https://via.placeholder.com/50'"><div><strong>${escapeHtml(s.name)}</strong><br>${escapeHtml(s.loginEmail || s.login_email || '')}<br><small>School short code: <strong>${escapeHtml(s.short_code || 'Not set')}</strong></small></div><div><button class="edit-school" data-id="${s.id}">Edit</button><button class="edit-school-code" data-id="${s.id}">Edit Short Code</button><button class="delete-school" data-id="${s.id}">Delete</button></div></div>`).join('');
         document.querySelectorAll('.edit-school').forEach(btn => btn.addEventListener('click', async () => {
             const id = btn.getAttribute('data-id');
             const s = schools.find(ss => ss.id == id);
@@ -6404,6 +6406,17 @@
         }));
         document.querySelectorAll('.delete-school').forEach(btn => btn.addEventListener('click', async () => {
             if (confirm("Delete school?")) { try { await api('/api/schools/' + btn.getAttribute('data-id'), { method: 'DELETE' }); refreshAllData(); } catch(e) { showNotification(e.message, "error"); } }
+        }));
+        document.querySelectorAll('.edit-school-code').forEach(btn => btn.addEventListener('click', async () => {
+            const school = schools.find(item => String(item.id) === String(btn.dataset.id));
+            if (!school) return;
+            const code = prompt(`Short code for ${school.name}:`, school.short_code || '');
+            if (code === null || !code.trim()) return;
+            try {
+                const result = await api(`/api/schools/${encodeURIComponent(school.id)}`, { method: 'PATCH', body: { shortCode: code.trim() } });
+                showNotification(`School short code updated: ${result.school.short_code}`);
+                await refreshAllData();
+            } catch (error) { showNotification(error.message, "error"); }
         }));
     }
     function populateVideoMappingDropdowns() {
@@ -8966,6 +8979,25 @@
             farm: [['farm_admin','Farm Admin'],['farm_manager','Farm Manager'],['farm_worker','Farm Worker']],
         };
         const sectorTitles = { education:'Education', mfi:'Microfinance', clinic:'Clinic', farm:'Farming' };
+        function openSuperAdminLogin() {
+            flowSector = 'global';
+            flowRole = 'superadmin';
+            document.getElementById('authSectorStep').hidden = true;
+            document.getElementById('authRoleStep').hidden = true;
+            document.getElementById('authTeamApply').hidden = true;
+            document.getElementById('mainLoginTabs').style.display = 'none';
+            document.getElementById('loginFormDiv').classList.add('active');
+            document.getElementById('signupFormDiv').classList.remove('active');
+            document.querySelectorAll('[data-login-identity]').forEach(tab => { tab.hidden = true; });
+            document.getElementById('emailLoginIdentity').hidden = false;
+            document.getElementById('regNoLoginIdentity').hidden = true;
+            loginMode = 'email';
+            document.getElementById('schoolAdminCode').hidden = true;
+            const back = document.querySelector('#loginFormDiv [data-auth-back]');
+            if (back) { back.hidden = false; back.textContent = '← Back to sectors'; back.dataset.authBack = 'sector'; }
+            document.getElementById('loginEmail').focus();
+        }
+        document.querySelectorAll('[data-auth-superadmin]').forEach(button => button.addEventListener('click', openSuperAdminLogin));
         document.querySelectorAll('[data-auth-sector]').forEach(button => button.addEventListener('click', () => {
             document.getElementById('signupSector').value = button.dataset.authSector;
             flowSector = button.dataset.authSector;
@@ -8977,6 +9009,9 @@
                 (flowSector === 'education' ? '<button type="button" data-open-team>🎯 Apply to join Apshule Team</button>' : '');
             document.getElementById('loginFormDiv').classList.remove('active');
             document.getElementById('signupFormDiv').classList.remove('active');
+            document.querySelectorAll('[data-login-identity]').forEach(tab => { tab.hidden = false; });
+            const loginBack = document.querySelector('#loginFormDiv [data-auth-back]');
+            if (loginBack) { loginBack.hidden = false; loginBack.textContent = '← Choose another role'; loginBack.dataset.authBack = 'roles'; }
             localStorage.setItem('apshule_last_sector', flowSector);
         }));
         document.getElementById('authRoleOptions').addEventListener('click', event => {
@@ -8988,6 +9023,8 @@
             const button = event.target.closest('[data-auth-role]');
             if (!button) return;
             flowRole = button.dataset.authRole;
+            const loginBack = document.querySelector('#loginFormDiv [data-auth-back]');
+            if (loginBack) { loginBack.hidden = false; loginBack.textContent = '← Choose another role'; loginBack.dataset.authBack = 'roles'; }
             localStorage.setItem('apshule_last_role', flowRole);
             document.getElementById('authRoleStep').hidden = true;
             document.getElementById('mainLoginTabs').style.display = flowSector === 'education' ? 'flex' : 'none';
@@ -9674,10 +9711,10 @@
             const loginEmail = document.getElementById('schoolLoginEmail').value.trim();
             const loginPassword = document.getElementById('schoolLoginPassword').value;
             if (!name || !contact || !location || !loginEmail || !loginPassword) { showNotification("Fill all fields", "error"); return; }
-            if (loginPassword.length < 6) { showNotification("Password min 6", "error"); return; }
+            if (loginPassword.length < 8) { showNotification("Password must be at least 8 characters", "error"); return; }
             try {
-                await api('/api/schools', { method: 'POST', body: { name, contact, location, logo, loginEmail, loginPassword } });
-                showNotification("School added");
+                const result = await api('/api/schools', { method: 'POST', body: { name, contact, location, logo, loginEmail, loginPassword } });
+                showNotification(`School created. Short code: ${result.school.short_code}`);
                 ['schoolName','schoolContact','schoolLocation','schoolLogoUrl','schoolLoginEmail','schoolLoginPassword'].forEach(id => document.getElementById(id).value = '');
                 refreshAllData();
             } catch(e) { showNotification(e.message, "error"); }
@@ -9954,7 +9991,10 @@
                     body,
                     auth: false
                 });
-                if (flowSector && flowRole && (data.user?.sector !== flowSector || data.user?.role !== flowRole)) {
+                if (flowRole === 'superadmin' && data.user?.role !== 'superadmin') {
+                    throw new Error('Not authorized as super admin');
+                }
+                if (flowSector && flowRole && flowRole !== 'superadmin' && (data.user?.sector !== flowSector || data.user?.role !== flowRole)) {
                     throw new Error('That account does not match the selected sector and role.');
                 }
                 if (data.user?.must_change_password) {
@@ -9990,7 +10030,9 @@
                 loginError.style.display = 'block';
                 loginError.innerText = err.code === 'OFFLINE_WRITE_BLOCKED'
                     ? 'Connect to the internet to sign in. Previously saved sessions can be restored offline automatically.'
-                    : "Invalid email/password";
+                    : flowRole === 'superadmin' && err.message === 'Not authorized as super admin'
+                        ? err.message
+                        : "Invalid email/password";
             }
         });
         const resetSection = document.getElementById('resetSection');
@@ -10241,7 +10283,7 @@
 
     if ("serviceWorker" in navigator) {
         window.addEventListener("load", () => {
-            navigator.serviceWorker.register("/sw.js?v=46", { scope: "/" })
+            navigator.serviceWorker.register("/sw.js?v=47", { scope: "/" })
                 .then((registration) => console.log("[SW] registered", registration.scope))
                 .catch((error) => console.error("[SW] failed", error));
         }, { once: true });

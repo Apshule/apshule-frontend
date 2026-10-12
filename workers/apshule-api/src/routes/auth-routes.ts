@@ -503,19 +503,20 @@ authRoutes.post("/login", async (c) => {
       last_login, detected_location, created_at
   `;
   const user = updated[0] as UserRecord;
+  const tokenSector = user.role === "superadmin" ? "global" : user.sector;
   const issued = await createAccessToken(c.env, {
     id: user.id,
     email: user.email,
     role: user.role,
     schoolId: user.school_id,
-    sector: user.sector,
+    sector: tokenSector,
     sessionVersion: user.session_version ?? 0,
     mustChangePassword: user.must_change_password === true,
   });
 
   return c.json({
     token: issued.token,
-    user: publicUser(user as unknown as Record<string, unknown>),
+    user: { ...publicUser(user as unknown as Record<string, unknown>), sector: tokenSector },
   });
 });
 

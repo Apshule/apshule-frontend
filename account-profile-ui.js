@@ -799,6 +799,7 @@ export function initAccountProfileUI({
             ${locked ? `<p class="ap-hint" role="note">School details cannot be changed during an impersonation session.</p>` : ""}
             <form id="apBrandingForm" novalidate>
               <div class="ap-form-grid">
+                <div class="ap-field"><label for="apSchoolShortCode">School Short Code</label><input class="ap-control" id="apSchoolShortCode" value="${esc(value.short_code || "Not assigned")}" readonly aria-readonly="true"><p class="ap-hint">For changes, <a href="mailto:legal@appshule.com?subject=School%20short%20code%20change">contact APSHULE</a>.</p></div>
                 <div class="ap-field"><label for="apSchoolName">School name</label><input class="ap-control" id="apSchoolName" maxlength="160" required value="${esc(value.name || "")}"${locked ? " disabled" : ""}></div>
                 <div class="ap-field"><label for="apSchoolMotto">School motto</label><input class="ap-control" id="apSchoolMotto" maxlength="200" value="${esc(value.motto || "")}"${locked ? " disabled" : ""}></div>
                 <div class="ap-field ap-field--wide"><label for="apSchoolAddress">Address</label><input class="ap-control" id="apSchoolAddress" maxlength="300" autocomplete="street-address" value="${esc(value.address || "")}"${locked ? " disabled" : ""}></div>

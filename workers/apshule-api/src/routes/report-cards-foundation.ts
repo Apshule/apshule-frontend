@@ -54,13 +54,11 @@ rc.patch("/rc/branding", requireRole("school"), async (c) => {
   const b = await readJson(c), sid = school(c);
   const theme = b.report_theme == null ? null : str(b.report_theme, "report_theme", 20);
   if (theme && !["blue", "maroon", "mixed"].includes(theme)) throw new ApiError(400, "VALIDATION_ERROR", "Unsupported report theme.");
-  const shortCode=b.short_code==null?null:str(b.short_code,"short_code",32)?.toLowerCase();
-  if(shortCode&&!/^[a-z0-9-]{2,32}$/u.test(shortCode))throw new ApiError(400,"VALIDATION_ERROR","Short code must use 2–32 lowercase letters, numbers, or hyphens.");
   for (const [key, limit] of [["report_logo_base64", 410000], ["report_signature_base64", 140000]] as const) {
     if (typeof b[key] === "string" && b[key].length > limit) throw new ApiError(413, "IMAGE_TOO_LARGE", `${key} exceeds its size limit.`);
   }
   const result = await getDb(c.env)`UPDATE schools SET
-    motto=COALESCE(${str(b.motto,"motto",500)},motto),short_code=COALESCE(${shortCode},short_code),street=COALESCE(${str(b.street,"street",300)},street),
+    motto=COALESCE(${str(b.motto,"motto",500)},motto),street=COALESCE(${str(b.street,"street",300)},street),
     po_box=COALESCE(${str(b.po_box,"po_box",80)},po_box),website=COALESCE(${str(b.website,"website",300)},website),
     email=COALESCE(${str(b.email,"email",254)},email),phone=COALESCE(${str(b.phone,"phone",100)},phone),
     report_theme=COALESCE(${theme},report_theme),report_logo_base64=COALESCE(${str(b.report_logo_base64,"report_logo_base64",410000)},report_logo_base64),
