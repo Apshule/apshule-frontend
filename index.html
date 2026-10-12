@@ -2218,8 +2218,8 @@
 
     // 🔴 REPLACE THIS with your deployed Worker URL:
     import { initReportCardUI } from "./report-cards-ui.js";
-    import { initReportCardFoundationUI } from "./report-card-foundation-ui.js?v=53";
-    import { initTeacherMarksUI } from "./teacher-marks-ui.js?v=53";
+    import { initReportCardFoundationUI } from "./report-card-foundation-ui.js?v=54";
+    import { initTeacherMarksUI } from "./teacher-marks-ui.js?v=54";
     import { initBulkImportUI } from "./bulk-import-ui.js";
     import { initAccountProfileUI } from "./account-profile-ui.js";
     import { initRetoolingUI } from "./retooling-ui.js";
@@ -10051,18 +10051,32 @@
                 }
                 if (data.user?.must_change_password) {
                     AUTH_TOKEN = data.token;
-                    let nextPassword = '';
-                    while (true) {
-                        nextPassword = prompt('First sign-in: change your password (at least 8 characters). This step is required before you can use APSHULE.') || '';
-                        if (nextPassword.length < 8) { alert('A password of at least 8 characters is required.'); continue; }
-                        const confirmation = prompt('Confirm your new password:');
-                        if (confirmation === nextPassword) break;
-                        alert('Passwords did not match. Please enter and confirm a new password.');
-                    }
-                    await api('/api/users/me/change-password', { method: 'POST', body: { old_password: password, new_password: nextPassword } });
-                    AUTH_TOKEN = null;
                     const reloginEndpoint = flowRole === 'school' || teacherSchoolLogin ? '/api/auth2/login-school' : '/api/auth/login';
-                    const relogin = await api(reloginEndpoint, { method: 'POST', auth: false, body: { ...body, password: nextPassword } });
+                    const relogin = await new Promise((resolve) => {
+                        const dialog = document.createElement('dialog');
+                        dialog.style.cssText = 'border:0;border-radius:18px;max-width:min(480px,94vw);width:100%;padding:28px;box-shadow:0 20px 70px #0004';
+                        dialog.innerHTML = `<h2>Change your password</h2><p>Your temporary password must be changed before you can continue.</p><form><label>New password<input name="new_password" type="password" minlength="8" required autocomplete="new-password"></label><label>Confirm password<input name="confirm_password" type="password" minlength="8" required autocomplete="new-password"></label><p data-error role="alert" style="color:#b42318"></p><button class="login-btn" type="submit">Save and continue</button></form>`;
+                        let passwordChanged = false, chosenPassword = '';
+                        dialog.addEventListener('cancel', event => event.preventDefault());
+                        dialog.querySelector('form').addEventListener('submit', async event => {
+                            event.preventDefault();
+                            const form = event.currentTarget, nextPassword = form.elements.new_password.value;
+                            const error = dialog.querySelector('[data-error]');
+                            if (!passwordChanged && nextPassword !== form.elements.confirm_password.value) { error.textContent = 'Passwords do not match.'; return; }
+                            if (!passwordChanged && nextPassword.length < 8) { error.textContent = 'Use at least 8 characters.'; return; }
+                            const submit = form.querySelector('button'); submit.disabled = true; error.textContent = '';
+                            try {
+                                if (!passwordChanged) {
+                                    chosenPassword = nextPassword;
+                                    await api('/api/users/me/change-password', { method: 'POST', body: { old_password: password, new_password: chosenPassword } });
+                                    passwordChanged = true; AUTH_TOKEN = null;
+                                }
+                                const result = await api(reloginEndpoint, { method: 'POST', auth: false, body: { ...body, password: chosenPassword } });
+                                dialog.close(); dialog.remove(); resolve(result);
+                            } catch (error) { submit.disabled = false; dialog.querySelector('[data-error]').textContent = error.message || 'Password could not be changed. Try again.'; }
+                        });
+                        document.body.append(dialog); dialog.showModal();
+                    });
                     clearStoredPdfResolverCache();
                     AUTH_TOKEN = relogin.token;
                     localStorage.setItem('apshule_token', AUTH_TOKEN);
@@ -10340,7 +10354,7 @@
 
     if ("serviceWorker" in navigator) {
         window.addEventListener("load", () => {
-            navigator.serviceWorker.register("/sw.js?v=53", { scope: "/" })
+            navigator.serviceWorker.register("/sw.js?v=54", { scope: "/" })
                 .then((registration) => console.log("[SW] registered", registration.scope))
                 .catch((error) => console.error("[SW] failed", error));
         }, { once: true });
