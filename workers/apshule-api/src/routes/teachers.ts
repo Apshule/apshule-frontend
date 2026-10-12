@@ -41,8 +41,9 @@ async function welcome(c:any,email:string,name:string,plain:string,code:string) 
 }
 async function createTeacher(c:any,input:unknown) {
   if(!input||typeof input!=="object"||Array.isArray(input))throw new ApiError(400,"VALIDATION_ERROR","Teacher details are required.");
-  const b=input as Record<string,unknown>,name=clean(b.name,120),email=clean(b.email,254)?.toLowerCase(),phone=clean(b.phone,40)??null;
-  if(!name||!email||!/^[^\s@]+@[^\s@]+\.[^\s@]+$/u.test(email))throw new ApiError(400,"VALIDATION_ERROR","Name and valid email are required.");
+  const b=input as Record<string,unknown>,name=clean(b.name,120),email=clean(b.email,254)?.toLowerCase(),phone=clean(b.phone,40);
+  if(!name||!email||!phone)throw new ApiError(400,"VALIDATION_ERROR","Missing required fields: name, email, phone");
+  if(!/^[^\s@]+@[^\s@]+\.[^\s@]+$/u.test(email))throw new ApiError(400,"VALIDATION_ERROR","Enter a valid email address.");
   const sql=getDb(c.env),sid=school(c),actor=c.get("user"),picked=arrays(b);
   const schoolRows=await sql`SELECT short_code FROM schools WHERE id=${sid}::uuid`;
   if(!schoolRows[0])throw new ApiError(404,"SCHOOL_NOT_FOUND","School not found.");
@@ -53,13 +54,13 @@ async function createTeacher(c:any,input:unknown) {
   const plain=clean(b.password,128)||password();
   if(plain.length<8)throw new ApiError(400,"VALIDATION_ERROR","Password must be at least 8 characters.");
   try{
-    const rows=await sql`INSERT INTO users(name,email,phone,password_hash,role,sector,school_id,education_level,subjects_taught,assigned_classes,must_change_password,is_active,teacher_type)
-      VALUES(${name},${email},${phone},${await hashPassword(plain)},'teacher','education',${sid}::uuid,${educationLevel},${picked.subjects}::text[],${picked.classes}::text[],TRUE,TRUE,'school')
+    const rows=await sql`INSERT INTO users(name,email,phone,password_hash,role,sector,school_id,education_level,subjects_taught,assigned_classes,must_change_password,is_active,teacher_type,referral_code)
+      VALUES(${name},${email},${phone},${await hashPassword(plain)},'teacher','education',${sid}::uuid,${educationLevel},${picked.subjects}::text[],${picked.classes}::text[],TRUE,TRUE,'school','ASP-'||upper(substr(replace(gen_random_uuid()::text,'-',''),1,6)))
       RETURNING id,email,name`;
     await assignments(sql,sid,String(rows[0]!.id),picked.classes,picked.subjects,String(actor.id));
     welcome(c,email,name,plain,String(schoolRows[0]!.short_code||""));
     return {ok:true,id:rows[0]!.id,email,initial_password:plain,school_code:schoolRows[0]!.short_code};
-  }catch(error){if(isUniqueViolation(error))throw new ApiError(409,"EMAIL_IN_USE","An account with this email already exists.");throw error;}
+  }catch(error){if(isUniqueViolation(error))throw new ApiError(409,"EMAIL_IN_USE","A teacher with this email already exists in your school");throw error;}
 }
 teachers.use("*",authMiddleware,async(c,next)=>{if(c.get("user").role!=="school")throw new ApiError(403,"FORBIDDEN","Only school admins can manage teachers.");await next();});
 teachers.get("/teachers/template",c=>{c.header("Content-Type","text/csv; charset=utf-8");c.header("Content-Disposition",'attachment; filename="teacher-import-template.csv"');return c.body("name,email,phone,password,education_level,subjects_taught,assigned_classes\n");});
@@ -67,7 +68,7 @@ teachers.get("/teachers",async c=>{
   const sid=school(c);
   const rows=await getDb(c.env)`SELECT u.id,u.name,u.email,u.phone,u.is_active active,COUNT(DISTINCT ta.subject_id)::int subjects_count,COUNT(DISTINCT ta.class_id)::int classes_count
     FROM users u LEFT JOIN teacher_assignments ta ON ta.teacher_id=u.id AND ta.active
-    WHERE u.school_id=${sid}::uuid AND u.role='teacher' AND u.sector='education'
+     WHERE u.school_id=${sid}::uuid AND u.role='teacher' AND u.sector='education' AND u.is_active=TRUE
     GROUP BY u.id ORDER BY u.name`;
   return c.json({teachers:rows});
 });
