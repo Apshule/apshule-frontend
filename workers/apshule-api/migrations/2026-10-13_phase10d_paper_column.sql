@@ -1,0 +1,1 @@
+ALTER TABLE report_marks ADD COLUMN IF NOT EXISTS paper TEXT;

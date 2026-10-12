@@ -2218,7 +2218,7 @@
 
     // 🔴 REPLACE THIS with your deployed Worker URL:
     import { initReportCardUI } from "./report-cards-ui.js";
-    import { initReportCardFoundationUI } from "./report-card-foundation-ui.js?v=56";
+    import { initReportCardFoundationUI } from "./report-card-foundation-ui.js?v=57";
     import { initTeacherMarksUI } from "./teacher-marks-ui.js?v=54";
     import { initBulkImportUI } from "./bulk-import-ui.js";
     import { initAccountProfileUI } from "./account-profile-ui.js";
@@ -10356,7 +10356,7 @@
 
     if ("serviceWorker" in navigator) {
         window.addEventListener("load", () => {
-                    navigator.serviceWorker.register("/sw.js?v=56", { scope: "/" })
+                    navigator.serviceWorker.register("/sw.js?v=57", { scope: "/" })
                 .then((registration) => console.log("[SW] registered", registration.scope))
                 .catch((error) => console.error("[SW] failed", error));
         }, { once: true });

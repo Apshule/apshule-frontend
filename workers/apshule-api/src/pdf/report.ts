@@ -27,9 +27,21 @@ export interface ReportCardPdfRow {
   fees: string | null;
   class_position: number | null;
   report_theme?: string | null;
+  class_teacher_name?: string | null;
+  headteacher_name?: string | null;
+  principal_name?: string | null;
 }
 
+export interface ReportProjectPdfRow {
+  project_name: string; score: number | null; out_of: number | null;
+  percentage: number | null; grade: string | null; remarks: string | null;
+  teacher_initials: string | null;
+}
+export interface ReportNurseryArea { name: string; score: number | null; remark: string | null }
+export interface ReportNurseryActivity { name: string; status: string }
+
 export interface ReportMarkPdfRow {
+  paper?: string | null;
   subject_code: string | null;
   subject_name: string;
   a1: number | null;
@@ -43,6 +55,7 @@ export interface ReportMarkPdfRow {
   identifier: number | null;
   grade: string | null;
   remarks: string | null;
+  descriptor?: string | null;
   teacher_initials: string | null;
 }
 
@@ -56,6 +69,10 @@ export interface ReportCardPdfData {
   };
   schoolLogo?: ReportImage;
   teacherSignature?: ReportImage;
+  projects?: ReportProjectPdfRow[];
+  nurseryAreas?: ReportNurseryArea[];
+  nurseryActivities?: ReportNurseryActivity[];
+  gradeScale?: Array<{ grade_code: string; descriptor: string | null }>;
 }
 
 const PAGE_WIDTH = 842;
@@ -65,8 +82,8 @@ const TABLE_WIDTH = PAGE_WIDTH - MARGIN * 2;
 const INK = rgb(0.15, 0.16, 0.19);
 const MUTED = rgb(0.36, 0.38, 0.43);
 function themeAccent(theme?: string | null) {
-  if (theme === "blue") return rgb(0x1b / 255, 0x5e / 255, 0x20 / 255);
-  if (theme === "maroon") return rgb(0x7b / 255, 0x1f / 255, 0xa2 / 255);
+  if (theme === "blue") return rgb(0x1d / 255, 0x4e / 255, 0xd8 / 255);
+  if (theme === "maroon") return rgb(0x7f / 255, 0x1d / 255, 0x1d / 255);
   return rgb(0x4b / 255, 0x2e / 255, 0x9e / 255);
 }
 const LIGHT = rgb(0.94, 0.93, 0.97);
@@ -106,25 +123,25 @@ async function embedImage(
 function templateColumns(level: string): { labels: string[]; widths: number[] } {
   if (level === "nursery") {
     return {
-      labels: ["Area", "Score", "Remark", "Achievement grid"],
-      widths: [190, 70, 240, 282],
+      labels: ["Learning Area", "Score", "Remark"],
+      widths: [260, 70, 492],
     };
   }
   if (level === "primary") {
     return {
-      labels: ["Code", "Subject", "Marks", "Aggr", "Position", "Remarks", "Gr"],
-      widths: [48, 180, 75, 48, 58, 315, 58],
+      labels: ["Subject", "Marks", "Aggr", "Position", "Remarks", "Initials"],
+      widths: [190, 80, 65, 75, 310, 62],
     };
   }
   if (level === "o_level") {
     return {
-      labels: ["Code", "Subject", "A1", "A2", "A3", "AVG", "20%", "80%", "100%", "Ident", "Grade", "Remarks", "TR"],
-      widths: [45, 100, 38, 38, 38, 40, 40, 40, 45, 42, 42, 230, 44],
+      labels: ["Code", "Subject", "A1", "A2", "A3", "AVG", "20%", "EOT", "80%", "100%", "Ident", "Grade", "Descriptor", "TR"],
+      widths: [38, 90, 34, 34, 34, 36, 35, 35, 35, 38, 34, 36, 220, 43],
     };
   }
   return {
-    labels: ["Code", "Subject", "Paper", "A1", "A2", "A3", "AVG", "20%", "EOT", "80%", "100%", "Grade", "Comment", "TR"],
-    widths: [42, 105, 45, 32, 32, 32, 36, 36, 36, 36, 40, 39, 233, 38],
+    labels: ["Code", "Subject", "Paper", "A1", "A2", "A3", "AVG", "20%", "EOT", "80%", "100%", "Ident", "Grade", "Descriptor", "TR"],
+    widths: [35, 83, 37, 30, 30, 30, 32, 32, 32, 32, 34, 32, 32, 230, 36],
   };
 }
 
@@ -246,27 +263,16 @@ function markCells(
   classPosition: number | null,
 ): string[] {
   if (level === "nursery") {
-    const achievement =
-      mark.grade === "A"
-        ? "Advanced"
-        : mark.grade === "B"
-          ? "Achieved"
-          : mark.grade === "C"
-            ? "Developing"
-            : mark.grade === "D"
-              ? "Emerging"
-              : "Beginning";
-    return [mark.subject_name, displayNumber(mark.pct_100), mark.remarks ?? "", achievement];
+    return [mark.subject_name, displayNumber(mark.pct_100), mark.remarks ?? ""];
   }
   if (level === "primary") {
     return [
-      mark.subject_code ?? "",
       mark.subject_name,
       displayNumber(mark.pct_100),
       displayNumber(mark.identifier),
       classPosition === null ? "-" : String(classPosition),
       mark.remarks ?? "",
-      mark.grade ?? "",
+      mark.teacher_initials ?? "",
     ];
   }
   if (level === "o_level") {
@@ -278,18 +284,19 @@ function markCells(
       displayNumber(mark.a3),
       displayNumber(mark.avg),
       displayNumber(mark.pct_20),
+      displayNumber(mark.eot),
       displayNumber(mark.pct_80),
       displayNumber(mark.pct_100),
       displayNumber(mark.identifier),
       mark.grade ?? "",
-      mark.remarks ?? "",
+      mark.descriptor ?? mark.remarks ?? "",
       mark.teacher_initials ?? "",
     ];
   }
   return [
     mark.subject_code ?? "",
     mark.subject_name,
-    "-",
+    mark.paper ?? "-",
     displayNumber(mark.a1),
     displayNumber(mark.a2),
     displayNumber(mark.a3),
@@ -298,8 +305,9 @@ function markCells(
     displayNumber(mark.eot),
     displayNumber(mark.pct_80),
     displayNumber(mark.pct_100),
+    displayNumber(mark.identifier),
     mark.grade ?? "",
-    mark.remarks ?? "",
+    mark.descriptor ?? mark.remarks ?? "",
     mark.teacher_initials ?? "",
   ];
 }
@@ -363,7 +371,7 @@ function drawFooter(
   });
   const classComment = comments.class_teacher_comment || "No class teacher comment recorded.";
   const headComment = comments.headteacher_comment || comments.principal_comment || "No headteacher comment recorded.";
-  page.drawText("Class teacher:", { x: MARGIN, y: top - 15, size: 7.5, font: bold, color: themeAccent(report.report_theme) });
+  page.drawText(fitText(`${report.class_teacher_name || "Class teacher"}:`, bold, 7.5, 88), { x: MARGIN, y: top - 15, size: 7.5, font: bold, color: themeAccent(report.report_theme) });
   page.drawText(fitText(classComment, font, 7.3, 390), {
     x: MARGIN + 67,
     y: top - 15,
@@ -371,7 +379,7 @@ function drawFooter(
     font,
     color: INK,
   });
-  page.drawText("Headteacher:", { x: MARGIN, y: top - 29, size: 7.5, font: bold, color: themeAccent(report.report_theme) });
+  page.drawText(fitText(`${report.headteacher_name || "Headteacher"}:`, bold, 7.5, 88), { x: MARGIN, y: top - 29, size: 7.5, font: bold, color: themeAccent(report.report_theme) });
   page.drawText(fitText(headComment, font, 7.3, 390), {
     x: MARGIN + 67,
     y: top - 29,
@@ -423,6 +431,37 @@ function drawFooter(
     font,
     color: MUTED,
   });
+  page.drawText(report.principal_name ? fitText(`Principal: ${report.principal_name}`, font, 7, 150) : "", { x: PAGE_WIDTH - 196, y: 7, size: 7, font, color: MUTED });
+}
+
+function drawNurseryActivities(page: PDFPage, font: PDFFont, bold: PDFFont, data: ReportCardPdfData): number {
+  const leftX = MARGIN, rightX = 444, top = 444, row = 20;
+  page.drawText("LEARNING AREAS", { x:leftX, y:top+13, size:8, font:bold, color:themeAccent(data.report.report_theme) });
+  page.drawText("ACTIVITIES", { x:rightX, y:top+13, size:8, font:bold, color:themeAccent(data.report.report_theme) });
+  const areas=data.nurseryAreas||[];
+  areas.slice(0,5).forEach((a,i)=>{const y=top-i*row;page.drawText(fitText(a.name,font,7.5,200),{x:leftX,y,size:7.5,font,color:INK});page.drawText(displayNumber(a.score),{x:leftX+205,y,size:7.5,font,color:INK});page.drawText(fitText(a.remark||"",font,7,95),{x:leftX+245,y,size:7,font,color:INK});});
+  const activities=data.nurseryActivities||[];
+  activities.slice(0,10).forEach((a,i)=>{const col=i<5?0:1,ix=i%5;const y=top-ix*row;const x=rightX+col*180;page.drawText(fitText(a.name,font,7,124),{x,y,size:7,font,color:INK});page.drawText(fitText(a.status,font,7,50),{x:x+126,y,size:7,font: bold,color:INK});});
+  const total=areas.reduce((n,a)=>n+(Number(a.score)||0),0);
+  page.drawText(`Total Score: ${displayNumber(total)}     Position: ${data.report.class_position??"-"}`,{x:leftX,y:top-118,size:8,font:bold,color:themeAccent(data.report.report_theme)});
+  return top-140;
+}
+
+function drawProjects(page: PDFPage, font: PDFFont, bold: PDFFont, report: ReportCardPdfRow, projects: ReportProjectPdfRow[], y: number): number {
+  page.drawText("STUDENT'S PROJECTS WORK",{x:MARGIN,y,size:8,font:bold,color:themeAccent(report.report_theme)});
+  const cols=["Termly Project","Average Score(/10)","OUT OF 100","Grade","Remarks","Teacher"];
+  const widths=[180,110,90,55,270,77];let x=MARGIN,hy=y-14;
+  page.drawRectangle({x:MARGIN,y:hy-4,width:TABLE_WIDTH,height:16,color:themeAccent(report.report_theme)});
+  cols.forEach((label,i)=>{page.drawText(fitText(label,bold,6.5,widths[i]-4),{x:x+2,y:hy+1,size:6.5,font:bold,color:rgb(1,1,1)});x+=widths[i];});
+  let ry=hy-18;
+  if(!projects.length){page.drawText("No projects recorded.",{x:MARGIN+3,y:ry,size:7,font,color:INK});return ry-15;}
+  projects.forEach((p,i)=>{const vals=[p.project_name,`${displayNumber(p.score)}/${displayNumber(p.out_of??10)}`,displayNumber(p.percentage),p.grade||"",p.remarks||"",p.teacher_initials||""];let px=MARGIN;vals.forEach((v,j)=>{page.drawText(fitText(v,font,6.5,widths[j]-4),{x:px+2,y:ry,size:6.5,font,color:INK});px+=widths[j];});ry-=15;});
+  return ry;
+}
+function drawGradeScale(page:PDFPage,font:PDFFont,bold:PDFFont,report:ReportCardPdfRow,scale:NonNullable<ReportCardPdfData["gradeScale"]>,y:number):number{
+  const text=scale.map(g=>`${g.grade_code}: ${g.descriptor||""}`).join("  |  ");
+  page.drawText(fitText(`Grade scale: ${text||"Not configured"}`,font,6.5,TABLE_WIDTH),{x:MARGIN,y,size:6.5,font,color:MUTED});
+  return y-13;
 }
 
 export async function generateReportPDF(data: ReportCardPdfData): Promise<Uint8Array> {
@@ -436,6 +475,12 @@ export async function generateReportPDF(data: ReportCardPdfData): Promise<Uint8A
   const signature = await embedImage(document, data.teacherSignature);
 
   let page = document.addPage([PAGE_WIDTH, PAGE_HEIGHT]);
+  if(data.report.template_level==="nursery"){
+    drawHeader(page,font,bold,data.report,logo,false);
+    drawNurseryActivities(page,font,bold,data);
+    drawFooter(page,font,bold,data.report,data.comments,signature);
+    return document.save();
+  }
   let y = drawHeader(page, font, bold, data.report, logo, true);
   data.marks.forEach((mark, index) => {
     if (y < 142) {
@@ -449,6 +494,11 @@ export async function generateReportPDF(data: ReportCardPdfData): Promise<Uint8A
   if (y < 205) {
     page = document.addPage([PAGE_WIDTH, PAGE_HEIGHT]);
     drawHeader(page, font, bold, data.report, logo, false);
+  }
+  if(data.report.template_level==="a_level"){
+    if(y<215){page=document.addPage([PAGE_WIDTH,PAGE_HEIGHT]);drawHeader(page,font,bold,data.report,logo,false);y=PAGE_HEIGHT-150;}
+    y=drawProjects(page,font,bold,data.report,data.projects||[],y-4);
+    y=drawGradeScale(page,font,bold,data.report,data.gradeScale||[],y-4);
   }
   drawFooter(page, font, bold, data.report, data.comments, signature);
   return document.save();
