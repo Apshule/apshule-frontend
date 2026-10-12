@@ -9071,6 +9071,8 @@
             document.querySelectorAll('[data-login-identity]').forEach(tab => {
                 tab.hidden = flowSector !== 'education' || flowRole === 'school';
             });
+            const regNoIdentityTab = document.querySelector('[data-login-identity="regno"]');
+            if (regNoIdentityTab) regNoIdentityTab.hidden = flowSector !== 'education' || flowRole === 'school' || flowRole === 'teacher';
             if (flowRole === 'school') {
                 loginMode = 'email';
                 document.getElementById('emailLoginIdentity').hidden = false;
