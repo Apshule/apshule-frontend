@@ -179,14 +179,14 @@ rm.post("/rm/class/:class_id/positions",async c=>{
 });
 rm.get("/rm/teacher/dashboard",requireRole("teacher"),async c=>{
   const sid=schoolId(c),uid=currentUser(c).id;
-  const classes=await getDb(c.env)`SELECT c.id class_id,c.name class_name,
+  const classes=await getDb(c.env)`SELECT c.id class_id,c.name class_name,(c.class_teacher_id=${uid}::uuid) is_class_teacher,
     json_agg(DISTINCT jsonb_build_object('id',s.id,'name',s.name,'code',s.code)) subjects,
     COUNT(DISTINCT rc.id) FILTER(WHERE NOT EXISTS(SELECT 1 FROM report_marks rm WHERE rm.report_card_id=rc.id AND rm.entered_by=${uid}::uuid))::int pending_cards,
     COUNT(DISTINCT rc.id) FILTER(WHERE EXISTS(SELECT 1 FROM report_marks rm WHERE rm.report_card_id=rc.id AND rm.entered_by=${uid}::uuid))::int completed_cards
     FROM teacher_assignments a JOIN classes c ON c.id=a.class_id JOIN school_subjects s ON s.id=a.subject_id
     LEFT JOIN learners l ON l.class_id=c.id AND l.active LEFT JOIN report_cards rc ON rc.learner_record_id=l.id
     WHERE a.school_id=${sid}::uuid AND a.teacher_id=${uid}::uuid AND a.active AND c.active
-    GROUP BY c.id,c.name ORDER BY c.name`;
+    GROUP BY c.id,c.name,c.class_teacher_id ORDER BY c.name`;
   return c.json({classes});
 });
 rm.get("/rm/school/dashboard",requireRole("school"),async c=>{

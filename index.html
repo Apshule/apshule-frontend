@@ -1141,6 +1141,7 @@
             <button type="button" class="login-tab" data-auth-back="roles" style="margin-bottom:10px">← Choose another role</button>
             <div class="login-tabs" style="margin:0 0 14px"><button type="button" class="login-tab active" data-login-identity="email">Email</button><button type="button" class="login-tab" data-login-identity="regno">Reg No</button></div>
             <input type="text" id="schoolAdminCode" placeholder="School code" class="login-input" hidden autocomplete="organization">
+            <div id="teacherLoginMode" hidden style="margin:0 0 12px"><label><input type="radio" name="teacherLoginKind" value="school" checked> I’m part of a school</label><label style="margin-left:16px"><input type="radio" name="teacherLoginKind" value="independent"> I’m independent</label></div>
             <input type="text" id="teacherSchoolCode" placeholder="School code (leave blank for independent)" class="login-input" hidden autocomplete="organization">
             <div id="emailLoginIdentity"><input type="email" id="loginEmail" placeholder="Email" class="login-input"></div>
             <div id="regNoLoginIdentity" hidden><input id="loginRegNo" placeholder="Registration number" class="login-input" autocomplete="username"><input id="loginSchoolCode" placeholder="School code (optional)" class="login-input" autocomplete="organization"></div>
@@ -2217,8 +2218,8 @@
 
     // 🔴 REPLACE THIS with your deployed Worker URL:
     import { initReportCardUI } from "./report-cards-ui.js";
-    import { initReportCardFoundationUI } from "./report-card-foundation-ui.js?v=52";
-    import { initTeacherMarksUI } from "./teacher-marks-ui.js?v=52";
+    import { initReportCardFoundationUI } from "./report-card-foundation-ui.js?v=53";
+    import { initTeacherMarksUI } from "./teacher-marks-ui.js?v=53";
     import { initBulkImportUI } from "./bulk-import-ui.js";
     import { initAccountProfileUI } from "./account-profile-ui.js";
     import { initRetoolingUI } from "./retooling-ui.js";
@@ -9067,7 +9068,8 @@
             document.getElementById('mainLoginTabs').style.display = flowSector === 'education' ? 'flex' : 'none';
             document.getElementById('loginFormDiv').classList.add('active');
             document.getElementById('schoolAdminCode').hidden = flowRole !== 'school';
-            document.getElementById('teacherSchoolCode').hidden = flowRole !== 'teacher';
+            document.getElementById('teacherLoginMode').hidden = flowRole !== 'teacher';
+            document.getElementById('teacherSchoolCode').hidden = flowRole !== 'teacher' || document.querySelector('[name="teacherLoginKind"]:checked')?.value !== 'school';
             document.querySelectorAll('[data-login-identity]').forEach(tab => {
                 tab.hidden = flowSector !== 'education' || flowRole === 'school';
             });
@@ -9087,6 +9089,9 @@
                 }, { once:true });
             }
         });
+        document.querySelectorAll('[name="teacherLoginKind"]').forEach(input => input.addEventListener('change', () => {
+            document.getElementById('teacherSchoolCode').hidden = flowRole !== 'teacher' || input.value !== 'school';
+        }));
         document.querySelectorAll('[data-auth-back]').forEach(button => button.addEventListener('click', () => {
             const destination = button.dataset.authBack;
             document.getElementById('authTeamApply').hidden = true;
@@ -10022,12 +10027,13 @@
             }
             try {
                 const teacherSchoolCode = document.getElementById('teacherSchoolCode').value.trim();
-                const endpoint = flowRole === 'school' || (flowRole === 'teacher' && teacherSchoolCode) ? '/api/auth2/login-school'
+                const teacherSchoolLogin = flowRole === 'teacher' && document.querySelector('[name="teacherLoginKind"]:checked')?.value === 'school';
+                const endpoint = flowRole === 'school' || teacherSchoolLogin ? '/api/auth2/login-school'
                     : flowSector === 'education' && loginMode === 'regno' ? '/api/auth2/login-regno'
                     : '/api/auth/login';
                 const body = flowRole === 'school'
                     ? { school_code: document.getElementById('schoolAdminCode').value.trim(), email, password }
-                    : flowRole === 'teacher' && teacherSchoolCode
+                    : teacherSchoolLogin
                         ? { school_code: teacherSchoolCode, email, password }
                     : endpoint === '/api/auth2/login-regno'
                         ? { reg_no: regNo, school_code: schoolCode || undefined, role_hint: flowRole === 'teacher' ? 'teacher' : 'student', password }
@@ -10055,7 +10061,7 @@
                     }
                     await api('/api/users/me/change-password', { method: 'POST', body: { old_password: password, new_password: nextPassword } });
                     AUTH_TOKEN = null;
-                    const reloginEndpoint = flowRole === 'school' || (flowRole === 'teacher' && teacherSchoolCode) ? '/api/auth2/login-school' : '/api/auth/login';
+                    const reloginEndpoint = flowRole === 'school' || teacherSchoolLogin ? '/api/auth2/login-school' : '/api/auth/login';
                     const relogin = await api(reloginEndpoint, { method: 'POST', auth: false, body: { ...body, password: nextPassword } });
                     clearStoredPdfResolverCache();
                     AUTH_TOKEN = relogin.token;
@@ -10334,7 +10340,7 @@
 
     if ("serviceWorker" in navigator) {
         window.addEventListener("load", () => {
-            navigator.serviceWorker.register("/sw.js?v=52", { scope: "/" })
+            navigator.serviceWorker.register("/sw.js?v=53", { scope: "/" })
                 .then((registration) => console.log("[SW] registered", registration.scope))
                 .catch((error) => console.error("[SW] failed", error));
         }, { once: true });
