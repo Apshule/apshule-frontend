@@ -87,8 +87,15 @@ rm.get("/rm/class/:class_id/subjects",async c=>{
 rm.post("/rm/cards/bulk-create",requireRole("school"),async c=>{
   const b=await readJson(c),sid=schoolId(c),cl=id(b.class_id),term=text(b.term,40),year=integer(b.year,2000,2200);
   if(!term)throw new ApiError(400,"VALIDATION_ERROR","Term is required.");
-  const learners=await getDb(c.env)`SELECT l.id learner_record_id,l.user_id,l.full_name,c.name class_name,c.level
-    FROM learners l JOIN classes c ON c.id=l.class_id WHERE l.school_id=${sid}::uuid AND l.class_id=${cl}::uuid AND l.active AND c.active`;
+  const sql=getDb(c.env);await sql`INSERT INTO school_report_card_access(school_id) VALUES(${sid}::uuid) ON CONFLICT(school_id) DO NOTHING`;
+  const a=await sql`SELECT status,trial_used,paid_until,waived_until FROM school_report_card_access WHERE school_id=${sid}::uuid`;
+  const allowed=(a[0]?.status==="paid"&&a[0]?.paid_until&&new Date(a[0].paid_until)>new Date())||(a[0]?.status==="waived"&&a[0]?.waived_until&&new Date(a[0].waived_until)>new Date());
+  const prior=await sql`SELECT COUNT(*)::int n FROM report_cards WHERE school_id=${sid}::uuid`;
+  const trial=Boolean(!allowed&&a[0]?.status==="trial"&&a[0]?.trial_used&&Number(prior[0]?.n||0)===0);
+  if(!allowed&&!trial)throw new ApiError(402,"REPORT_ACCESS_REQUIRED","Report card access is not active.");
+  let learners=await sql`SELECT l.id learner_record_id,l.user_id,l.full_name,c.name class_name,c.level
+    FROM learners l JOIN classes c ON c.id=l.class_id WHERE l.school_id=${sid}::uuid AND l.class_id=${cl}::uuid AND l.active AND c.active ORDER BY l.full_name`;
+  if(trial)learners=learners.slice(0,1);
   let created=0,skipped=0;
   for(const l of learners as any[]){
     if(!l.user_id){skipped++;continue;}

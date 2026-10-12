@@ -20,6 +20,7 @@ import {
   type ReportImage,
 } from "../pdf/report.js";
 import JSZip from "jszip";
+import { assertCanCreateReport, assertReportAccess, reportFeeText } from "./report-access.js";
 import {
   findIdempotencyReplay,
   idempotencyClaimQuery,
@@ -296,19 +297,21 @@ async function loadReportCard(
 
 async function buildReportPdfData(sql: ReturnType<typeof getDb>, card: Record<string, unknown>): Promise<ReportCardPdfData> {
   const id=String(card.id), level=String(card.template_level);
-  const [marks,signatures,areas,activities,projects,gradeScale]=await Promise.all([
+  const currentTerm=String(card.term),currentYear=Number(card.year);
+  const [marks,signatures,areas,activities,projects,gradeScale,feeText]=await Promise.all([
     sql`SELECT subject_code,subject_name,paper,a1,a2,a3,avg,pct_20,eot,pct_80,pct_100,identifier,grade,remarks,descriptor,teacher_initials FROM report_marks WHERE report_card_id=${id} ORDER BY subject_name`,
     card.teacher_id?sql`SELECT signature_image_url,signature_draw_base64 FROM teacher_signatures WHERE teacher_id=${card.teacher_id} LIMIT 1`:Promise.resolve([]),
     level==="nursery"?sql`SELECT code,name FROM nursery_learning_areas WHERE school_id=${card.school_id} ORDER BY sort_order LIMIT 5`:Promise.resolve([]),
     level==="nursery"?sql`SELECT a.name,COALESCE(r.status,'Not assessed') status FROM nursery_activities a LEFT JOIN nursery_activity_results r ON r.activity_id=a.id AND r.report_card_id=${id} WHERE a.school_id=${card.school_id} ORDER BY a.sort_order LIMIT 10`:Promise.resolve([]),
     level==="a_level"?sql`SELECT project_name,score,out_of,percentage,grade,remarks,teacher_initials FROM learner_projects WHERE report_card_id=${id} OR (learner_id=${card.learner_record_id??null} AND term=${card.term} AND year=${card.year}) ORDER BY created_at`:Promise.resolve([]),
     level==="a_level"?sql`SELECT grade_code,descriptor FROM school_grading_systems WHERE school_id=${card.school_id} AND level='a_level' ORDER BY sort_order`:Promise.resolve([]),
+    reportFeeText(sql,card.learner_record_id?String(card.learner_record_id):null,currentTerm,currentYear,(card.fees as string|null)??null),
   ]);
   const markMap=new Map((marks as any[]).map(m=>[String(m.subject_code||m.subject_name).toLowerCase(),m]));
   const pos=await getClassPosition(sql,card);
   const sig=signatures[0] as {signature_image_url:string|null;signature_draw_base64:string|null}|undefined;
   return {
-    report:{template_level:level,class_name:String(card.class_name),term:String(card.term),year:Number(card.year),learner_name:String(card.learner_name),learner_lin:(card.learner_lin as string|null)??null,learner_gender:(card.learner_gender as string|null)??null,school_name:String(card.school_name??"APSHULE"),school_contact:(card.school_contact as string|null)??null,school_location:(card.school_location as string|null)??null,term_dates:(card.term_dates as string|null)??null,fees:(card.fees as string|null)??null,class_position:pos,report_theme:String(card.report_theme??"blue"),class_teacher_name:(card.class_teacher_name as string|null)??null,headteacher_name:(card.head_teacher_name as string|null)??null,principal_name:(card.principal_name as string|null)??null},
+    report:{template_level:level,class_name:String(card.class_name),term:String(card.term),year:Number(card.year),learner_name:String(card.learner_name),learner_lin:(card.learner_lin as string|null)??null,learner_gender:(card.learner_gender as string|null)??null,school_name:String(card.school_name??"APSHULE"),school_contact:(card.school_contact as string|null)??null,school_location:(card.school_location as string|null)??null,term_dates:(card.term_dates as string|null)??null,fees:feeText,class_position:pos,report_theme:String(card.report_theme??"blue"),class_teacher_name:(card.class_teacher_name as string|null)??null,headteacher_name:(card.head_teacher_name as string|null)??null,principal_name:(card.principal_name as string|null)??null},
     marks:marks as ReportCardPdfData["marks"],
     comments:{class_teacher_comment:(card.class_teacher_comment as string|null)??(card.class_teacher_comment_template as string|null)??null,headteacher_comment:(card.headteacher_comment as string|null)??null,principal_comment:(card.principal_comment as string|null)??null},
     schoolLogo:await loadReportImage((card.school_logo as string|null)??null),
@@ -474,6 +477,7 @@ reportRoutes.post(
       schoolId = routeUuid(requestedSchool, "school_id");
     }
 
+    const trial=await assertCanCreateReport(sql,schoolId);
     const templateLevel = templateLevelForClass(className);
     if (!templateLevel) {
       throw new ApiError(400, "UNSUPPORTED_CLASS", "The selected class does not match a supported report-card template.");
@@ -494,6 +498,7 @@ reportRoutes.post(
           AND learner.sector = 'education'
           AND learner.school_id = ${schoolId}
           AND learner.class_level = ${className}
+        LIMIT ${trial ? 1 : 2000}
         ON CONFLICT (learner_id, term, year) DO NOTHING
         RETURNING id, learner_id
       ), audit AS (
@@ -640,6 +645,7 @@ reportRoutes.post(
     const user = c.get("user");
     const sql = getDb(c.env);
     const learner = await loadEducationLearner(sql, learnerId);
+    if(learner.school_id)await assertCanCreateReport(sql,String(learner.school_id));
 
     if (!learner.class_level || learner.class_level !== className) {
       throw new ApiError(400, "CLASS_MISMATCH", "The selected learner is not in the requested class.");
@@ -745,6 +751,7 @@ reportRoutes.get(
         school_id: (card.school_id as string | null) ?? null,
         class_name: String(card.class_name),
       });
+      if(card.school_id)await assertReportAccess(sql,String(card.school_id));
     }
     return c.json(await reportDetailResponse(sql, card));
   },
@@ -1288,6 +1295,7 @@ reportRoutes.get("/rpdf/class/:classId.zip", authMiddleware, educationAccess, re
   const sql=getDb(c.env),schoolId=linkedSchoolId(user);
   const cls=await sql`SELECT id,name,school_id FROM classes WHERE id=${classId} AND (${user.role==="superadmin"} OR school_id=${schoolId})`;
   if(!cls[0])throw new ApiError(404,"CLASS_NOT_FOUND","Class not found.");
+  await assertReportAccess(sql,String(cls[0].school_id));
   const cards=await sql`SELECT id,class_name,school_id FROM report_cards WHERE school_id=${cls[0].school_id} AND term=${term} AND year=${year} AND (class_id=${classId} OR (class_id IS NULL AND class_name=${cls[0].name})) ORDER BY id`;
   const zip=new JSZip();
   for(const row of cards){
