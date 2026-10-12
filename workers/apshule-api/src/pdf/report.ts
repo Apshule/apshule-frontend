@@ -26,6 +26,7 @@ export interface ReportCardPdfRow {
   term_dates: string | null;
   fees: string | null;
   class_position: number | null;
+  report_theme?: string | null;
 }
 
 export interface ReportMarkPdfRow {
@@ -63,7 +64,11 @@ const MARGIN = 30;
 const TABLE_WIDTH = PAGE_WIDTH - MARGIN * 2;
 const INK = rgb(0.15, 0.16, 0.19);
 const MUTED = rgb(0.36, 0.38, 0.43);
-const PURPLE = rgb(0.25, 0.19, 0.49);
+function themeAccent(theme?: string | null) {
+  if (theme === "blue") return rgb(0x1b / 255, 0x5e / 255, 0x20 / 255);
+  if (theme === "maroon") return rgb(0x7b / 255, 0x1f / 255, 0xa2 / 255);
+  return rgb(0x4b / 255, 0x2e / 255, 0x9e / 255);
+}
 const LIGHT = rgb(0.94, 0.93, 0.97);
 const GRID = rgb(0.79, 0.78, 0.82);
 
@@ -152,7 +157,7 @@ function drawHeader(
     y: PAGE_HEIGHT - 40,
     size: 15,
     font: bold,
-    color: PURPLE,
+    color: themeAccent(report.report_theme),
   });
   const schoolLine = [report.school_contact, report.school_location].filter(Boolean).join(" | ");
   if (schoolLine) {
@@ -177,7 +182,7 @@ function drawHeader(
     y: PAGE_HEIGHT - 40,
     size: 12,
     font: bold,
-    color: PURPLE,
+    color: themeAccent(report.report_theme),
   });
 
   const infoY = PAGE_HEIGHT - 111;
@@ -218,7 +223,7 @@ function drawHeader(
     y: headerY - 17,
     width: TABLE_WIDTH,
     height: 20,
-    color: PURPLE,
+    color: themeAccent(report.report_theme),
   });
   let columnX = MARGIN;
   columns.labels.forEach((label, index) => {
@@ -354,11 +359,11 @@ function drawFooter(
     start: { x: MARGIN, y: top },
     end: { x: PAGE_WIDTH - MARGIN, y: top },
     thickness: 0.8,
-    color: PURPLE,
+    color: themeAccent(report.report_theme),
   });
   const classComment = comments.class_teacher_comment || "No class teacher comment recorded.";
   const headComment = comments.headteacher_comment || comments.principal_comment || "No headteacher comment recorded.";
-  page.drawText("Class teacher:", { x: MARGIN, y: top - 15, size: 7.5, font: bold, color: PURPLE });
+  page.drawText("Class teacher:", { x: MARGIN, y: top - 15, size: 7.5, font: bold, color: themeAccent(report.report_theme) });
   page.drawText(fitText(classComment, font, 7.3, 390), {
     x: MARGIN + 67,
     y: top - 15,
@@ -366,7 +371,7 @@ function drawFooter(
     font,
     color: INK,
   });
-  page.drawText("Headteacher:", { x: MARGIN, y: top - 29, size: 7.5, font: bold, color: PURPLE });
+  page.drawText("Headteacher:", { x: MARGIN, y: top - 29, size: 7.5, font: bold, color: themeAccent(report.report_theme) });
   page.drawText(fitText(headComment, font, 7.3, 390), {
     x: MARGIN + 67,
     y: top - 29,

@@ -260,6 +260,7 @@ async function loadReportCard(
       learner.name AS learner_name, learner.lin AS learner_lin,
       learner.gender AS learner_gender, learner.school_id AS learner_school_id,
       school.name AS school_name, school.logo AS school_logo,
+      school.report_theme AS report_theme,
       school.contact AS school_contact, school.location AS school_location,
       settings.term_dates, settings.fees,
       template.name AS template_name, template.description AS template_description,
@@ -1085,6 +1086,7 @@ reportRoutes.get(
       term_dates: (card.term_dates as string | null) ?? null,
       fees: (card.fees as string | null) ?? null,
       class_position: classPosition,
+      report_theme: String(card.report_theme ?? "blue"),
     };
     const signature = signatureRows[0] as
       | { signature_image_url: string | null; signature_draw_base64: string | null }
@@ -1284,5 +1286,32 @@ reportRoutes.put(
     return c.json({ settings: rows[0] });
   },
 );
+
+// Stable Phase 10D routes. The existing report-card handlers remain the
+// source of truth for access checks and the learner's one-download limit.
+reportRoutes.get("/rpdf/preview/:id", authMiddleware, educationAccess, async (c) => {
+  const id = routeUuid(c.req.param("id") ?? "");
+  return c.redirect(`/api/report-cards/${id}`, 307);
+});
+reportRoutes.get("/rpdf/card/:id.pdf", authMiddleware, educationAccess, async (c) => {
+  const id = routeUuid(c.req.param("id") ?? "");
+  return c.redirect(`/api/report-cards/${id}/pdf`, 307);
+});
+reportRoutes.post("/rpdf/generate-batch", authMiddleware, educationAccess, requireRole("school"), async (c) => {
+  const body = await readJson(c);
+  const classId = routeUuid(requiredString(body, "class_id", { max: 36 }), "class_id");
+  const term = requiredString(body, "term", { max: 40 });
+  const year = parseYear(body.year);
+  const user = c.get("user"), schoolId = linkedSchoolId(user);
+  const sql = getDb(c.env);
+  const classes = await sql`SELECT id,name FROM classes WHERE id=${classId} AND school_id=${schoolId} AND active`;
+  if (!classes[0]) throw new ApiError(404, "CLASS_NOT_FOUND", "Class not found.");
+  const counts = await sql`SELECT COUNT(*)::int AS count FROM report_cards
+    WHERE school_id=${schoolId} AND term=${term} AND year=${year}
+      AND (class_id=${classId} OR (class_id IS NULL AND class_name=${classes[0].name}))`;
+  const rows = await sql`INSERT INTO report_card_exports(school_id,class_id,term,year,generated_by,cards_count)
+    VALUES(${schoolId},${classId},${term},${year},${user.id},${Number(counts[0]?.count||0)}) RETURNING id,cards_count`;
+  return c.json({ok:true,export_id:rows[0].id,cards_count:Number(rows[0].cards_count)});
+});
 
 export default reportRoutes;

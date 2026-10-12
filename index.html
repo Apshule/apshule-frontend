@@ -2218,7 +2218,7 @@
 
     // 🔴 REPLACE THIS with your deployed Worker URL:
     import { initReportCardUI } from "./report-cards-ui.js";
-    import { initReportCardFoundationUI } from "./report-card-foundation-ui.js?v=54";
+    import { initReportCardFoundationUI } from "./report-card-foundation-ui.js?v=56";
     import { initTeacherMarksUI } from "./teacher-marks-ui.js?v=54";
     import { initBulkImportUI } from "./bulk-import-ui.js";
     import { initAccountProfileUI } from "./account-profile-ui.js";
@@ -7393,6 +7393,8 @@
                 if (!reportCardsFoundationUI) {
                     reportCardsFoundationUI = initReportCardFoundationUI({
                         api,
+                        apiBase: API_BASE,
+                        getToken: () => AUTH_TOKEN,
                         getCurrentUser: () => currentUser,
                         notify: showNotification,
                     });
@@ -10354,7 +10356,7 @@
 
     if ("serviceWorker" in navigator) {
         window.addEventListener("load", () => {
-            navigator.serviceWorker.register("/sw.js?v=54", { scope: "/" })
+                    navigator.serviceWorker.register("/sw.js?v=56", { scope: "/" })
                 .then((registration) => console.log("[SW] registered", registration.scope))
                 .catch((error) => console.error("[SW] failed", error));
         }, { once: true });
