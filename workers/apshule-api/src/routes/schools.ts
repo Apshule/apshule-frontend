@@ -85,6 +85,14 @@ schools.patch("/:id", authMiddleware, requireRole("superadmin"), async (c) => {
     throw new ApiError(400, "VALIDATION_ERROR", "Provide at least one school field to update.");
   }
   const sql = getDb(c.env);
+  if (shortCode !== undefined) {
+    const duplicates = await sql`
+      SELECT 1 FROM schools
+      WHERE lower(short_code)=lower(${shortCode}) AND id<>${c.req.param("id")}
+      LIMIT 1
+    `;
+    if (duplicates.length) throw new ApiError(409, "SHORT_CODE_IN_USE", "That school code is already in use.");
+  }
   let rows;
   try {
     rows = await sql`
@@ -96,9 +104,6 @@ schools.patch("/:id", authMiddleware, requireRole("superadmin"), async (c) => {
         logo = CASE WHEN ${logo !== undefined} THEN ${logo ?? null} ELSE logo END,
         short_code = CASE WHEN ${shortCode !== undefined} THEN ${shortCode ?? null} ELSE short_code END
       WHERE id = ${c.req.param("id")}
-        AND (${shortCode === undefined} OR NOT EXISTS (
-          SELECT 1 FROM schools other WHERE lower(other.short_code)=lower(${shortCode ?? ""}) AND other.id<>schools.id
-        ))
       RETURNING id, name, contact, location, logo, login_email, short_code, login_count, created_at
     `;
   } catch (error) {
