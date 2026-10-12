@@ -77,100 +77,6 @@ function safeFilename(value) {
     .slice(0, 120) || "report-card";
 }
 
-const CRC32_TABLE = (() => {
-  const table = new Uint32Array(256);
-  for (let index = 0; index < table.length; index += 1) {
-    let value = index;
-    for (let bit = 0; bit < 8; bit += 1) {
-      value = value & 1 ? 0xedb88320 ^ (value >>> 1) : value >>> 1;
-    }
-    table[index] = value >>> 0;
-  }
-  return table;
-})();
-
-function crc32(bytes) {
-  let checksum = 0xffffffff;
-  for (const byte of bytes) {
-    checksum = (checksum >>> 8) ^ CRC32_TABLE[(checksum ^ byte) & 0xff];
-  }
-  return (checksum ^ 0xffffffff) >>> 0;
-}
-
-export async function createReportArchive(entries) {
-  if (entries.length > 0xffff) throw new Error("A ZIP archive cannot contain more than 65,535 files.");
-
-  const encoder = new TextEncoder();
-  const localRecords = [];
-  const centralRecords = [];
-  let localOffset = 0;
-
-  for (const entry of entries) {
-    const nameBytes = encoder.encode(entry.name);
-    const fileBytes = entry.blob instanceof Blob
-      ? new Uint8Array(await entry.blob.arrayBuffer())
-      : entry.blob instanceof Uint8Array
-        ? entry.blob
-        : new Uint8Array(entry.blob);
-    if (nameBytes.length > 0xffff || fileBytes.length > 0xffffffff || localOffset > 0xffffffff) {
-      throw new Error("A report file is too large to add to the ZIP archive.");
-    }
-    const checksum = crc32(fileBytes);
-    const localHeader = new Uint8Array(30);
-    const localView = new DataView(localHeader.buffer);
-    localView.setUint32(0, 0x04034b50, true);
-    localView.setUint16(4, 20, true);
-    localView.setUint16(6, 0x0800, true);
-    localView.setUint16(8, 0, true);
-    localView.setUint16(10, 0, true);
-    localView.setUint16(12, 0x0021, true);
-    localView.setUint32(14, checksum, true);
-    localView.setUint32(18, fileBytes.length, true);
-    localView.setUint32(22, fileBytes.length, true);
-    localView.setUint16(26, nameBytes.length, true);
-    localView.setUint16(28, 0, true);
-    localRecords.push(localHeader, nameBytes, fileBytes);
-
-    const centralHeader = new Uint8Array(46);
-    const centralView = new DataView(centralHeader.buffer);
-    centralView.setUint32(0, 0x02014b50, true);
-    centralView.setUint16(4, 20, true);
-    centralView.setUint16(6, 20, true);
-    centralView.setUint16(8, 0x0800, true);
-    centralView.setUint16(10, 0, true);
-    centralView.setUint16(12, 0, true);
-    centralView.setUint16(14, 0x0021, true);
-    centralView.setUint32(16, checksum, true);
-    centralView.setUint32(20, fileBytes.length, true);
-    centralView.setUint32(24, fileBytes.length, true);
-    centralView.setUint16(28, nameBytes.length, true);
-    centralView.setUint16(30, 0, true);
-    centralView.setUint16(32, 0, true);
-    centralView.setUint16(34, 0, true);
-    centralView.setUint16(36, 0, true);
-    centralView.setUint32(38, 0, true);
-    centralView.setUint32(42, localOffset, true);
-    centralRecords.push(centralHeader, nameBytes);
-    localOffset += localHeader.length + nameBytes.length + fileBytes.length;
-  }
-
-  const centralSize = centralRecords.reduce((size, part) => size + part.length, 0);
-  if (localOffset > 0xffffffff || centralSize > 0xffffffff) {
-    throw new Error("The report-card ZIP archive is too large to create.");
-  }
-  const endRecord = new Uint8Array(22);
-  const endView = new DataView(endRecord.buffer);
-  endView.setUint32(0, 0x06054b50, true);
-  endView.setUint16(4, 0, true);
-  endView.setUint16(6, 0, true);
-  endView.setUint16(8, entries.length, true);
-  endView.setUint16(10, entries.length, true);
-  endView.setUint32(12, centralSize, true);
-  endView.setUint32(16, localOffset, true);
-  endView.setUint16(20, 0, true);
-  return new Blob([...localRecords, ...centralRecords, endRecord], { type: "application/zip" });
-}
-
 export function initReportCardUI({ api, getCurrentUser, getToken, apiBase, notify, escapeHtml }) {
   const safe = (value) => escapeHtml
     ? escapeHtml(String(value ?? ""))
@@ -438,26 +344,20 @@ export function initReportCardUI({ api, getCurrentUser, getToken, apiBase, notif
       setStatus(schoolStatus, "Select a class before downloading a ZIP.", "error");
       return;
     }
-    setStatus(schoolStatus, "Preparing published report cards…");
+    setStatus(schoolStatus, "Preparing the class ZIP on the server…");
     try {
-      const query = queryString({ ...filters, status: "published" });
-      const response = await api(`/api/report-cards?${query}`);
-      const cards = apiList(response, "report_cards");
-      if (!cards.length) {
-        setStatus(schoolStatus, "No published report cards are available for this class and term.", "error");
+      const response = await api("/api/rc/classes");
+      const classRow = apiList(response, "classes").find((item) => item.name === filters.class_name);
+      if (!classRow) {
+        setStatus(schoolStatus, "The selected class is no longer available.", "error");
         return;
       }
-      const entries = [];
-      for (const card of cards) {
-        const blob = await downloadResponse(`/api/report-cards/${encodeURIComponent(card.id)}/pdf`);
-        const base = `${safeFilename(card.learner_name)}-${safeFilename(card.class_name)}-${safeFilename(card.term)}-${card.year}-${String(card.learner_id || card.id).slice(0, 8)}`;
-        entries.push({ name: `${base}.pdf`, blob });
-      }
-      const archive = await createReportArchive(entries);
+      const query = queryString({ term: filters.term, year: filters.year });
+      const archive = await downloadResponse(`/api/rpdf/class/${encodeURIComponent(classRow.id)}.zip?${query}`);
       saveBlob(archive, `${safeFilename(filters.class_name)}-${safeFilename(filters.term)}-${filters.year}-report-cards.zip`);
-      setStatus(schoolStatus, `${cards.length} published report card${cards.length === 1 ? "" : "s"} added to the ZIP.`, "success");
+      setStatus(schoolStatus, "Class report-card ZIP downloaded.", "success");
     } catch (error) {
-      setStatus(schoolStatus, error.message || "Could not create the class ZIP.", "error");
+      setStatus(schoolStatus, error.message || "Could not download the class ZIP.", "error");
     }
   }
 
