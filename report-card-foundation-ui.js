@@ -9,14 +9,18 @@ function parseCsv(text){
 }
 
 export function initReportCardFoundationUI({api,getCurrentUser,notify=()=>{}}){
-  const workspace=document.getElementById("reportCardFoundationMount");
-  if(!workspace||workspace.querySelector("#rcFoundation"))return null;
   const overlay=document.createElement("section");
   overlay.id="rcFoundation";
   overlay.innerHTML=`<header style="display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap"><div><small>REPORT CARD FOUNDATION</small><p id="rcfStats" aria-live="polite">Loading…</p></div><button class="cc6-button secondary" type="button" data-rcf-refresh>Refresh</button></header>
   <nav role="tablist" aria-label="Report card setup" style="display:flex;gap:8px;overflow:auto;padding:10px 0">${["Branding","Classes","Learners","Subjects","Grading","Cards"].map((x,i)=>`<button class="cc6-button ${i?"secondary":""}" role="tab" aria-selected="${!i}" data-rcf-tab="${x.toLowerCase()}">${x}</button>`).join("")}</nav>
    <style>.rcf-card{display:flex;flex-direction:column;gap:7px;padding:16px;border:1px solid #dbe1ea;border-radius:14px;background:#fff;box-shadow:0 2px 8px #152c480b}.rcf-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,260px),1fr));gap:12px}.rcf-card small{color:#526173}.rcf-card .cc6-button{min-height:44px}@media(max-width:560px){.rcf-card{padding:14px}}</style><main id="rcfContent" style="background:white;border-radius:14px;padding:16px;min-height:55vh"></main>`;
-  workspace.append(overlay);
+  function mount(){
+    const workspace=document.getElementById("reportCardFoundationMount");
+    if(!workspace){console.warn("[RC] Report Cards mount point is not in the DOM yet.");return false;}
+    if(overlay.parentElement!==workspace){console.log("[RC] mounting at",workspace);workspace.append(overlay);}
+    return true;
+  }
+  mount();
   let level="primary",classId="",selected="branding";
   const call=(path,opts)=>api(`/api${path}`,opts);
   async function show(tab=selected){
@@ -72,9 +76,10 @@ export function initReportCardFoundationUI({api,getCurrentUser,notify=()=>{}}){
   overlay.addEventListener("change",async e=>{const el=e.target;if(el.matches("[data-rcf-image]")){try{el.dataset.value=await fileBase64(el.files[0],el.dataset.rcfImage==="report_logo_base64"?300000:100000);}catch(err){notify(err.message,"error");}}if(el.matches("[data-rcf-csv]")&&el.files?.[0]){try{if(!classId)throw Error("Choose a class before importing learners.");const rows=parseCsv(await el.files[0].text());if(!rows.length)throw Error("The CSV has no learner rows.");const result=await call("/rc/learners/bulk",{method:"POST",body:{class_id:classId,rows}});notify(`Import complete: created ${result.created}, skipped ${result.skipped}, errors ${result.errors}.`,"success");await show("learners");await stats();}catch(err){notify(err.message||"CSV import failed.","error");}finally{el.value="";}}});
   async function setUser(user){
     if(user?.role!=="school"||user?.sector!=="education"){activeUserId=null;return;}
+    if(!mount()){activeUserId=null;return;}
     if(String(user.id)===String(activeUserId))return;
     activeUserId=user.id;
     try{await stats();await show("branding");}catch(e){notify(e.message||"Could not load report-card setup.","error");}
   }
-  return {open:()=>show(selected),setUser};
+  return {open:async()=>{if(mount())await show(selected);},setUser};
 }

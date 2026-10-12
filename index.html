@@ -2216,7 +2216,7 @@
 
     // 🔴 REPLACE THIS with your deployed Worker URL:
     import { initReportCardUI } from "./report-cards-ui.js";
-    import { initReportCardFoundationUI } from "./report-card-foundation-ui.js";
+    import { initReportCardFoundationUI } from "./report-card-foundation-ui.js?v=49";
     import { initBulkImportUI } from "./bulk-import-ui.js";
     import { initAccountProfileUI } from "./account-profile-ui.js";
     import { initRetoolingUI } from "./retooling-ui.js";
@@ -7373,7 +7373,23 @@
         updateGreeting();
         void checkYoPaymentReturn();
         if (reportCardsUI) await reportCardsUI.setUser(currentUser);
-        if (reportCardsFoundationUI) await reportCardsFoundationUI.setUser(currentUser);
+        if (currentUser?.role === "school" && currentUser?.sector === "education") {
+            try {
+                if (!reportCardsFoundationUI) {
+                    reportCardsFoundationUI = initReportCardFoundationUI({
+                        api,
+                        getCurrentUser: () => currentUser,
+                        notify: showNotification,
+                    });
+                }
+                await reportCardsFoundationUI?.setUser(currentUser);
+            } catch (error) {
+                console.error("[RC] Report Cards mount failed", error);
+                showNotification(error?.message || "Report Cards setup could not be opened.", "error");
+            }
+        } else {
+            await reportCardsFoundationUI?.setUser(null);
+        }
         if (bulkImportUI) await bulkImportUI.setUser(currentUser);
 
         if (isSuper) {
@@ -9090,11 +9106,6 @@
             notify: showNotification,
             escapeHtml,
         });
-        reportCardsFoundationUI = initReportCardFoundationUI({
-            api,
-            getCurrentUser: () => currentUser,
-            notify: showNotification,
-        });
         bulkImportUI = initBulkImportUI({
             api,
             apiBase: API_BASE,
@@ -10289,7 +10300,7 @@
 
     if ("serviceWorker" in navigator) {
         window.addEventListener("load", () => {
-            navigator.serviceWorker.register("/sw.js?v=48", { scope: "/" })
+            navigator.serviceWorker.register("/sw.js?v=49", { scope: "/" })
                 .then((registration) => console.log("[SW] registered", registration.scope))
                 .catch((error) => console.error("[SW] failed", error));
         }, { once: true });
