@@ -9,20 +9,14 @@ function parseCsv(text){
 }
 
 export function initReportCardFoundationUI({api,getCurrentUser,notify=()=>{}}){
-  const workspace=document.getElementById("reportCardsWorkspace");
-  if(!workspace||workspace.querySelector("#rcFoundationOpen"))return;
-  const open=document.createElement("button");
-  open.id="rcFoundationOpen";open.type="button";open.className="cc6-button secondary";
-  open.textContent="🏫 Classes, Learners & Grading";
-  const header=workspace.querySelector(".rc-topbar")||workspace.firstElementChild;
-  header?.append(open);
+  const workspace=document.getElementById("reportCardFoundationMount");
+  if(!workspace||workspace.querySelector("#rcFoundation"))return null;
   const overlay=document.createElement("section");
-  overlay.id="rcFoundation";overlay.hidden=true;overlay.setAttribute("role","dialog");overlay.setAttribute("aria-modal","true");
-  overlay.style.cssText="position:fixed;inset:0;z-index:10000;background:#f6f7fb;overflow:auto;padding:clamp(12px,3vw,32px)";
-  overlay.innerHTML=`<header style="display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap"><div><small>REPORT CARD FOUNDATION</small><h2>School setup</h2><p id="rcfStats" aria-live="polite">Loading…</p></div><button class="cc6-button secondary" type="button" data-rcf-close>Close</button></header>
+  overlay.id="rcFoundation";
+  overlay.innerHTML=`<header style="display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap"><div><small>REPORT CARD FOUNDATION</small><p id="rcfStats" aria-live="polite">Loading…</p></div><button class="cc6-button secondary" type="button" data-rcf-refresh>Refresh</button></header>
   <nav role="tablist" aria-label="Report card setup" style="display:flex;gap:8px;overflow:auto;padding:10px 0">${["Branding","Classes","Learners","Subjects","Grading","Cards"].map((x,i)=>`<button class="cc6-button ${i?"secondary":""}" role="tab" aria-selected="${!i}" data-rcf-tab="${x.toLowerCase()}">${x}</button>`).join("")}</nav>
    <style>.rcf-card{display:flex;flex-direction:column;gap:7px;padding:16px;border:1px solid #dbe1ea;border-radius:14px;background:#fff;box-shadow:0 2px 8px #152c480b}.rcf-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,260px),1fr));gap:12px}.rcf-card small{color:#526173}.rcf-card .cc6-button{min-height:44px}@media(max-width:560px){.rcf-card{padding:14px}}</style><main id="rcfContent" style="background:white;border-radius:14px;padding:16px;min-height:55vh"></main>`;
-  document.body.append(overlay);
+  workspace.append(overlay);
   let level="primary",classId="",selected="branding";
   const call=(path,opts)=>api(`/api${path}`,opts);
   async function show(tab=selected){
@@ -31,7 +25,7 @@ export function initReportCardFoundationUI({api,getCurrentUser,notify=()=>{}}){
     const levels=RC_LEVELS.map(([v,l])=>`<option value="${v}" ${v===level?"selected":""}>${l}</option>`).join("");
     if(tab==="branding"){
       const {branding:b={}}=await call("/rc/branding");
-      host.innerHTML=`<h3>School branding</h3><div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:12px"><label>School short code<input class="cc6-field" name="short_code" value="${esc(b.short_code)}" maxlength="32" required></label><label>Motto<input class="cc6-field" name="motto" value="${esc(b.motto)}"></label><label>Street<input class="cc6-field" name="street" value="${esc(b.street)}"></label><label>P.O. Box<input class="cc6-field" name="po_box" value="${esc(b.po_box)}"></label><label>Phone<input class="cc6-field" name="phone" value="${esc(b.phone)}"></label><label>Email<input class="cc6-field" name="email" type="email" value="${esc(b.email)}"></label><label>Website<input class="cc6-field" name="website" value="${esc(b.website)}"></label><label>Theme<select class="cc6-field" name="report_theme">${["blue","maroon","mixed"].map(x=>`<option ${b.report_theme===x?"selected":""}>${x}</option>`)}</select></label><label>Header notes<input class="cc6-field" name="report_header_notes" value="${esc(b.report_header_notes)}"></label><label>Footer text<input class="cc6-field" name="report_footer_text" value="${esc(b.report_footer_text)}"></label><label>Logo image<input class="cc6-field" type="file" accept="image/png,image/jpeg" data-rcf-image="report_logo_base64"></label><label>Signature image<input class="cc6-field" type="file" accept="image/png,image/jpeg" data-rcf-image="report_signature_base64"></label></div><p id="rcfBrandPreview" style="padding:16px;border-top:4px solid #3a68a8">${esc(b.name||"School name")} · ${esc(b.motto||"Motto")} · Learner login email suffix: @${esc(b.short_code)}.apshule.internal</p><button class="cc6-button" data-rcf-save-brand>Save Branding</button>`;
+      host.innerHTML=`<h3>School branding</h3><div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:12px"><label>School short code<input class="cc6-field" value="${esc(b.short_code)}" readonly aria-readonly="true"></label><p>To request a short-code change, <a href="mailto:legal@appshule.com?subject=School%20short%20code%20change">contact APSHULE</a>.</p><label>Motto<input class="cc6-field" name="motto" value="${esc(b.motto)}"></label><label>Street<input class="cc6-field" name="street" value="${esc(b.street)}"></label><label>P.O. Box<input class="cc6-field" name="po_box" value="${esc(b.po_box)}"></label><label>Phone<input class="cc6-field" name="phone" value="${esc(b.phone)}"></label><label>Email<input class="cc6-field" name="email" type="email" value="${esc(b.email)}"></label><label>Website<input class="cc6-field" name="website" value="${esc(b.website)}"></label><label>Theme<select class="cc6-field" name="report_theme">${["blue","maroon","mixed"].map(x=>`<option ${b.report_theme===x?"selected":""}>${x}</option>`)}</select></label><label>Header notes<input class="cc6-field" name="report_header_notes" value="${esc(b.report_header_notes)}"></label><label>Footer text<input class="cc6-field" name="report_footer_text" value="${esc(b.report_footer_text)}"></label><label>Logo image<input class="cc6-field" type="file" accept="image/png,image/jpeg" data-rcf-image="report_logo_base64"></label><label>Signature image<input class="cc6-field" type="file" accept="image/png,image/jpeg" data-rcf-image="report_signature_base64"></label></div><p id="rcfBrandPreview" style="padding:16px;border-top:4px solid #3a68a8">${esc(b.name||"School name")} · ${esc(b.motto||"Motto")} · Learner login email suffix: @${esc(b.short_code)}.apshule.internal</p><button class="cc6-button" data-rcf-save-brand>Save Branding</button>`;
     }else if(tab==="classes"){
       const {classes=[]}=await call("/rc/classes");
        host.innerHTML=`<h3>Classes</h3><p>Set up classes before adding learners.</p><button class="cc6-button" data-rcf-add-class>＋ Create Class</button><div class="rcf-grid" style="margin-top:14px">${classes.map(x=>`<article class="rcf-card"><strong>${esc(x.name)}</strong><small>${esc(x.level)} · ${esc(x.stream||"No stream")} · ${esc(x.learner_count)} learners</small><div><button class="cc6-button secondary" data-rcf-edit-class="${esc(x.id)}">Edit</button> <button class="cc6-button secondary" data-rcf-delete-class="${esc(x.id)}">Archive</button></div></article>`).join("")||`<p>Create the first class to continue.</p>`}</div>`;
@@ -53,9 +47,9 @@ export function initReportCardFoundationUI({api,getCurrentUser,notify=()=>{}}){
   }
   async function stats(){const s=await call("/rc/stats");overlay.querySelector("#rcfStats").textContent=`${s.classes} classes · ${s.learners} learners · ${s.subjects} subjects · ${s.grading_ready?"Grading ready":"Grading not configured"}`;}
   function fileBase64(file,max){return new Promise((resolve,reject)=>{if(file.size>max){reject(Error(`File must be no larger than ${Math.round(max/1000)} KB.`));return;}const r=new FileReader();r.onload=()=>resolve(r.result);r.onerror=()=>reject(Error("Could not read image."));r.readAsDataURL(file);});}
-  open.addEventListener("click",async()=>{if(getCurrentUser()?.role!=="school")return;overlay.hidden=false;try{await stats();await show("branding");}catch(e){notify(e.message||"Could not load report-card setup.","error");}});
+  let activeUserId=null;
   overlay.addEventListener("click",async e=>{const t=e.target.closest("button,[data-rcf-class],[data-rcf-level]");if(!t)return;try{
-    if(t.matches("[data-rcf-close]")){overlay.hidden=true;return;}
+    if(t.matches("[data-rcf-refresh]")){await stats();await show(selected);return;}
     if(t.matches("[data-rcf-tab]")){await show(t.dataset.rcfTab);return;}
     if(t.matches("[data-rcf-class]")){classId=t.value;await show("learners");return;}
     if(t.matches("[data-rcf-level]")){level=t.value;await show(selected);return;}
@@ -76,5 +70,11 @@ export function initReportCardFoundationUI({api,getCurrentUser,notify=()=>{}}){
      if(t.matches("[data-rcf-template]")){const className=overlay.querySelector("[data-rcf-class] option:checked")?.textContent||"";const headers="reg_no,full_name,gender,age,class,stream,section,house,combination,parent_name,parent_phone,parent_email";const row=className?`,,,,\"${className.replaceAll('"','""')}\",,,,,,,`:"";const a=document.createElement("a");a.href=URL.createObjectURL(new Blob([`${headers}\n${row}\n`],{type:"text/csv"}));a.download="learners-template.csv";a.click();URL.revokeObjectURL(a.href);}
   }catch(err){notify(err.message||"Action failed.","error");}});
   overlay.addEventListener("change",async e=>{const el=e.target;if(el.matches("[data-rcf-image]")){try{el.dataset.value=await fileBase64(el.files[0],el.dataset.rcfImage==="report_logo_base64"?300000:100000);}catch(err){notify(err.message,"error");}}if(el.matches("[data-rcf-csv]")&&el.files?.[0]){try{if(!classId)throw Error("Choose a class before importing learners.");const rows=parseCsv(await el.files[0].text());if(!rows.length)throw Error("The CSV has no learner rows.");const result=await call("/rc/learners/bulk",{method:"POST",body:{class_id:classId,rows}});notify(`Import complete: created ${result.created}, skipped ${result.skipped}, errors ${result.errors}.`,"success");await show("learners");await stats();}catch(err){notify(err.message||"CSV import failed.","error");}finally{el.value="";}}});
-  return {open:()=>{open.click();},setUser:()=>{}};
+  async function setUser(user){
+    if(user?.role!=="school"||user?.sector!=="education"){activeUserId=null;return;}
+    if(String(user.id)===String(activeUserId))return;
+    activeUserId=user.id;
+    try{await stats();await show("branding");}catch(e){notify(e.message||"Could not load report-card setup.","error");}
+  }
+  return {open:()=>show(selected),setUser};
 }

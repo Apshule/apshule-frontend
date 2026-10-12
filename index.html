@@ -1933,7 +1933,9 @@
                 </div>
                 <div class="admin-section" id="schoolReportCardsSection" style="display:none;">
                     <h4>📊 Report Cards</h4>
-                    <p class="rc-muted">Create individual cards, generate a class set, download published cards, and reset a learner's one-time PDF download.</p>
+                    <p class="rc-muted">Set up school branding, classes, learners, subjects, and grading for report cards.</p>
+                    <div id="reportCardFoundationMount"></div>
+                    <div id="schoolReportCardsLegacy" hidden>
                     <div class="rc-grid" style="margin-top:12px;">
                         <div class="rc-field"><label for="schoolReportClass">Class</label><select id="schoolReportClass"><option value="">Loading classes…</option></select></div>
                         <div class="rc-field"><label for="schoolReportTerm">Term</label><select id="schoolReportTerm"><option>Term One</option><option>Term Two</option><option>Term Three</option></select></div>
@@ -1957,6 +1959,7 @@
                             <div class="rc-field"><label for="schoolReportFees">Fees</label><textarea id="schoolReportFees" maxlength="1200" placeholder="Fee balance or school fee information"></textarea></div>
                         </div>
                         <div class="rc-actions"><button type="button" class="rc-button rc-button--primary" id="schoolReportSettingsSave">Save report settings</button></div>
+                    </div>
                     </div>
                 </div>
                 <div class="admin-section" id="schoolEventsSection" style="display:none;">
@@ -2306,6 +2309,7 @@
     });
     void retoolingUI.verifyFromLocation();
     let reportCardsUI = null;
+    let reportCardsFoundationUI = null;
     let bulkImportUI = null;
     let profileUI = null;
     let mfiUI = null;
@@ -7369,6 +7373,7 @@
         updateGreeting();
         void checkYoPaymentReturn();
         if (reportCardsUI) await reportCardsUI.setUser(currentUser);
+        if (reportCardsFoundationUI) await reportCardsFoundationUI.setUser(currentUser);
         if (bulkImportUI) await bulkImportUI.setUser(currentUser);
 
         if (isSuper) {
@@ -8929,6 +8934,7 @@
         settingsUI?.setUser(null);
         videoStudioUI?.setUser(null);
         await reportCardsUI?.setUser(null);
+        await reportCardsFoundationUI?.setUser(null);
         await bulkImportUI?.setUser(null);
         await profileUI?.setUser(null);
         await mfiUI?.setUser(null);
@@ -9084,7 +9090,7 @@
             notify: showNotification,
             escapeHtml,
         });
-        initReportCardFoundationUI({
+        reportCardsFoundationUI = initReportCardFoundationUI({
             api,
             getCurrentUser: () => currentUser,
             notify: showNotification,
@@ -10283,7 +10289,7 @@
 
     if ("serviceWorker" in navigator) {
         window.addEventListener("load", () => {
-            navigator.serviceWorker.register("/sw.js?v=47", { scope: "/" })
+            navigator.serviceWorker.register("/sw.js?v=48", { scope: "/" })
                 .then((registration) => console.log("[SW] registered", registration.scope))
                 .catch((error) => console.error("[SW] failed", error));
         }, { once: true });
