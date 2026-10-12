@@ -14,7 +14,7 @@ const roles = [
   "individual", "teacher", "school", "superadmin", "mfi_admin",
   "loan_officer", "loan_manager", "loan_director", "borrower",
   "clinic_admin", "doctor", "nurse", "receptionist", "pharmacist", "patient",
-  "farm_admin", "farm_manager", "farm_worker",
+  "farm_admin", "farm_manager", "farm_worker", "apshule_team_teacher",
 ] as const;
 const sectors = ["education", "mfi", "clinic", "farm"] as const;
 const permissionNames = new Set(["cc.read", "cc.manage"]);
@@ -201,7 +201,7 @@ cc.get("/users", async (c) => {
   const limit = Math.max(1, Math.min(100, Number(c.req.query("limit") ?? 50) || 50));
   const offset = (page - 1) * limit;
   const [rows, counts, byRole] = await Promise.all([
-    sql`SELECT u.id, u.name, u.email, u.phone, u.role, u.sector, u.school_id,
+    sql`SELECT u.id, u.name, u.email, u.phone, u.role, u.sector, u.school_id, u.referral_code,
       u.last_login, u.created_at, u.is_active,
       COALESCE(s.name, m.name, cl.name, f.name) AS institution_name
       FROM users u

@@ -269,6 +269,9 @@ export function initAccountProfileUI({
               <div class="ap-actions"><button class="ap-button ap-button--primary" id="apOfflineSyncNow" type="button" disabled>Sync now</button></div>
               <p class="ap-status" id="apOfflineSyncStatus" role="status" aria-live="polite"></p>
             </section>` : "";
+        const referralSection = String(user?.sector || "").toLowerCase() === "education" && !locked
+            ? `<section class="ap-profile ap-card" id="apReferralCard" aria-labelledby="ap-referral-title"><h2 class="ap-heading" id="ap-referral-title">🎁 Refer a friend</h2><p class="ap-subheading">Share your code. Signup and commission amounts remain UGX 0 until referral payments are enabled.</p><p class="ap-empty-state">Loading referral details…</p></section>`
+            : "";
 
         accountMount.innerHTML = `
           <section class="ap-profile ap-card" aria-labelledby="ap-profile-title">
@@ -309,6 +312,7 @@ export function initAccountProfileUI({
               <div id="apPaymentHistoryList" class="ap-record-list" aria-live="polite"><p class="ap-empty-state">Loading payment history…</p></div>
             </section>
           </section>
+          ${referralSection}
           <div class="ap-modal-backdrop" id="apPasswordBackdrop" hidden>
             <section class="ap-modal" role="dialog" aria-modal="true" aria-labelledby="apPasswordTitle" aria-describedby="apPasswordHelp">
               <div class="ap-modal-top"><div><h2 class="ap-heading" id="apPasswordTitle">Change password</h2><p class="ap-subheading" id="apPasswordHelp">Choose a new password you have not used before.</p></div><button class="ap-close" type="button" id="apPasswordClose" aria-label="Close password dialog">×</button></div>
@@ -333,6 +337,7 @@ export function initAccountProfileUI({
         const avatarInput = document.getElementById("apAvatarInput");
         const saveButton = document.getElementById("apSaveProfile");
         const locked = isImpersonated(user);
+        if (String(user?.sector || "").toLowerCase() === "education" && !locked) void loadReferralCard();
         document.getElementById("apOfflineSyncNow")?.addEventListener("click", async (event) => {
             const button = event.currentTarget;
             const syncStatus = document.getElementById("apOfflineSyncStatus");
@@ -401,6 +406,38 @@ export function initAccountProfileUI({
             brandingMount?.scrollIntoView?.({ behavior: "smooth", block: "start" });
         });
         document.getElementById("apPasswordForm")?.addEventListener("submit", submitPassword);
+    }
+
+    async function loadReferralCard() {
+        const card = document.getElementById("apReferralCard");
+        if (!card) return;
+        try {
+            const data = await api("/api/auth2/me/referral");
+            const link = String(data.referral_link || "");
+            card.innerHTML = `<h2 class="ap-heading" id="ap-referral-title">🎁 Refer a friend</h2>
+              <p class="ap-subheading">Signup fees and commissions are not enabled yet.</p>
+              <div class="ap-readonly" id="apReferralCode">${esc(data.referral_code || "Not available")}</div>
+              <p class="ap-hint">${esc(link)}</p>
+              <div class="ap-actions"><button type="button" class="ap-button" data-ref-copy>📋 Copy Code</button>
+                <button type="button" class="ap-button" data-ref-share>📱 Share WhatsApp</button>
+                <button type="button" class="ap-button" data-ref-link>🔗 Copy Link</button></div>
+              <p class="ap-status" id="apReferralStatus" role="status" aria-live="polite">${Number(data.total_referrals || 0)} referrals · UGX ${Number(data.earnings_paid || 0).toLocaleString()} earned</p>`;
+            card.querySelector("[data-ref-copy]")?.addEventListener("click", () => copyReferral(data.referral_code || ""));
+            card.querySelector("[data-ref-link]")?.addEventListener("click", () => copyReferral(link));
+            card.querySelector("[data-ref-share]")?.addEventListener("click", () => {
+                window.open(`https://wa.me/?text=${encodeURIComponent(`Join me on APSHULE: ${link}`)}`, "_blank", "noopener");
+            });
+        } catch (error) {
+            card.innerHTML = `<h2 class="ap-heading">🎁 Refer a friend</h2><p class="ap-status" data-kind="error">${esc(error?.message || "Referral details are unavailable.")}</p>`;
+        }
+    }
+    async function copyReferral(value) {
+        try {
+            await navigator.clipboard.writeText(value);
+            writeStatus("apReferralStatus", "Copied to clipboard.", "success");
+        } catch {
+            writeStatus("apReferralStatus", "Clipboard access is unavailable in this browser.", "error");
+        }
     }
 
     function formatHistoryDate(value, includeTime = false) {

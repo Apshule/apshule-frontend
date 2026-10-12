@@ -30,13 +30,19 @@ schools.post("/", authMiddleware, requireRole("superadmin"), async (c) => {
   const phone = optionalString(body, "phone", { max: 40 }) ?? null;
   const passwordHash = await hashPassword(loginPassword);
   const sql = getDb(c.env);
+  const acronym = name.split(/\s+/u).filter(Boolean).map((word) => word[0]).join("").replace(/[^a-z0-9]/giu, "").slice(0, 6).toUpperCase();
+  const candidateCode = acronym.length >= 2 ? acronym : `SCH${crypto.randomUUID().slice(0, 4).toUpperCase()}`;
+  const codeExists = await sql`SELECT 1 FROM schools WHERE lower(short_code)=lower(${candidateCode}) LIMIT 1`;
+  const shortCode = codeExists.length
+    ? `${candidateCode.slice(0, 4)}${crypto.randomUUID().replaceAll("-", "").slice(0, 4).toUpperCase()}`
+    : candidateCode;
 
-  let school: { id: string; name: string; login_email: string };
+  let school: { id: string; name: string; login_email: string; short_code: string };
   try {
     const createdSchools = await sql`
-      INSERT INTO schools (name, contact, location, logo, login_email, login_password_hash)
-      VALUES (${name}, ${contact}, ${location}, ${logo}, ${loginEmail}, ${passwordHash})
-      RETURNING id, name, login_email
+      INSERT INTO schools (name, contact, location, logo, login_email, login_password_hash, short_code)
+      VALUES (${name}, ${contact}, ${location}, ${logo}, ${loginEmail}, ${passwordHash}, ${shortCode})
+      RETURNING id, name, login_email, short_code
     `;
     school = createdSchools[0] as typeof school;
   } catch (error) {

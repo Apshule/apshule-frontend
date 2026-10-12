@@ -1110,12 +1110,35 @@
              alt="APSHULE Logo - SHU Let's learn with ease">
         <div class="login-title">APSHULE</div>
         <div class="login-subtitle">Let's Learn With Ease From Anywhere at Anytime</div>
-        <div class="login-tabs">
+        <p id="referralInviteBanner" hidden role="status" class="login-subtitle"></p>
+        <section id="phase10bFlow" aria-label="Choose a sector and role">
+            <div id="authSectorStep">
+                <h2>Choose your sector</h2>
+                <div class="auth-sector-grid">
+                    <button type="button" data-auth-sector="education">🏫 Education</button>
+                    <button type="button" data-auth-sector="mfi">💰 Microfinance</button>
+                    <button type="button" data-auth-sector="clinic">🏥 Clinic</button>
+                    <button type="button" data-auth-sector="farm">🌾 Farming</button>
+                </div>
+            </div>
+            <div id="authRoleStep" hidden><button type="button" data-auth-back="sector">← Sectors</button><h2 id="authRoleTitle">Choose your role</h2><div id="authRoleOptions" class="auth-sector-grid"></div></div>
+            <div id="authTeamApply" hidden><button type="button" data-auth-back="roles">← Roles</button><h2>Apply to join Apshule Team</h2>
+                <input class="login-input" name="team_full_name" placeholder="Full name"><input class="login-input" name="team_email" type="email" placeholder="Email">
+                <input class="login-input" name="team_phone" placeholder="Phone"><input class="login-input" name="team_education" placeholder="Education background">
+                <input class="login-input" name="team_school" placeholder="Current school"><input class="login-input" name="team_subjects" placeholder="Subjects taught">
+                <input class="login-input" name="team_level" placeholder="Teaching level"><input class="login-input" name="team_address" placeholder="Address">
+                <input class="login-input" name="team_referral" placeholder="Referral code (optional)"><button class="login-btn" type="button" data-team-submit>Submit application</button>
+            </div>
+        </section>
+        <style>.auth-sector-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px;margin:12px 0}.auth-sector-grid button{min-height:62px;border:1px solid #ded7ea;border-radius:14px;background:#fff;color:#392d58;font-weight:700;padding:12px;cursor:pointer}.auth-sector-grid button:hover{border-color:#6849a9;background:#f7f3ff}#authRoleStep,#authTeamApply{margin-bottom:14px}#authTeamApply{max-height:55vh;overflow:auto}#authTeamApply input{margin-bottom:8px}@media(max-width:480px){.auth-sector-grid{grid-template-columns:1fr}}</style>
+        <div class="login-tabs" id="mainLoginTabs" style="display:none">
             <div class="login-tab active" data-tab="login">Login</div>
             <div class="login-tab" data-tab="signup">Sign Up</div>
         </div>
-        <div id="loginFormDiv" class="login-form active">
+        <div id="loginFormDiv" class="login-form">
+            <button type="button" class="login-tab" data-auth-back="roles" style="margin-bottom:10px">← Choose another role</button>
             <div class="login-tabs" style="margin:0 0 14px"><button type="button" class="login-tab active" data-login-identity="email">Email</button><button type="button" class="login-tab" data-login-identity="regno">Reg No</button></div>
+            <input type="text" id="schoolAdminCode" placeholder="School code" class="login-input" hidden autocomplete="organization">
             <div id="emailLoginIdentity"><input type="email" id="loginEmail" placeholder="Email" class="login-input"></div>
             <div id="regNoLoginIdentity" hidden><input id="loginRegNo" placeholder="Registration number" class="login-input" autocomplete="username"><input id="loginSchoolCode" placeholder="School code (optional)" class="login-input" autocomplete="organization"></div>
             <div style="position: relative;"><input type="password" id="loginPassword" placeholder="Password" class="login-input"><span onclick="togglePassword('loginPassword')" style=" position: absolute; right: 20px; top: 12px; cursor: pointer;">👁️</span></div>
@@ -1138,6 +1161,7 @@
             <input type="text" id="signupName" placeholder="Full Name" class="login-input">
             <input type="email" id="signupEmail" placeholder="Email" class="login-input">
             <input type="tel" id="signupPhone" placeholder="Phone Number" class="login-input">
+            <input type="text" id="signupReferralCode" placeholder="Referral code (optional)" class="login-input" autocomplete="off">
             <div style="position: relative;"><input type="password" id="signupPassword" placeholder="Password (min 8 characters)" class="login-input"><span onclick="togglePassword('signupPassword')" style="position: absolute; right: 20px; top: 12px; cursor: pointer;">👁️</span></div>
             <div id="individualSignupFields">
                 <select id="signupEducationLevel" class="login-input" required><option value="">Select Education Level</option><option value="Primary">Primary School</option><option value="Secondary">Secondary School</option></select>
@@ -7205,6 +7229,10 @@
 
     async function showAppFor(user) {
         currentUser = user;
+        const educationIndependent = user?.sector === "education" && !user?.schoolId && !user?.school_id;
+        document.querySelectorAll('[data-report-cards-open],#studentReportCardsOpen').forEach(card => {
+            card.hidden = Boolean(educationIndependent);
+        });
         commandCenterUI?.setUser(user);
         schoolAdminAiAccessUI?.setUser(user);
         void Promise.resolve(virtualLabUI?.setUser(user)).catch(() => {});
@@ -8931,6 +8959,98 @@
     // ---------- EVENT WIRING (all DOM listeners) ----------
     function wireEvents() {
         let loginMode = 'email';
+        let flowSector = '';
+        let flowRole = '';
+        const referralFromLink = new URLSearchParams(location.search).get('ref');
+        if (referralFromLink) {
+            const referralCode = referralFromLink.trim().toUpperCase();
+            localStorage.setItem('apshule_referral_code', referralCode);
+            document.getElementById('signupReferralCode').value = referralCode;
+            document.getElementById('referralInviteBanner').hidden = false;
+            document.getElementById('referralInviteBanner').textContent = `You were invited with code ${referralCode}.`;
+            api(`/api/auth2/referral/${encodeURIComponent(referralCode)}`, { auth:false })
+                .then(result => { document.getElementById('referralInviteBanner').textContent = `You were invited by ${result.name}.`; })
+                .catch(() => {});
+            document.querySelector('[data-auth-sector="education"]')?.click();
+            history.replaceState({}, '', `${location.pathname}${location.hash}`);
+        } else {
+            const savedReferralCode = localStorage.getItem('apshule_referral_code') || '';
+            document.getElementById('signupReferralCode').value = savedReferralCode;
+        }
+        const rolesBySector = {
+            education: [['school','🏫 School Admin'],['teacher','👨‍🏫 Teacher'],['individual','🎓 Student / Learner']],
+            mfi: [['mfi_admin','MFI Admin'],['loan_officer','Loan Officer'],['loan_manager','Loan Manager'],['borrower','Borrower']],
+            clinic: [['clinic_admin','Clinic Admin'],['doctor','Doctor'],['nurse','Nurse'],['pharmacist','Pharmacist'],['receptionist','Receptionist'],['patient','Patient']],
+            farm: [['farm_admin','Farm Admin'],['farm_manager','Farm Manager'],['farm_worker','Farm Worker']],
+        };
+        const sectorTitles = { education:'Education', mfi:'Microfinance', clinic:'Clinic', farm:'Farming' };
+        document.querySelectorAll('[data-auth-sector]').forEach(button => button.addEventListener('click', () => {
+            document.getElementById('signupSector').value = button.dataset.authSector;
+            flowSector = button.dataset.authSector;
+            document.getElementById('authSectorStep').hidden = true;
+            document.getElementById('authRoleStep').hidden = false;
+            document.getElementById('authRoleTitle').textContent = `${sectorTitles[flowSector]} — choose your role`;
+            document.getElementById('authRoleOptions').innerHTML = rolesBySector[flowSector].map(([value,label]) =>
+                `<button type="button" data-auth-role="${value}">${label}</button>`).join('') +
+                (flowSector === 'education' ? '<button type="button" data-open-team>🎯 Apply to join Apshule Team</button>' : '');
+            document.getElementById('loginFormDiv').classList.remove('active');
+            document.getElementById('signupFormDiv').classList.remove('active');
+            localStorage.setItem('apshule_last_sector', flowSector);
+        }));
+        document.getElementById('authRoleOptions').addEventListener('click', event => {
+            if (event.target.closest('[data-open-team]')) {
+                document.getElementById('authRoleStep').hidden = true;
+                document.getElementById('authTeamApply').hidden = false;
+                return;
+            }
+            const button = event.target.closest('[data-auth-role]');
+            if (!button) return;
+            flowRole = button.dataset.authRole;
+            localStorage.setItem('apshule_last_role', flowRole);
+            document.getElementById('authRoleStep').hidden = true;
+            document.getElementById('mainLoginTabs').style.display = flowSector === 'education' ? 'flex' : 'none';
+            document.getElementById('loginFormDiv').classList.add('active');
+            document.getElementById('schoolAdminCode').hidden = flowRole !== 'school';
+            document.querySelectorAll('[data-login-identity]').forEach(tab => {
+                tab.hidden = flowSector !== 'education' || flowRole === 'school';
+            });
+            if (flowRole === 'school') {
+                loginMode = 'email';
+                document.getElementById('emailLoginIdentity').hidden = false;
+                document.getElementById('regNoLoginIdentity').hidden = true;
+            } else {
+                document.querySelector('[data-login-identity="email"]')?.click();
+            }
+            if (flowSector === 'education' && flowRole !== 'school') {
+                document.getElementById('signupRole').value = flowRole === 'individual' ? 'individual' : 'teacher';
+                document.querySelector('[data-tab="signup"]')?.addEventListener('click', () => {
+                    document.getElementById('authRoleStep').hidden = true;
+                }, { once:true });
+            }
+        });
+        document.querySelectorAll('[data-auth-back]').forEach(button => button.addEventListener('click', () => {
+            const destination = button.dataset.authBack;
+            document.getElementById('authTeamApply').hidden = true;
+            document.getElementById('loginFormDiv').classList.remove('active');
+            document.getElementById('signupFormDiv').classList.remove('active');
+            document.getElementById('mainLoginTabs').style.display = 'none';
+            document.getElementById('authRoleStep').hidden = destination === 'sector';
+            document.getElementById('authSectorStep').hidden = destination !== 'sector';
+            if (destination === 'roles') document.getElementById('authRoleStep').hidden = false;
+        }));
+        document.querySelector('[data-team-submit]').addEventListener('click', async () => {
+            const root = document.getElementById('authTeamApply');
+            const field = name => root.querySelector(`[name="team_${name}"]`).value.trim();
+            try {
+                const data = await api('/api/auth2/apply-team', { method:'POST', auth:false, body:{
+                    full_name:field('full_name'), email:field('email'), phone:field('phone'),
+                    education_background:field('education'), current_school:field('school'),
+                    subjects_taught:field('subjects'), teaching_level:field('level'),
+                    address:field('address'), referred_by_code:field('referral') || undefined,
+                }});
+                root.innerHTML = `<p role="status">${escapeHtml(data.message || "Thank you! We'll review within 3 days.")}</p>`;
+            } catch (error) { showNotification(error.message || 'Application could not be submitted.', 'error'); }
+        });
         document.querySelectorAll('[data-login-identity]').forEach(button => button.addEventListener('click', () => {
             loginMode = button.dataset.loginIdentity;
             document.querySelectorAll('[data-login-identity]').forEach(tab => tab.classList.toggle('active', tab === button));
@@ -9800,27 +9920,21 @@
             const assignedClasses = [...document.querySelectorAll('input[name="assignedClasses"]:checked')].map(input => input.value);
             const errorBox = document.getElementById('loginError');
             errorBox.className = 'error-message';
-            if (!sector || !name || !email || !phone || !password || (isEducation && !isTeacher && (!educationLevel || !classLevel))) { errorBox.innerText = "Fill all required fields"; return; }
+            if (!sector || !name || !email || !phone || !password) { errorBox.innerText = "Fill all required fields"; return; }
             const termsAccepted = document.getElementById('signupTermsAccepted').checked;
             const privacyAccepted = document.getElementById('signupPrivacyAccepted').checked;
             if (!termsAccepted || !privacyAccepted) { errorBox.innerText = "Please accept the Terms of Service and Privacy Policy."; return; }
             if (password.length < 8) { errorBox.innerText = "Password min 8 chars"; return; }
             try {
-                const data = await api('/api/auth/signup', { method: 'POST', body: {
+                const data = await api('/api/auth2/signup-independent', { method: 'POST', auth: false, body: {
                     name, email, phone, password, role, sector, termsAccepted, privacyAccepted,
+                    referred_by_code: document.getElementById('signupReferralCode').value.trim() || undefined,
                     educationLevel: !isEducation || isTeacher ? null : educationLevel,
                     classLevel: !isEducation || isTeacher ? null : classLevel,
                     lin: !isEducation || isTeacher ? null : (lin || null),
                     subjectsTaught: isTeacher ? subjectsTaught : [],
                     assignedClasses: isTeacher ? assignedClasses : []
                 }, auth: false });
-                if (data?.waitlist === true) {
-                    document.querySelector('.login-tab[data-tab="login"]')?.click();
-                    const sectorName = { mfi: 'Microfinance', clinic: 'Clinic & Pharmacy', farm: 'Farming' }[sector] || 'Education';
-                    errorBox.className = 'success-message';
-                    errorBox.innerText = `Thanks! You're on the waitlist. We'll email you when ${sectorName} launches.`;
-                    return;
-                }
                 clearStoredPdfResolverCache();
                 AUTH_TOKEN = data.token; localStorage.setItem('apshule_token', AUTH_TOKEN);
                 showNotification("Account created!");
@@ -9845,11 +9959,22 @@
                 return;
             }
             try {
-                const data = await api(loginMode === 'email' ? '/api/auth/login' : '/api/auth/login-regno', {
+                const endpoint = flowRole === 'school' ? '/api/auth2/login-school'
+                    : flowSector === 'education' && loginMode === 'regno' ? '/api/auth2/login-regno'
+                    : '/api/auth/login';
+                const body = flowRole === 'school'
+                    ? { school_code: document.getElementById('schoolAdminCode').value.trim(), email, password }
+                    : endpoint === '/api/auth2/login-regno'
+                        ? { reg_no: regNo, school_code: schoolCode || undefined, role_hint: flowRole === 'teacher' ? 'teacher' : 'student', password }
+                        : loginMode === 'email' ? { email, password } : { reg_no: regNo, school_code: schoolCode || undefined, password };
+                const data = await api(endpoint, {
                     method: 'POST',
-                    body: loginMode === 'email' ? { email, password } : { reg_no: regNo, school_code: schoolCode || undefined, password },
+                    body,
                     auth: false
                 });
+                if (flowSector && flowRole && (data.user?.sector !== flowSector || data.user?.role !== flowRole)) {
+                    throw new Error('That account does not match the selected sector and role.');
+                }
                 if (data.user?.must_change_password) {
                     AUTH_TOKEN = data.token;
                     let nextPassword = '';

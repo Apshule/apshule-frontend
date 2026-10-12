@@ -36,7 +36,8 @@ export type UserRole =
   | "patient"
   | "farm_admin"
   | "farm_manager"
-  | "farm_worker";
+  | "farm_worker"
+  | "apshule_team_teacher";
 
 export interface AuthenticatedUser {
   id: string;

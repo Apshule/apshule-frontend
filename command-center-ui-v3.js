@@ -73,6 +73,7 @@ const ROLE_OPTIONS = [
   "superadmin", "school", "teacher", "individual", "parent", "clinic_admin", "doctor",
   "nurse", "receptionist", "pharmacist", "patient", "mfi_admin", "loan_officer",
   "loan_manager", "loan_director", "borrower", "farm_admin", "farm_manager", "farm_worker",
+  "apshule_team_teacher",
 ];
 const SECTOR_OPTIONS = ["education", "ncdc", "mfi", "clinic", "farm"];
 const SECTOR_KEYS = {
@@ -115,6 +116,7 @@ export function initCommandCenterUI({ apiBase, getToken, getUser, notify, activa
       <button class="cc6-tab" role="tab" aria-selected="false" data-cc6-tab="institutions" data-i18n="cc_institutions"></button>
       <button class="cc6-tab" role="tab" aria-selected="false" data-cc6-tab="analytics" data-i18n="cc_analytics"></button>
       <button class="cc6-tab" role="tab" aria-selected="false" data-cc6-tab="settings" data-i18n="cc_settings"></button>
+      <button class="cc6-tab" role="tab" aria-selected="false" data-cc6-tab="team-applications">🎓 Team Applications</button>
     </nav>
     <div id="aiControlQuickAccess" style="display:none;background:#fff;border:2px solid #4B2E9E;border-radius:16px;padding:16px;margin:16px 0;justify-content:space-between;align-items:center;gap:12px">
       <div><div style="font-weight:bold;color:#4B2E9E;font-size:16px">🤖 AI Credit Management</div><div style="color:#666;font-size:13px">Grant AI tiers to schools and users</div></div>
@@ -140,6 +142,12 @@ export function initCommandCenterUI({ apiBase, getToken, getUser, notify, activa
       </form>
       <section class="cc6-panel"><div class="cc6-panel-body cc6-table-wrap" id="cc6UsersTable"></div></section>
       <div class="cc6-toolbar"><button class="cc6-button secondary small" data-page="-1" data-i18n="cc_previous"></button><span id="cc6UserPage"></span><button class="cc6-button secondary small" data-page="1" data-i18n="cc_next"></button></div>
+    </section>
+    <section class="cc6-view" id="cc6-team-applications" role="tabpanel" hidden>
+      <div class="cc6-section-head"><div><h2>🎓 Apshule Team applications</h2><p>Review Education teacher applications.</p></div>
+        <select class="cc6-select" id="ccTeamStatus" aria-label="Filter applications"><option value="">All statuses</option><option>pending</option><option>approved</option><option>rejected</option></select>
+        <button class="cc6-button secondary" type="button" data-team-refresh>Refresh</button></div>
+      <section class="cc6-panel"><div class="cc6-panel-body cc6-table-wrap" id="ccTeamApplications"></div></section>
     </section>
     <section class="cc6-view" id="cc6-institutions" role="tabpanel" hidden>
       <div class="cc6-section-head"><div><h2 data-i18n="cc_institutions"></h2><p data-i18n="cc_institution_status_note"></p></div></div>
@@ -285,7 +293,23 @@ export function initCommandCenterUI({ apiBase, getToken, getUser, notify, activa
     if (name === "institutions") await loadInstitutions();
     if (name === "analytics") await loadAnalytics();
     if (name === "settings") await loadSettings();
+    if (name === "team-applications") await loadTeamApplications();
   };
+  async function loadTeamApplications() {
+    const target = root.querySelector("#ccTeamApplications");
+    target.textContent = "Loading applications…";
+    try {
+      const status = root.querySelector("#ccTeamStatus").value;
+      const result = await api(`/api/admin/team-applications${status ? `?status=${encodeURIComponent(status)}` : ""}`);
+      const rows = (result.applications || []).map((a) => `<tr>
+        <td><button type="button" class="cc6-click" data-team-detail="${esc(a.id)}">${esc(a.full_name)}</button></td>
+        <td>${esc(a.email)}</td><td>${esc(a.phone)}</td><td>${esc(a.teaching_level || "—")}</td>
+        <td>${esc(a.referrer_name || a.referral_code || "—")}</td><td>${statusPill(a.status)}</td>
+        <td>${a.status === "pending" ? `<button class="cc6-button small" data-team-action="approved" data-id="${esc(a.id)}">Approve</button> <button class="cc6-button secondary small" data-team-action="rejected" data-id="${esc(a.id)}">Reject</button>` : "—"}</td>
+      </tr>`).join("");
+      target.innerHTML = rows ? table(["Name","Email","Phone","Level","Referred by","Status","Actions"], rows) : '<div class="cc6-empty">No applications found.</div>';
+    } catch (error) { target.textContent = error.message || "Could not load applications."; }
+  }
   async function loadAiTierControl() {
     const list=root.querySelector("#ccAiUsers");list.textContent="Loading…";
     try {
@@ -349,6 +373,7 @@ export function initCommandCenterUI({ apiBase, getToken, getUser, notify, activa
     if (name === "privacy") await loadConsents();
     if (name === "announcements") await loadAnnouncements();
   };
+  root.querySelector("#ccTeamStatus").addEventListener("change", () => void loadTeamApplications());
 
   async function loadOverview() {
     const target = root.querySelector("#cc6Metrics");
@@ -400,7 +425,7 @@ export function initCommandCenterUI({ apiBase, getToken, getUser, notify, activa
       root.querySelector("#cc6UserPage").textContent = `Page ${data.page || 1}`;
       const rows = state.users.map((user) => `<tr>
         <td><button class="cc6-click" type="button" data-user-detail="${esc(user.id)}">${esc(user.name)}</button></td>
-        <td>${esc(user.email)}</td><td>${esc(user.role)}</td><td>${esc(user.sector || "—")}</td>
+        <td>${esc(user.email)}${user.referral_code ? `<br><small>${esc(user.referral_code)} <button type="button" class="cc6-button secondary small" data-copy-code="${esc(user.referral_code)}">Copy</button></small>` : ""}</td><td>${esc(user.role)}</td><td>${esc(user.sector || "—")}</td>
         <td>${esc(user.institution_name || "—")}</td><td>${esc(dateText(user.last_login))}</td>
         <td>${statusPill(user.is_active ? "active" : "inactive")}</td>
         <td><button class="cc6-button secondary small" data-user-detail="${esc(user.id)}">${esc(t("cc_open_details"))}</button></td>
@@ -781,6 +806,27 @@ export function initCommandCenterUI({ apiBase, getToken, getUser, notify, activa
     if (!button) return;
     try {
       if (button.dataset.cc6Tab) { await setTab(button.dataset.cc6Tab); return; }
+      if (button.hasAttribute("data-team-refresh")) { await loadTeamApplications(); return; }
+      if (button.dataset.copyCode) {
+        await navigator.clipboard.writeText(button.dataset.copyCode);
+        notify?.("Referral code copied.", "success");
+        return;
+      }
+      if (button.dataset.teamDetail) {
+        const { applications = [] } = await api("/api/admin/team-applications");
+        const application = applications.find((item) => item.id === button.dataset.teamDetail);
+        if (application) openDialog(dialogFrame(application.full_name,
+          `<p>${esc(application.email)} · ${esc(application.phone)}</p><p>${esc(application.education_background || "No education background provided")}</p><p>${esc(application.current_school || "")}</p><p>${esc(application.subjects_taught || "")} · ${esc(application.teaching_level || "")}</p><p>${esc(application.address || "")}</p>`));
+        return;
+      }
+      if (button.dataset.teamAction) {
+        const notes = prompt("Optional review note", "");
+        if (notes === null) return;
+        await api(`/api/admin/team-applications/${encodeURIComponent(button.dataset.id)}`, { method: "PATCH", body: { status: button.dataset.teamAction, notes } });
+        notify?.(`Application ${button.dataset.teamAction}.`, "success");
+        await loadTeamApplications();
+        return;
+      }
       if (button.dataset.opsTab) { await setOpsTab(button.dataset.opsTab); return; }
       if (button.dataset.privacyTab) {
         const deleting = button.dataset.privacyTab === "deletions";
