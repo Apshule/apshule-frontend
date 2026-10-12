@@ -30,3 +30,20 @@ test("all four report card layouts produce valid PDFs", async () => {
     assert.equal(doc.getPageCount(), 1, `${template_level} PDF has one page`);
   }
 });
+
+test("O-Level template tolerates missing branding and marks", async () => {
+  const bytes = await generateReportPDF({
+    report: {
+      template_level: "o_level", class_name: "S1", term: "Term 1", year: 2026,
+      learner_name: "", learner_lin: null, learner_gender: null,
+      school_name: "", school_contact: null, school_location: null,
+      term_dates: null, fees: null, class_position: null, report_theme: null,
+      brand_color: "#4B2E9E", next_term_fees: null, fees_balance: null,
+    },
+    marks: [],
+    comments: { class_teacher_comment: null, headteacher_comment: null, principal_comment: null },
+  });
+  const document = await PDFDocument.load(bytes);
+  assert.ok(bytes.byteLength > 500);
+  assert.equal(document.getPageCount(), 1);
+});

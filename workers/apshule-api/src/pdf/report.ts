@@ -30,6 +30,22 @@ export interface ReportCardPdfRow {
   class_teacher_name?: string | null;
   headteacher_name?: string | null;
   principal_name?: string | null;
+  school_motto?: string | null;
+  school_id_code?: string | null;
+  school_address?: string | null;
+  school_phone?: string | null;
+  school_email?: string | null;
+  school_website?: string | null;
+  brand_color?: string | null;
+  next_term_begins_on?: string | null;
+  term_ended_on?: string | null;
+  report_date?: string | null;
+  learner_reg_no?: string | null;
+  learner_vcode?: string | null;
+  learner_state?: string | null;
+  learner_residence?: string | null;
+  next_term_fees?: number | null;
+  fees_balance?: number | null;
 }
 
 export interface ReportProjectPdfRow {
@@ -68,6 +84,7 @@ export interface ReportCardPdfData {
     principal_comment: string | null;
   };
   schoolLogo?: ReportImage;
+  studentPhoto?: ReportImage;
   teacherSignature?: ReportImage;
   projects?: ReportProjectPdfRow[];
   nurseryAreas?: ReportNurseryArea[];
@@ -85,6 +102,10 @@ function themeAccent(theme?: string | null) {
   if (theme === "blue") return rgb(0x1d / 255, 0x4e / 255, 0xd8 / 255);
   if (theme === "maroon") return rgb(0x7f / 255, 0x1d / 255, 0x1d / 255);
   return rgb(0x4b / 255, 0x2e / 255, 0x9e / 255);
+}
+function brandAccent(color?: string | null) {
+  if (!color || !/^#[0-9a-f]{6}$/iu.test(color)) return rgb(0x4b / 255, 0x2e / 255, 0x9e / 255);
+  return rgb(parseInt(color.slice(1, 3), 16) / 255, parseInt(color.slice(3, 5), 16) / 255, parseInt(color.slice(5, 7), 16) / 255);
 }
 const LIGHT = rgb(0.94, 0.93, 0.97);
 const GRID = rgb(0.79, 0.78, 0.82);
@@ -464,6 +485,107 @@ function drawGradeScale(page:PDFPage,font:PDFFont,bold:PDFFont,report:ReportCard
   return y-13;
 }
 
+function drawOLevelTemplate(
+  page: PDFPage,
+  font: PDFFont,
+  bold: PDFFont,
+  data: ReportCardPdfData,
+  logo?: PDFImage,
+  studentPhoto?: PDFImage,
+): void {
+  const report = data.report;
+  const accent = brandAccent(report.brand_color);
+  const white = rgb(1, 1, 1);
+  const dash = "-";
+  const headerBottom = PAGE_HEIGHT - 108;
+  page.drawRectangle({ x: 0, y: headerBottom, width: PAGE_WIDTH, height: 108, color: accent });
+  page.drawRectangle({ x: 22, y: headerBottom + 18, width: 62, height: 70, color: white, borderColor: white, borderWidth: 1 });
+  if (logo) drawImage(page, logo, 25, headerBottom + 21, 56, 64);
+  else page.drawText("LOGO", { x: 40, y: headerBottom + 49, size: 9, font: bold, color: accent });
+  if (studentPhoto) drawImage(page, studentPhoto, PAGE_WIDTH - 82, headerBottom + 21, 56, 64);
+  else page.drawRectangle({ x: PAGE_WIDTH - 82, y: headerBottom + 18, width: 60, height: 70, color: white, borderColor: white, borderWidth: 1 });
+  const tx = 100;
+  const max = PAGE_WIDTH - 205;
+  const text = (value: unknown) => pdfSafe(value);
+  page.drawText(fitText(text(report.school_name), bold, 17, max), { x: tx, y: PAGE_HEIGHT - 30, size: 17, font: bold, color: white });
+  page.drawText(fitText(text(report.school_motto), font, 9, max), { x: tx, y: PAGE_HEIGHT - 46, size: 9, font, color: white });
+  page.drawText(fitText(`SCH.ID: ${text(report.school_id_code)} | TEL: ${text(report.school_phone || report.school_contact || "")} | EMAIL: ${text(report.school_email || "")} | ${text(report.school_website || "")}`, font, 7.5, max), { x: tx, y: PAGE_HEIGHT - 61, size: 7.5, font, color: white });
+  page.drawText(fitText(text(report.school_address || report.school_location), font, 7.5, max), { x: tx, y: PAGE_HEIGHT - 74, size: 7.5, font, color: white });
+  page.drawText(fitText(`${text(report.class_name)} ${text(report.term)} ${text(report.year)} REPORT CARD`, bold, 10, max), { x: tx, y: PAGE_HEIGHT - 94, size: 10, font: bold, color: white });
+
+  const infoTop = headerBottom - 12;
+  const infoHeight = 52;
+  page.drawRectangle({ x: MARGIN, y: infoTop - infoHeight, width: TABLE_WIDTH, height: infoHeight, color: LIGHT, borderColor: GRID, borderWidth: 0.5 });
+  const info = [
+    [`Name: ${text(report.learner_name) || dash}`, `Student ID: ${text(report.learner_reg_no || report.learner_lin) || dash}`, `LIN/AMIS No.: ${text(report.learner_lin) || dash}`],
+    [`Term: ${text(report.term)} ${text(report.year)}`, `Class: ${text(report.class_name) || dash}`, `Vcode: ${text(report.learner_vcode) || dash}`],
+    [`Date: ${text(report.report_date) || dash}`, `State: ${text(report.learner_state) || dash}`, `Residence: ${text(report.learner_residence) || dash}`],
+  ];
+  const colWidth = TABLE_WIDTH / 3;
+  info.forEach((row, ri) => row.forEach((value, ci) => {
+    page.drawText(fitText(value, ri === 0 && ci === 0 ? bold : font, 7.4, colWidth - 12), {
+      x: MARGIN + 7 + ci * colWidth, y: infoTop - 14 - ri * 15, size: 7.4,
+      font: ri === 0 && ci === 0 ? bold : font, color: INK,
+    });
+  }));
+
+  const labels = ["Subject", "T1", "T2", "T3", "AS", "FA(20)", "EOT(80)", "FINAL(100)", "GRADE", "GRADE DESCRIPTOR", "TR"];
+  const widths = [132, 38, 38, 38, 42, 49, 49, 57, 43, 246, 40];
+  let y = infoTop - infoHeight - 23;
+  const headerY = y;
+  page.drawRectangle({ x: MARGIN, y: headerY - 5, width: TABLE_WIDTH, height: 19, color: accent });
+  let x = MARGIN;
+  labels.forEach((label, i) => {
+    page.drawText(fitText(label, bold, 6.4, widths[i]! - 5), { x: x + 2, y: headerY + 1, size: 6.4, font: bold, color: white });
+    x += widths[i]!;
+  });
+  const rows = data.marks.length ? data.marks : [null];
+  let total = 0;
+  let count = 0;
+  let aggregate = 0;
+  rows.slice(0, 11).forEach((mark, ri) => {
+    y -= 18;
+    if (ri % 2 === 1) page.drawRectangle({ x: MARGIN, y: y - 4, width: TABLE_WIDTH, height: 18, color: rgb(0.975, 0.972, 0.985) });
+    const values = mark ? [
+      mark.subject_name, displayNumber(mark.a1), displayNumber(mark.a2), displayNumber(mark.a3),
+      displayNumber(mark.avg), displayNumber(mark.pct_20), displayNumber(mark.pct_80),
+      displayNumber(mark.pct_100), mark.grade || dash, mark.descriptor || mark.remarks || dash,
+      mark.teacher_initials || dash,
+    ] : [dash, dash, dash, dash, dash, dash, dash, dash, dash, dash, dash];
+    if (mark?.pct_100 != null) { total += Number(mark.pct_100); count += 1; }
+    if (mark?.identifier != null) aggregate += Number(mark.identifier);
+    let cx = MARGIN;
+    values.forEach((value, i) => {
+      page.drawText(fitText(value, font, 6.6, widths[i]! - 5), { x: cx + 2, y: y + 2, size: 6.6, font, color: INK });
+      cx += widths[i]!;
+    });
+    page.drawLine({ start: { x: MARGIN, y: y - 4 }, end: { x: PAGE_WIDTH - MARGIN, y: y - 4 }, thickness: 0.3, color: GRID });
+  });
+
+  y -= 25;
+  page.drawRectangle({ x: MARGIN, y: y - 17, width: TABLE_WIDTH, height: 22, color: LIGHT, borderColor: GRID, borderWidth: 0.5 });
+  const average = count ? (total / count).toFixed(1) : dash;
+  page.drawText(`OVERALL AVERAGE: ${average}`, { x: MARGIN + 8, y: y - 9, size: 8, font: bold, color: INK });
+  page.drawText(`LEVEL OF ACHIEVEMENT: ${data.marks.find(m => m.grade)?.descriptor || data.marks.find(m => m.grade)?.grade || dash}`, { x: MARGIN + 210, y: y - 9, size: 7.6, font: bold, color: INK });
+  page.drawText(`RESULT: ${count ? aggregate : dash}`, { x: PAGE_WIDTH - MARGIN - 128, y: y - 9, size: 8, font: bold, color: INK });
+
+  y -= 39;
+  page.drawText(`NEXT TERM BEGINS: ${text(report.next_term_begins_on) || dash}     Ends: ${text(report.term_ended_on) || text(report.term_dates) || dash}     Next term fees: UGX ${report.next_term_fees == null ? dash : Number(report.next_term_fees).toLocaleString()}`, { x: MARGIN, y, size: 7.3, font, color: INK });
+  y -= 17;
+  page.drawText("Class teacher's remarks:", { x: MARGIN, y, size: 7.5, font: bold, color: accent });
+  page.drawText(fitText(data.comments.class_teacher_comment || dash, font, 7.2, TABLE_WIDTH - 120), { x: MARGIN + 115, y, size: 7.2, font, color: INK });
+  y -= 15;
+  page.drawText("Headteacher's remarks:", { x: MARGIN, y, size: 7.5, font: bold, color: accent });
+  page.drawText(fitText(data.comments.headteacher_comment || data.comments.principal_comment || dash, font, 7.2, TABLE_WIDTH - 120), { x: MARGIN + 115, y, size: 7.2, font, color: INK });
+  y -= 22;
+  page.drawLine({ start: { x: MARGIN, y }, end: { x: PAGE_WIDTH - MARGIN, y }, thickness: 0.6, color: accent });
+  y -= 13;
+  page.drawText(fitText(`Outstanding school fees balance is UGX ${report.fees_balance == null ? dash : Number(report.fees_balance).toLocaleString()} as at ${text(report.report_date) || dash}`, font, 7, TABLE_WIDTH), { x: MARGIN, y, size: 7, font, color: INK });
+  y -= 12;
+  page.drawText("GRADES: A: 100-80; B: 79-70; C: 69-60; D: 59-40; E: <40", { x: MARGIN, y, size: 6.7, font: bold, color: MUTED });
+  page.drawText("T = Topic; EOTi = end of term i", { x: MARGIN + 360, y, size: 6.7, font, color: MUTED });
+}
+
 export async function generateReportPDF(data: ReportCardPdfData): Promise<Uint8Array> {
   const document = await PDFDocument.create();
   document.setTitle(`${data.report.learner_name} - ${data.report.term} ${data.report.year} report`);
@@ -473,8 +595,13 @@ export async function generateReportPDF(data: ReportCardPdfData): Promise<Uint8A
   const bold = await document.embedFont(StandardFonts.HelveticaBold);
   const logo = await embedImage(document, data.schoolLogo);
   const signature = await embedImage(document, data.teacherSignature);
+  const studentPhoto = await embedImage(document, data.studentPhoto);
 
   let page = document.addPage([PAGE_WIDTH, PAGE_HEIGHT]);
+  if (data.report.template_level === "o_level") {
+    drawOLevelTemplate(page, font, bold, data, logo, studentPhoto);
+    return document.save();
+  }
   if(data.report.template_level==="nursery"){
     drawHeader(page,font,bold,data.report,logo,false);
     drawNurseryActivities(page,font,bold,data);

@@ -262,9 +262,15 @@ async function loadReportCard(
       card.teacher_id, card.created_at,
       COALESCE(learner_record.full_name, learner.name) AS learner_name,
       COALESCE(learner_record.lin, learner.lin, learner_record.reg_no) AS learner_lin,
+      learner_record.reg_no AS learner_reg_no, learner_record.residence AS learner_residence,
+      learner_record.section AS learner_section, learner_record.house AS learner_house,
+      learner_record.photo_base64 AS learner_photo_base64, learner_record.active AS learner_active,
       learner.gender AS learner_gender, learner.school_id AS learner_school_id,
-      school.name AS school_name, school.logo AS school_logo,
-      school.report_theme AS report_theme,
+      school.name AS school_name, school.logo AS school_logo, school.logo_base64 AS school_logo_base64,
+      school.short_code AS school_short_code, school.brand_color AS brand_color, school.motto AS school_motto,
+      school.phone AS school_phone, school.email AS school_email, school.website AS school_website,
+      school.address AS school_address, school.term_ended_on, school.next_term_begins_on,
+      school.next_term_fees, school.report_theme AS report_theme,
       school.head_teacher_name, school.principal_name,
       school.class_teacher_comment_template,
       class_teacher.name AS class_teacher_name,
@@ -298,7 +304,7 @@ async function loadReportCard(
 async function buildReportPdfData(sql: ReturnType<typeof getDb>, card: Record<string, unknown>): Promise<ReportCardPdfData> {
   const id=String(card.id), level=String(card.template_level);
   const currentTerm=String(card.term),currentYear=Number(card.year);
-  const [marks,signatures,areas,activities,projects,gradeScale,feeText]=await Promise.all([
+  const [marks,signatures,areas,activities,projects,gradeScale,feeText,feeRows]=await Promise.all([
     sql`SELECT subject_code,subject_name,paper,a1,a2,a3,avg,pct_20,eot,pct_80,pct_100,identifier,grade,remarks,descriptor,teacher_initials FROM report_marks WHERE report_card_id=${id} ORDER BY subject_name`,
     card.teacher_id?sql`SELECT signature_image_url,signature_draw_base64 FROM teacher_signatures WHERE teacher_id=${card.teacher_id} LIMIT 1`:Promise.resolve([]),
     level==="nursery"?sql`SELECT code,name FROM nursery_learning_areas WHERE school_id=${card.school_id} ORDER BY sort_order LIMIT 5`:Promise.resolve([]),
@@ -306,15 +312,18 @@ async function buildReportPdfData(sql: ReturnType<typeof getDb>, card: Record<st
     level==="a_level"?sql`SELECT project_name,score,out_of,percentage,grade,remarks,teacher_initials FROM learner_projects WHERE report_card_id=${id} OR (learner_id=${card.learner_record_id??null} AND term=${card.term} AND year=${card.year}) ORDER BY created_at`:Promise.resolve([]),
     level==="a_level"?sql`SELECT grade_code,descriptor FROM school_grading_systems WHERE school_id=${card.school_id} AND level='a_level' ORDER BY sort_order`:Promise.resolve([]),
     reportFeeText(sql,card.learner_record_id?String(card.learner_record_id):null,currentTerm,currentYear,(card.fees as string|null)??null),
+    card.learner_record_id?sql`SELECT balance FROM learner_fees WHERE learner_id=${card.learner_record_id} AND term=${currentTerm} AND year=${currentYear} LIMIT 1`:Promise.resolve([]),
   ]);
   const markMap=new Map((marks as any[]).map(m=>[String(m.subject_code||m.subject_name).toLowerCase(),m]));
   const pos=await getClassPosition(sql,card);
   const sig=signatures[0] as {signature_image_url:string|null;signature_draw_base64:string|null}|undefined;
   return {
-    report:{template_level:level,class_name:String(card.class_name),term:String(card.term),year:Number(card.year),learner_name:String(card.learner_name),learner_lin:(card.learner_lin as string|null)??null,learner_gender:(card.learner_gender as string|null)??null,school_name:String(card.school_name??"APSHULE"),school_contact:(card.school_contact as string|null)??null,school_location:(card.school_location as string|null)??null,term_dates:(card.term_dates as string|null)??null,fees:feeText,class_position:pos,report_theme:String(card.report_theme??"blue"),class_teacher_name:(card.class_teacher_name as string|null)??null,headteacher_name:(card.head_teacher_name as string|null)??null,principal_name:(card.principal_name as string|null)??null},
+     report:{template_level:level,class_name:String(card.class_name??""),term:String(card.term??""),year:Number(card.year),learner_name:String(card.learner_name??""),learner_lin:(card.learner_lin as string|null)??null,learner_gender:(card.learner_gender as string|null)??null,school_name:String(card.school_name??""),school_contact:(card.school_contact as string|null)??null,school_location:(card.school_location as string|null)??null,term_dates:(card.term_dates as string|null)??null,fees:feeText,class_position:pos,report_theme:String(card.report_theme??"blue"),class_teacher_name:(card.class_teacher_name as string|null)??null,headteacher_name:(card.head_teacher_name as string|null)??null,principal_name:(card.principal_name as string|null)??null,
+       school_motto:(card.school_motto as string|null)??null,school_id_code:(card.school_short_code as string|null)??null,school_address:(card.school_address as string|null)??(card.school_location as string|null)??null,school_phone:(card.school_phone as string|null)??null,school_email:(card.school_email as string|null)??null,school_website:(card.school_website as string|null)??null,brand_color:(card.brand_color as string|null)??"#4B2E9E",next_term_begins_on:card.next_term_begins_on?String(card.next_term_begins_on):null,term_ended_on:card.term_ended_on?String(card.term_ended_on):null,report_date:(()=>{const d=new Date();return `${String(d.getDate()).padStart(2,"0")}-${d.toLocaleString("en",{month:"short"}).toUpperCase()}-${d.getFullYear()}`;})(),learner_reg_no:(card.learner_reg_no as string|null)??null,learner_vcode:null,learner_state:null,learner_residence:(card.learner_residence as string|null)??null,next_term_fees:card.next_term_fees==null?null:Number(card.next_term_fees),fees_balance:feeRows[0]?.balance==null?null:Number(feeRows[0].balance)},
     marks:marks as ReportCardPdfData["marks"],
     comments:{class_teacher_comment:(card.class_teacher_comment as string|null)??(card.class_teacher_comment_template as string|null)??null,headteacher_comment:(card.headteacher_comment as string|null)??null,principal_comment:(card.principal_comment as string|null)??null},
-    schoolLogo:await loadReportImage((card.school_logo as string|null)??null),
+     schoolLogo:await loadReportImage((card.school_logo_base64 as string|null)??(card.school_logo as string|null)??null),
+     studentPhoto:await loadReportImage((card.learner_photo_base64 as string|null)??null),
     teacherSignature:await loadReportImage(sig?.signature_draw_base64??sig?.signature_image_url??null),
     nurseryAreas:(areas as any[]).map(a=>{const m=markMap.get(String(a.code).toLowerCase())||markMap.get(String(a.name).toLowerCase());return {name:a.name,score:m?Number(m.pct_100):null,remark:m?.remarks??null};}),
     nurseryActivities:(activities as any[]).map(a=>({name:a.name,status:a.status})),
@@ -363,6 +372,8 @@ async function reportDetailResponse(
   const classPosition = await getClassPosition(sql, card);
   const {
     school_logo: _logo,
+    school_logo_base64: _schoolLogoBase64,
+    learner_photo_base64: _learnerPhotoBase64,
     ...safeCard
   } = card;
   return {
@@ -1067,6 +1078,35 @@ reportRoutes.patch(
       INNER JOIN audit ON audit.target_id = updated.id
     `;
     return c.json({ report_card: rows[0] });
+  },
+);
+
+reportRoutes.get(
+  "/report-cards/:id/preview.pdf",
+  authMiddleware,
+  educationAccess,
+  async (c) => {
+    const user = c.get("user");
+    const id = routeUuid(c.req.param("id"));
+    const sql = getDb(c.env);
+    const card = await loadReportCard(sql, id);
+    if (user.role === "individual") {
+      if (card.learner_id !== user.id || card.status !== "published") {
+        throw new ApiError(404, "REPORT_CARD_NOT_FOUND", "Published report card was not found.");
+      }
+    } else {
+      await assertStaffCanAccessCard(sql, user, {
+        school_id: (card.school_id as string | null) ?? null,
+        class_name: String(card.class_name),
+      });
+    }
+    const bytes = await generateReportPDF(await buildReportPdfData(sql, card));
+    const responseBytes = new ArrayBuffer(bytes.byteLength);
+    new Uint8Array(responseBytes).set(bytes);
+    return new Response(responseBytes, {
+      status: 200,
+      headers: { "Content-Type": "application/pdf", "Content-Disposition": "inline", "Cache-Control": "no-store" },
+    });
   },
 );
 

@@ -95,6 +95,7 @@ export function initReportCardUI({ api, getCurrentUser, getToken, apiBase, notif
     loadedUserId: null,
     uploadedSignature: null,
     hasSignatureInk: false,
+    previewObjectUrl: null,
   };
 
   const root = $("reportCardsWorkspace");
@@ -647,7 +648,10 @@ export function initReportCardUI({ api, getCurrentUser, getToken, apiBase, notif
       const detail = await api(`/api/report-cards/${encodeURIComponent(cardId)}`);
       state.activeCardId = cardId;
       state.activeDetail = detail;
-      renderStudentPreview(detail);
+      if (state.previewObjectUrl) URL.revokeObjectURL(state.previewObjectUrl);
+      const previewBlob = await downloadResponse(`/api/report-cards/${encodeURIComponent(cardId)}/preview.pdf`);
+      state.previewObjectUrl = URL.createObjectURL(previewBlob);
+      renderStudentPreview(detail, state.previewObjectUrl);
       listView.hidden = true;
       editorView.hidden = true;
       previewView.hidden = false;
@@ -659,40 +663,12 @@ export function initReportCardUI({ api, getCurrentUser, getToken, apiBase, notif
     }
   }
 
-  function renderStudentPreview(detail) {
+  function renderStudentPreview(detail, pdfUrl) {
     const report = detail.report_card || {};
-    const level = report.template_level;
-    const marks = apiList(detail, "marks");
-    const comments = detail.comments || {};
     $("rcWorkspaceTitle").textContent = "Report Preview";
     $("rcWorkspaceEyebrow").textContent = "Published report card";
-    $("rcPreviewMeta").textContent = `${report.term} ${report.year} · ${report.class_name} · ${templateLabel(level)}`;
-    const headings = level === "nursery"
-      ? ["Learning area", "Score", "Grade", "Remarks"]
-      : ["Code", "Subject", "A1", "A2", "A3", "Average", "20%", "EOT", "80%", "Total", "Identifier", "Grade", "Remarks"];
-    const rows = marks.map((mark) => {
-      const values = level === "nursery"
-        ? [mark.subject_name, mark.pct_100, mark.grade, mark.remarks]
-        : [mark.subject_code, mark.subject_name, mark.a1, mark.a2, mark.a3, mark.avg, mark.pct_20, mark.eot, mark.pct_80, mark.pct_100, mark.identifier, mark.grade, mark.remarks];
-      return `<tr>${values.map((value) => `<td>${safe(value ?? "—")}</td>`).join("")}</tr>`;
-    }).join("");
-    const commentEntries = [
-      ["Class teacher", comments.class_teacher_comment],
-      ["Headteacher", comments.headteacher_comment],
-      ["Principal", comments.principal_comment],
-    ].filter(([, value]) => value);
-    const commentHtml = commentEntries.length
-      ? commentEntries.map(([label, value]) => `<div><strong>${safe(label)}:</strong> ${safe(value)}</div>`).join("")
-      : '<div>No comments are available.</div>';
-    $("rcPreviewContent").innerHTML = `
-      <h2>${safe(report.school_name || "APSHULE")}</h2>
-      <p><strong>Learner:</strong> ${safe(report.learner_name)}${report.learner_lin ? ` · <strong>LIN:</strong> ${safe(report.learner_lin)}` : ""}</p>
-      <p><strong>Class:</strong> ${safe(report.class_name)} · <strong>Term:</strong> ${safe(report.term)} ${safe(report.year)}</p>
-      <p><strong>Gender:</strong> ${safe(report.learner_gender || "Not set")}${report.class_position ? ` · <strong>Class position:</strong> ${safe(report.class_position)}` : ""}</p>
-      <div class="rc-table-wrap" style="margin-top:14px;"><table class="rc-table"><thead><tr>${headings.map((heading) => `<th>${safe(heading)}</th>`).join("")}</tr></thead><tbody>${rows || `<tr><td colspan="${headings.length}">No marks are available.</td></tr>`}</tbody></table></div>
-      <div class="rc-comment-preview">${commentHtml}</div>
-      <p style="margin-top:14px;"><strong>Term dates:</strong> ${safe(report.term_dates || "Not set")} · <strong>Fees:</strong> ${safe(report.fees || "Not set")}</p>
-    `;
+    $("rcPreviewMeta").textContent = `${report.term} ${report.year} · ${report.class_name} · ${templateLabel(report.template_level)}`;
+    $("rcPreviewContent").innerHTML = `<iframe title="Report card PDF preview" src="${pdfUrl}" style="width:100%;height:min(72vh,850px);border:0;background:#fff"></iframe>`;
   }
 
   async function downloadStudentPdf() {
