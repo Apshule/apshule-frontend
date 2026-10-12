@@ -96,18 +96,18 @@ rm.post("/rm/cards/bulk-create",requireRole("school"),async c=>{
   let learners=await sql`SELECT l.id learner_record_id,l.user_id,l.full_name,c.name class_name,c.level
     FROM learners l JOIN classes c ON c.id=l.class_id WHERE l.school_id=${sid}::uuid AND l.class_id=${cl}::uuid AND l.active AND c.active ORDER BY l.full_name`;
   if(trial)learners=learners.slice(0,1);
-  let created=0,skipped=0;
+  let created=0,skipped=0;const cards:any[]=[];
   for(const l of learners as any[]){
-    if(!l.user_id){skipped++;continue;}
     const rows=await getDb(c.env)`INSERT INTO report_cards(template_level,learner_id,learner_record_id,school_id,class_id,class_name,term,year,status,created_by)
       VALUES(${l.level},${l.user_id}::uuid,${l.learner_record_id}::uuid,${sid}::uuid,${cl}::uuid,${l.class_name},${term},${year},'draft',${currentUser(c).id}::uuid)
-      ON CONFLICT DO NOTHING RETURNING id`;
+      ON CONFLICT DO NOTHING RETURNING id,learner_record_id`;
     if(!rows.length){skipped++;continue;} created++;
+    cards.push({id:rows[0]!.id,learner_id:l.learner_record_id,full_name:l.full_name,class_name:l.class_name});
     await getDb(c.env)`INSERT INTO report_marks(report_card_id,subject_id,subject_code,subject_name)
       SELECT ${rows[0]!.id}::uuid,s.id,s.code,s.name FROM school_subjects s WHERE s.school_id=${sid}::uuid AND s.level=${l.level} AND s.active
       ON CONFLICT DO NOTHING`;
   }
-  return c.json({created,skipped});
+  return c.json({created,skipped,cards});
 });
 rm.get("/rm/cards",async c=>{
   const sid=schoolId(c),cl=c.req.query("class_id"),term=c.req.query("term"),year=c.req.query("year");
