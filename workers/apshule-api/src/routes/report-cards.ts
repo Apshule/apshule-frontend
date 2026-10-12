@@ -255,7 +255,8 @@ async function loadReportCard(
 ): Promise<Record<string, unknown>> {
   const rows = await sql`
     SELECT
-      card.id, card.template_level, card.learner_id, card.school_id, card.class_name,
+      card.id, card.template_level, card.learner_id, card.learner_record_id,
+      card.class_id, card.school_id, card.class_name,
       card.term, card.year, card.status, card.published_at, card.created_by,
       card.teacher_id, card.created_at,
       COALESCE(learner_record.full_name, learner.name) AS learner_name,
@@ -273,7 +274,7 @@ async function loadReportCard(
       comments.class_teacher_comment, comments.headteacher_comment,
       comments.principal_comment, comments.auto_comments
     FROM report_cards card
-    INNER JOIN users learner ON learner.id = card.learner_id
+    LEFT JOIN users learner ON learner.id = card.learner_id
     LEFT JOIN schools school ON school.id = card.school_id
     LEFT JOIN learners learner_record ON learner_record.id = card.learner_record_id
     LEFT JOIN LATERAL (
