@@ -61,6 +61,18 @@ rm.get("/rm/my-classes",requireRole("teacher"),async c=>{
     GROUP BY c.id,c.name,c.level ORDER BY c.name`;
   return c.json({classes:rows});
 });
+rm.get("/rm/my-students",requireRole("teacher"),async c=>{
+  const sid=schoolId(c),uid=currentUser(c).id,cl=c.req.query("class_id")||"";
+  const rows=await getDb(c.env)`SELECT DISTINCT l.id,l.reg_no,l.full_name,l.photo_base64,c.name class_name,
+    ROUND(AVG(rm.pct100),1) current_avg
+    FROM teacher_assignments ta JOIN classes c ON c.id=ta.class_id JOIN learners l ON l.class_id=c.id AND l.school_id=c.school_id
+    LEFT JOIN report_cards rc ON rc.learner_record_id=l.id
+    LEFT JOIN report_marks rm ON rm.report_card_id=rc.id AND rm.subject_id=ta.subject_id
+    WHERE ta.school_id=${sid}::uuid AND ta.teacher_id=${uid}::uuid AND ta.active AND c.active AND l.active
+      AND (${cl}='' OR c.id::text=${cl})
+    GROUP BY l.id,l.reg_no,l.full_name,l.photo_base64,c.name ORDER BY c.name,l.full_name`;
+  return c.json({students:rows});
+});
 rm.get("/rm/class/:class_id/subjects",async c=>{
   const sid=schoolId(c),cl=id(c.req.param("class_id")),u=currentUser(c),teacher=u.role==="teacher";
   const rows=await getDb(c.env)`SELECT s.id,s.code,s.name,s.papers,u.id teacher_id,u.name teacher_name

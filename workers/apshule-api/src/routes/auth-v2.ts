@@ -39,17 +39,21 @@ auth2.post("/login-school", async (c) => {
   const password = requiredString(body, "password", { max: 128 });
   const sql = getDb(c.env);
   const rows = await sql`
-    SELECT s.id AS school_id, s.login_password_hash, u.id, u.name, u.email, u.phone,
+    SELECT s.id AS school_id, s.login_password_hash, u.password_hash AS user_password_hash,
+      u.id, u.name, u.email, u.phone,
       u.role, u.sector, u.waitlist, u.school_id AS user_school_id, u.education_level,
       u.class_level, u.subjects_taught, u.assigned_classes, u.lin, u.school_verified,
       u.address, u.profile_pic, u.session_version, u.must_change_password,
       u.subscription, u.subscription_active, u.subscription_date, u.login_count,
       u.last_login, u.detected_location, u.created_at
-    FROM schools s JOIN users u ON u.school_id=s.id AND lower(u.email)=lower(s.login_email)
-    WHERE lower(s.short_code)=${schoolCode} AND lower(s.login_email)=${email} AND u.role='school'
+    FROM schools s JOIN users u ON u.school_id=s.id AND lower(u.email)=${email}
+    WHERE lower(s.short_code)=${schoolCode}
+      AND ((u.role='school' AND lower(s.login_email)=${email})
+        OR (u.role='teacher' AND u.sector='education' AND u.is_active IS TRUE))
     LIMIT 1`;
-  const row = rows[0] as (UserRecord & { login_password_hash: string; school_id: string }) | undefined;
-  if (!row || !(await verifyPassword(password, row.login_password_hash))) {
+  const row = rows[0] as (UserRecord & { login_password_hash: string; user_password_hash: string; school_id: string }) | undefined;
+  const passwordHash = row?.role === "teacher" ? row.user_password_hash : row?.login_password_hash;
+  if (!row || !passwordHash || !(await verifyPassword(password, passwordHash))) {
     throw new ApiError(401, "INVALID_CREDENTIALS", "School code, email, or password is incorrect.");
   }
   const updated = await sql`
