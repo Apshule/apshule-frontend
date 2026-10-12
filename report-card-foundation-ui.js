@@ -75,9 +75,12 @@ export function initReportCardFoundationUI({api,getCurrentUser,notify=()=>{}}){
   }catch(err){notify(err.message||"Action failed.","error");}});
   overlay.addEventListener("change",async e=>{const el=e.target;if(el.matches("[data-rcf-image]")){try{el.dataset.value=await fileBase64(el.files[0],el.dataset.rcfImage==="report_logo_base64"?300000:100000);}catch(err){notify(err.message,"error");}}if(el.matches("[data-rcf-csv]")&&el.files?.[0]){try{if(!classId)throw Error("Choose a class before importing learners.");const rows=parseCsv(await el.files[0].text());if(!rows.length)throw Error("The CSV has no learner rows.");const result=await call("/rc/learners/bulk",{method:"POST",body:{class_id:classId,rows}});notify(`Import complete: created ${result.created}, skipped ${result.skipped}, errors ${result.errors}.`,"success");await show("learners");await stats();}catch(err){notify(err.message||"CSV import failed.","error");}finally{el.value="";}}});
   async function setUser(user){
-    if(user?.role!=="school"||user?.sector!=="education"){activeUserId=null;return;}
+    if(user?.role!=="school"){activeUserId=null;return;}
     if(!mount()){activeUserId=null;return;}
-    if(String(user.id)===String(activeUserId))return;
+    if(String(user.id)===String(activeUserId)){
+      try{await stats();await show(selected);}catch(e){notify(e.message||"Could not load report-card setup.","error");}
+      return;
+    }
     activeUserId=user.id;
     try{await stats();await show("branding");}catch(e){notify(e.message||"Could not load report-card setup.","error");}
   }
