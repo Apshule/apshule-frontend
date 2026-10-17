@@ -1142,7 +1142,8 @@
             <div class="login-tabs" style="margin:0 0 14px"><button type="button" class="login-tab active" data-login-identity="email">Email</button><button type="button" class="login-tab" data-login-identity="regno">Reg No</button></div>
             <input type="text" id="schoolAdminCode" placeholder="School code" class="login-input" hidden autocomplete="organization">
             <div id="teacherLoginMode" hidden style="margin:0 0 12px"><label><input type="radio" name="teacherLoginKind" value="school" checked> I’m part of a school</label><label style="margin-left:16px"><input type="radio" name="teacherLoginKind" value="independent"> I’m independent</label></div>
-            <input type="text" id="teacherSchoolCode" placeholder="School code (leave blank for independent)" class="login-input" hidden autocomplete="organization">
+            <input type="text" id="teacherSchoolCode" placeholder="School code" class="login-input" hidden autocomplete="organization">
+            <small id="teacherSchoolCodeHint" hidden></small>
             <div id="emailLoginIdentity"><input type="email" id="loginEmail" placeholder="Email" class="login-input"></div>
             <div id="regNoLoginIdentity" hidden><input id="loginRegNo" placeholder="Registration number" class="login-input" autocomplete="username"><input id="loginSchoolCode" placeholder="School code (optional)" class="login-input" autocomplete="organization"></div>
             <div style="position: relative;"><input type="password" id="loginPassword" placeholder="Password" class="login-input"><span onclick="togglePassword('loginPassword')" style=" position: absolute; right: 20px; top: 12px; cursor: pointer;">👁️</span></div>
@@ -9018,6 +9019,23 @@
             farm: [['farm_admin','Farm Admin'],['farm_manager','Farm Manager'],['farm_worker','Farm Worker']],
         };
         const sectorTitles = { education:'Education', mfi:'Microfinance', clinic:'Clinic', farm:'Farming' };
+        const teacherSchoolCodeKey = (email) => `apshule_teacher_school_code:${String(email || '').trim().toLowerCase()}`;
+        function restoreTeacherSchoolCode() {
+            const email = document.getElementById('loginEmail').value.trim().toLowerCase();
+            const remembered = email ? localStorage.getItem(teacherSchoolCodeKey(email)) : '';
+            const field = document.getElementById('teacherSchoolCode');
+            const hint = document.getElementById('teacherSchoolCodeHint');
+            if (remembered) {
+                field.value = remembered;
+                hint.textContent = `Remembered school code for ${email}: ${remembered}. Confirm it or edit it.`;
+                hint.hidden = false;
+            } else {
+                field.value = '';
+                hint.textContent = '';
+                hint.hidden = true;
+            }
+        }
+        document.getElementById('loginEmail').addEventListener('input', restoreTeacherSchoolCode);
         function openSuperAdminLogin() {
             flowSector = 'global';
             flowRole = 'superadmin';
@@ -9072,6 +9090,7 @@
             document.getElementById('schoolAdminCode').hidden = flowRole !== 'school';
             document.getElementById('teacherLoginMode').hidden = flowRole !== 'teacher';
             document.getElementById('teacherSchoolCode').hidden = flowRole !== 'teacher' || document.querySelector('[name="teacherLoginKind"]:checked')?.value !== 'school';
+            document.getElementById('teacherSchoolCodeHint').hidden = flowRole !== 'teacher' || document.getElementById('teacherSchoolCodeHint').hidden;
             document.querySelectorAll('[data-login-identity]').forEach(tab => {
                 tab.hidden = flowSector !== 'education' || flowRole === 'school';
             });
@@ -9084,6 +9103,7 @@
             } else {
                 document.querySelector('[data-login-identity="email"]')?.click();
             }
+            if (flowRole === 'teacher') restoreTeacherSchoolCode();
             if (flowSector === 'education' && flowRole !== 'school') {
                 document.getElementById('signupRole').value = flowRole === 'individual' ? 'individual' : 'teacher';
                 document.querySelector('[data-tab="signup"]')?.addEventListener('click', () => {
@@ -9093,6 +9113,8 @@
         });
         document.querySelectorAll('[name="teacherLoginKind"]').forEach(input => input.addEventListener('change', () => {
             document.getElementById('teacherSchoolCode').hidden = flowRole !== 'teacher' || input.value !== 'school';
+            document.getElementById('teacherSchoolCodeHint').hidden = flowRole !== 'teacher' || input.value !== 'school';
+            if (input.value === 'school') restoreTeacherSchoolCode();
         }));
         document.querySelectorAll('[data-auth-back]').forEach(button => button.addEventListener('click', () => {
             const destination = button.dataset.authBack;
@@ -9683,7 +9705,7 @@
             });
         });
 
-        document.querySelectorAll('.login-tab').forEach(t => t.addEventListener('click', () => {
+        document.querySelectorAll('.login-tab[data-tab]').forEach(t => t.addEventListener('click', () => {
             const tn = t.getAttribute('data-tab');
             document.querySelectorAll('.login-tab').forEach(tt => tt.classList.remove('active'));
             t.classList.add('active');
@@ -10027,6 +10049,19 @@
                 loginError.innerText = identity ? 'Please enter password' : loginMode === 'email' ? 'Please enter email' : 'Please enter registration number';
                 return;
             }
+            if (flowRole === 'school' && !document.getElementById('schoolAdminCode').value.trim()) {
+                loginError.className = 'error-message';
+                loginError.style.display = 'block';
+                loginError.innerText = 'Please enter your school code';
+                return;
+            }
+            const isTeacherSchoolLogin = flowRole === 'teacher' && document.querySelector('[name="teacherLoginKind"]:checked')?.value === 'school';
+            if (isTeacherSchoolLogin && !document.getElementById('teacherSchoolCode').value.trim()) {
+                loginError.className = 'error-message';
+                loginError.style.display = 'block';
+                loginError.innerText = 'Please enter your school code for your first sign-in.';
+                return;
+            }
             try {
                 const teacherSchoolCode = document.getElementById('teacherSchoolCode').value.trim();
                 const teacherSchoolLogin = flowRole === 'teacher' && document.querySelector('[name="teacherLoginKind"]:checked')?.value === 'school';
@@ -10050,6 +10085,9 @@
                 }
                 if (flowSector && flowRole && flowRole !== 'superadmin' && (data.user?.sector !== flowSector || data.user?.role !== flowRole)) {
                     throw new Error('That account does not match the selected sector and role.');
+                }
+                if (isTeacherSchoolLogin && data.user?.role === 'teacher') {
+                    localStorage.setItem(teacherSchoolCodeKey(email), document.getElementById('teacherSchoolCode').value.trim().toLowerCase());
                 }
                 if (data.user?.must_change_password) {
                     AUTH_TOKEN = data.token;
@@ -10356,7 +10394,7 @@
 
     if ("serviceWorker" in navigator) {
         window.addEventListener("load", () => {
-                    navigator.serviceWorker.register("/sw-cache-v65.js", { scope: "/" })
+                    navigator.serviceWorker.register("/sw-cache-v68.js", { scope: "/" })
                 .then((registration) => console.log("[SW] registered", registration.scope))
                 .catch((error) => console.error("[SW] failed", error));
         }, { once: true });
