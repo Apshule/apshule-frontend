@@ -172,7 +172,6 @@ export function initAccountProfileUI({
         if (path === "/api/video-views") return "Lesson view";
         if (path === "/api/projects") return "Learner project";
         if (/^\/api\/teacher\/retooling\/\d+\/quiz$/u.test(String(path || ""))) return "Retooling quiz";
-        if (/^\/api\/report-cards\/[^/]+\/marks$/u.test(String(path || ""))) return "Report-card mark";
         return "Saved change";
     }
 

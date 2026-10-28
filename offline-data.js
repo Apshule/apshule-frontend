@@ -414,8 +414,7 @@ export function createOfflineDataLayer(options) {
             pathname === "/api/ca-records" ||
             pathname === "/api/video-views" ||
             pathname === "/api/projects" ||
-            /^\/api\/teacher\/retooling\/\d+\/quiz$/u.test(pathname) ||
-            /^\/api\/report-cards\/[^/]+\/marks$/u.test(pathname)
+            /^\/api\/teacher\/retooling\/\d+\/quiz$/u.test(pathname)
         ) {
             return pathname;
         }

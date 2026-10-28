@@ -1564,13 +1564,6 @@
                             <span id="teacherRetoolingCardCount" class="teacher-tool-count">—</span>
                             <small>of 10 complete</small>
                         </button>
-                        <button type="button" class="teacher-tool-card" data-report-cards-open="teacher">
-                            <span class="teacher-tool-icon" aria-hidden="true">📊</span>
-                            <strong>Report Cards</strong>
-                            <small>Enter marks, comments and signatures</small>
-                            <span class="teacher-tool-count">Open</span>
-                            <small>for your assigned classes</small>
-                        </button>
                         <button type="button" class="teacher-tool-card teacher-tool-card--earnings" data-teacher-open="teacherEarningsScreen">
                             <span class="teacher-tool-icon" aria-hidden="true"><i class="fas fa-coins"></i></span>
                             <strong>Teacher Earnings</strong>
@@ -1782,12 +1775,17 @@
                     </section>
                 </section>
             </section>
-            <section id="studentReportCardSection" class="rc-student-launch" hidden aria-label="My report cards">
-                <button type="button" id="studentReportCardsOpen" data-report-cards-open="student">
-                    <span class="rc-student-icon" aria-hidden="true">📊</span>
-                    <span class="rc-student-copy"><strong>My Report Cards</strong><small>Preview published reports and manage PDF downloads</small></span>
-                    <span id="studentReportCount" class="rc-student-count">—</span>
-                </button>
+            <section id="externalReportCards" class="admin-section" hidden aria-label="Report Cards">
+                <h2>📊 Report Cards</h2>
+                <p>Open the secure Report Cards workspace for your school.</p>
+                <button type="button" id="openExternalReportCards" class="admin-toggle">Open Report Cards</button>
+                <div id="externalReportCardsStatus" role="status" aria-live="polite"></div>
+                <div id="externalReportCardsFrameWrap" hidden>
+                    <button type="button" id="closeExternalReportCards" class="admin-toggle">Close Report Cards</button>
+                    <iframe id="externalReportCardsFrame" title="Report Cards" src="about:blank"
+                        referrerpolicy="no-referrer" sandbox="allow-scripts allow-forms allow-same-origin"
+                        style="display:block;width:100%;height:min(78vh,900px);border:0;border-radius:12px;background:#fff"></iframe>
+                </div>
             </section>
             <div class="education-level"><button class="level-btn" data-level="nursery">🧒 Nursery</button><button class="level-btn" data-level="primary">🏫 Primary School</button><button class="level-btn" data-level="secondary">🎓 Secondary School</button></div>
             <div id="classSelectionSection"><div class="section-title">📚 Select Your Class</div><div id="classGrid" class="class-grid"></div></div>
@@ -1934,37 +1932,6 @@
                     <p>Manage the school details and branding shown across APSHULE.</p>
                     <div id="schoolBrandingMount"></div>
                 </div>
-                <div class="admin-section" id="schoolReportCardsSection" style="display:none;">
-                    <h4>📊 Report Cards</h4>
-                    <p class="rc-muted">Set up school branding, classes, learners, subjects, and grading for report cards.</p>
-                    <div id="reportCardFoundationMount"></div>
-                    <div id="schoolReportCardsLegacy" hidden>
-                    <div class="rc-grid" style="margin-top:12px;">
-                        <div class="rc-field"><label for="schoolReportClass">Class</label><select id="schoolReportClass"><option value="">Loading classes…</option></select></div>
-                        <div class="rc-field"><label for="schoolReportTerm">Term</label><select id="schoolReportTerm"><option>Term One</option><option>Term Two</option><option>Term Three</option></select></div>
-                        <div class="rc-field"><label for="schoolReportYear">Year</label><input id="schoolReportYear" type="number" min="2000" max="2100" inputmode="numeric"></div>
-                        <div class="rc-field"><label for="schoolReportLearner">Learner</label><select id="schoolReportLearner"><option value="">Select a class first</option></select></div>
-                    </div>
-                    <div class="rc-muted" id="schoolReportTemplate">Template: select a learner's class.</div>
-                    <div class="rc-actions">
-                        <button type="button" class="rc-button rc-button--primary" id="schoolReportCreate">＋ New Report Card</button>
-                        <button type="button" class="rc-button" id="schoolReportBulk">📤 Bulk Generate</button>
-                        <button type="button" class="rc-button" id="schoolReportZip">📥 Download Class ZIP</button>
-                        <button type="button" class="rc-button" id="schoolReportLoad">Load report cards</button>
-                    </div>
-                    <div id="schoolReportStatus" class="rc-status" role="status" aria-live="polite"></div>
-                    <div id="schoolReportCardsList" class="rc-list"></div>
-                    <div class="rc-panel" style="margin-top:16px;">
-                        <h3>Term dates and fees</h3>
-                        <p class="rc-muted">These school-wide details appear on report-card PDFs.</p>
-                        <div class="rc-grid" style="margin-top:10px;">
-                            <div class="rc-field"><label for="schoolReportTermDates">Term dates</label><textarea id="schoolReportTermDates" maxlength="1200" placeholder="Term opening and closing dates"></textarea></div>
-                            <div class="rc-field"><label for="schoolReportFees">Fees</label><textarea id="schoolReportFees" maxlength="1200" placeholder="Fee balance or school fee information"></textarea></div>
-                        </div>
-                        <div class="rc-actions"><button type="button" class="rc-button rc-button--primary" id="schoolReportSettingsSave">Save report settings</button></div>
-                    </div>
-                    </div>
-                </div>
                 <div class="admin-section" id="schoolEventsSection" style="display:none;">
                     <h4>📅 Manage School Events (Only your school)</h4>
                     <div class="add-pdf-form"><input type="text" id="schoolEventTitle" placeholder="Event Title"><input type="text" id="schoolEventDate" placeholder="Date"><input type="text" id="schoolEventFee" placeholder="Fee"><button id="addSchoolEventBtn" class="admin-toggle">➕ Add Event</button></div>
@@ -2041,74 +2008,6 @@
         <div class="nav-item" data-page="notifications"><i class="fas fa-bell"></i><span data-i18n="alerts">Alerts</span></div>
         <div class="nav-item" data-page="account"><i class="fas fa-user"></i><span data-i18n="account">Account</span></div>
         <div class="nav-item" data-page="about"><i class="fas fa-info-circle"></i><span data-i18n="about">About</span></div>
-    </div>
-</div>
-<div id="reportCardsWorkspace" class="rc-workspace" role="dialog" aria-modal="true" aria-labelledby="rcWorkspaceTitle" hidden>
-    <div class="rc-shell">
-        <header class="rc-topbar">
-            <button type="button" class="rc-icon-button" id="rcWorkspaceClose" aria-label="Close report cards">← Back</button>
-            <div class="rc-topbar-title"><p id="rcWorkspaceEyebrow">APSHULE Education</p><h1 id="rcWorkspaceTitle">Report Cards</h1></div>
-            <button type="button" class="rc-icon-button" id="rcWorkspaceRefresh">Refresh</button>
-        </header>
-        <div id="rcWorkspaceStatus" class="rc-status" role="status" aria-live="polite"></div>
-        <main class="rc-body">
-            <section id="rcListView" class="rc-panel">
-                <h2 id="rcListHeading">Report cards</h2>
-                <p id="rcListHint" class="rc-muted">Choose a class and term to load report cards.</p>
-                <div class="rc-grid" style="margin-top:12px;">
-                    <div class="rc-field"><label for="rcClassFilter">Class</label><select id="rcClassFilter"><option value="">All assigned classes</option></select></div>
-                    <div class="rc-field"><label for="rcTermFilter">Term</label><select id="rcTermFilter"><option value="">All terms</option><option>Term One</option><option>Term Two</option><option>Term Three</option></select></div>
-                    <div class="rc-field"><label for="rcYearFilter">Year</label><input id="rcYearFilter" type="number" min="2000" max="2100" inputmode="numeric"></div>
-                    <div class="rc-field"><label for="rcStatusFilter">Status</label><select id="rcStatusFilter"><option value="all">All</option><option value="draft">Draft</option><option value="published">Published</option></select></div>
-                </div>
-                <div class="rc-actions"><button type="button" class="rc-button rc-button--primary" id="rcLoadCards">Load report cards</button></div>
-                <div id="rcCardsList" class="rc-list"></div>
-            </section>
-            <section id="rcEditorView" class="rc-panel" hidden>
-                <div class="rc-editor-header">
-                    <div><h2 id="rcEditorLearner">Report-card editor</h2><div id="rcEditorMeta" class="rc-muted"></div></div>
-                    <button type="button" class="rc-button" id="rcEditorBack">← Report list</button>
-                </div>
-                <form id="rcMarkForm" class="rc-mark-form">
-                    <h3>Add subject mark</h3>
-                    <div id="rcMarkFields" class="rc-grid"></div>
-                    <div class="rc-actions"><button type="submit" class="rc-button rc-button--primary" id="rcMarkSave">Save subject mark</button></div>
-                </form>
-                <h3>Marks entered</h3>
-                <div id="rcMarksList" class="rc-table-wrap"></div>
-                <form id="rcCommentsForm" class="rc-panel" style="margin-top:14px;">
-                    <h3>Report comments</h3>
-                    <div class="rc-grid">
-                        <div class="rc-field"><label for="rcClassTeacherComment">Class teacher</label><textarea id="rcClassTeacherComment" maxlength="1200" placeholder="Leave blank to generate a comment from the marks"></textarea></div>
-                        <div class="rc-field"><label for="rcHeadteacherComment">Headteacher</label><textarea id="rcHeadteacherComment" maxlength="1200"></textarea></div>
-                        <div class="rc-field"><label for="rcPrincipalComment">Principal</label><textarea id="rcPrincipalComment" maxlength="1200"></textarea></div>
-                    </div>
-                    <div class="rc-actions">
-                        <button type="button" class="rc-button" id="rcSaveDraft">Save Draft</button>
-                        <button type="button" class="rc-button rc-button--primary" id="rcPublish">Publish</button>
-                        <button type="button" class="rc-button" id="rcStaffPdf">Download PDF</button>
-                    </div>
-                </form>
-                <section id="rcTeacherSignaturePanel" class="rc-panel" style="margin-top:14px;" hidden>
-                    <h3>Teacher signature</h3>
-                    <p class="rc-muted">Draw below or upload a PNG/JPEG signature image. It is stored in the APSHULE database.</p>
-                    <canvas id="rcSignatureCanvas" class="rc-signature-canvas" width="900" height="180" aria-label="Draw your teacher signature"></canvas>
-                    <div class="rc-grid" style="margin-top:10px;">
-                        <div class="rc-field"><label for="rcSignatureUpload">Upload signature image</label><input id="rcSignatureUpload" type="file" accept="image/png,image/jpeg"></div>
-                    </div>
-                    <div class="rc-actions"><button type="button" class="rc-button" id="rcSignatureClear">Clear drawing</button><button type="button" class="rc-button rc-button--primary" id="rcSignatureSave">Save signature</button></div>
-                    <img id="rcSignaturePreview" class="rc-signature-preview" alt="Saved teacher signature" hidden>
-                </section>
-            </section>
-            <section id="rcPreviewView" class="rc-preview-card" hidden>
-                <div class="rc-editor-header">
-                    <div><h2>Report preview</h2><div id="rcPreviewMeta" class="rc-muted"></div></div>
-                    <button type="button" class="rc-button" id="rcPreviewBack">← My report cards</button>
-                </div>
-                <div id="rcPreviewContent"></div>
-                <div class="rc-actions"><button type="button" class="rc-button rc-button--primary" id="rcStudentDownload">Download PDF</button></div>
-            </section>
-        </main>
     </div>
 </div>
 <div id="elibraryScreen" class="elibrary-screen" aria-hidden="true">
@@ -2218,9 +2117,6 @@
     // ============================================================
 
     // 🔴 REPLACE THIS with your deployed Worker URL:
-    import { initReportCardUI } from "./report-cards-ui.js?v=65";
-    import { initReportCardFoundationUI } from "./report-card-foundation-ui.js?v=65";
-    import { initTeacherMarksUI } from "./teacher-marks-ui.js?v=55";
     import { initBulkImportUI } from "./bulk-import-ui.js";
     import { initAccountProfileUI } from "./account-profile-ui.js";
     import { initRetoolingUI } from "./retooling-ui.js";
@@ -2312,9 +2208,6 @@
         notify: showNotification,
     });
     void retoolingUI.verifyFromLocation();
-    let reportCardsUI = null;
-    let reportCardsFoundationUI = null;
-    let teacherMarksUI = null;
     let bulkImportUI = null;
     let profileUI = null;
     let mfiUI = null;
@@ -7251,10 +7144,14 @@
 
     async function showAppFor(user) {
         currentUser = user;
-        const educationIndependent = user?.sector === "education" && !user?.schoolId && !user?.school_id;
-        document.querySelectorAll('[data-report-cards-open],#studentReportCardsOpen').forEach(card => {
-            card.hidden = Boolean(educationIndependent);
-        });
+        const reportFrame = document.getElementById("externalReportCardsFrame");
+        if (reportFrame) reportFrame.src = "about:blank";
+        document.getElementById("externalReportCardsFrameWrap").hidden = true;
+        document.getElementById("externalReportCardsStatus").textContent = "";
+        const reportRole = user?.sector === "education" &&
+            ["school", "school_admin", "teacher"].includes(String(user?.role || "").toLowerCase()) &&
+            Boolean(user?.schoolId || user?.school_id);
+        document.getElementById("externalReportCards").hidden = !reportRole;
         commandCenterUI?.setUser(user);
         schoolAdminAiAccessUI?.setUser(user);
         void Promise.resolve(virtualLabUI?.setUser(user)).catch(() => {});
@@ -7336,7 +7233,6 @@
         document.getElementById('adminMenuItem').style.display = (isSuper || isSchool) ? "flex" : "none";
         document.getElementById('superAdminSection').style.display = isSuper ? "block" : "none";
         document.getElementById('bulkImportSection').style.display = (isSuper || isSchool) && !currentUser.impersonatedBy ? "block" : "none";
-        document.getElementById('schoolReportCardsSection').style.display = isSchool ? "block" : "none";
         document.getElementById('schoolBrandingSection').style.display = isSchool ? "block" : "none";
         document.getElementById('schoolEventsSection').style.display = isSchool ? "block" : "none";
         document.getElementById('globalEventsSection').style.display = isSuper ? "block" : "none";
@@ -7377,37 +7273,6 @@
         document.getElementById('appScreen').classList.remove('hidden');
         updateGreeting();
         void checkYoPaymentReturn();
-        if (reportCardsUI) await reportCardsUI.setUser(currentUser);
-        if (currentUser?.role === "teacher") {
-            try {
-                if (!teacherMarksUI) teacherMarksUI = initTeacherMarksUI({ api, notify: showNotification });
-                await teacherMarksUI.setUser(currentUser);
-            } catch (error) {
-                console.error("[RM] Teacher marks mount failed", error);
-                showNotification(error?.message || "Marks entry could not be opened.", "error");
-            }
-        } else {
-            await teacherMarksUI?.setUser(null);
-        }
-        if (currentUser?.role === "school") {
-            try {
-                if (!reportCardsFoundationUI) {
-                    reportCardsFoundationUI = initReportCardFoundationUI({
-                        api,
-                        apiBase: API_BASE,
-                        getToken: () => AUTH_TOKEN,
-                        getCurrentUser: () => currentUser,
-                        notify: showNotification,
-                    });
-                }
-                await reportCardsFoundationUI?.setUser(currentUser);
-            } catch (error) {
-                console.error("[RC] Report Cards mount failed", error);
-                showNotification(error?.message || "Report Cards setup could not be opened.", "error");
-            }
-        } else {
-            await reportCardsFoundationUI?.setUser(null);
-        }
         if (bulkImportUI) await bulkImportUI.setUser(currentUser);
 
         if (isSuper) {
@@ -8967,8 +8832,6 @@
         schoolAdminAiAccessUI?.setUser(null);
         settingsUI?.setUser(null);
         videoStudioUI?.setUser(null);
-        await reportCardsUI?.setUser(null);
-        await reportCardsFoundationUI?.setUser(null);
         await bulkImportUI?.setUser(null);
         await profileUI?.setUser(null);
         await mfiUI?.setUser(null);
@@ -9145,14 +9008,6 @@
             document.getElementById('emailLoginIdentity').hidden = loginMode !== 'email';
             document.getElementById('regNoLoginIdentity').hidden = loginMode !== 'regno';
         }));
-        reportCardsUI = initReportCardUI({
-            api,
-            getCurrentUser: () => currentUser,
-            getToken: () => AUTH_TOKEN,
-            apiBase: API_BASE,
-            notify: showNotification,
-            escapeHtml,
-        });
         bulkImportUI = initBulkImportUI({
             api,
             apiBase: API_BASE,
@@ -9246,6 +9101,53 @@
             notify: showNotification,
             escapeHtml,
             t: (key) => String(key).replace(/^lab_/, "").replaceAll("_", " "),
+        });
+        const reportCardsOrigin = "https://reportcards.appshule.com";
+        const reportFrame = document.getElementById("externalReportCardsFrame");
+        const reportFrameWrap = document.getElementById("externalReportCardsFrameWrap");
+        const reportStatus = document.getElementById("externalReportCardsStatus");
+        let reportTicketRequestPending = false;
+        document.getElementById("openExternalReportCards")?.addEventListener("click", () => {
+            if (!["school", "school_admin", "teacher"].includes(String(currentUser?.role || "").toLowerCase()) ||
+                currentUser?.sector !== "education" || !(currentUser?.schoolId || currentUser?.school_id)) {
+                showNotification("Report Cards are available to school admins and teachers.", "error");
+                return;
+            }
+            reportFrameWrap.hidden = false;
+            reportStatus.textContent = "Connecting securely to Report Cards…";
+            reportTicketRequestPending = false;
+            if (reportFrame.src === "about:blank") reportFrame.src = reportCardsOrigin;
+            else reportFrame.contentWindow?.postMessage({ type: "APSHULE_SSO_INIT" }, reportCardsOrigin);
+        });
+        document.getElementById("closeExternalReportCards")?.addEventListener("click", () => {
+            reportFrame.src = "about:blank";
+            reportFrameWrap.hidden = true;
+            reportStatus.textContent = "";
+            reportTicketRequestPending = false;
+        });
+        window.addEventListener("message", async (event) => {
+            if (event.origin !== reportCardsOrigin ||
+                event.source !== reportFrame?.contentWindow ||
+                event.data?.type !== "APSHULE_SSO_READY" ||
+                reportTicketRequestPending) return;
+            const role = String(currentUser?.role || "").toLowerCase();
+            if (!["school", "school_admin", "teacher"].includes(role) ||
+                currentUser?.sector !== "education" || !(currentUser?.schoolId || currentUser?.school_id)) return;
+            reportTicketRequestPending = true;
+            reportStatus.textContent = "Preparing your secure sign-in…";
+            try {
+                const result = await api("/api/report-cards/sso/ticket", { method: "POST", body: {} });
+                if (!reportFrame?.contentWindow || reportFrameWrap.hidden) return;
+                reportFrame.contentWindow.postMessage({
+                    type: "APSHULE_SSO_TICKET",
+                    ticket: result.ticket,
+                    expiresIn: result.expires_in,
+                }, reportCardsOrigin);
+                reportStatus.textContent = "Connected securely.";
+            } catch (error) {
+                reportStatus.textContent = error?.message || "Secure sign-in could not be started.";
+                reportTicketRequestPending = false;
+            }
         });
         void loadSubscriptionPlans();
         wireTeacherDashboardEvents();
@@ -9744,14 +9646,6 @@
                 renderSchoolsAdmin();
                 populateVideoMappingDropdowns();
                 renderExistingMappings();
-                if (currentUser.role === 'school') {
-                    try {
-                        await reportCardsFoundationUI?.setUser(currentUser);
-                    } catch (error) {
-                        console.error("[RC] Report Cards mount failed", error);
-                        showNotification(error?.message || "Report Cards setup could not be opened.", "error");
-                    }
-                }
                 navigateTo('home');
                 ap.scrollIntoView({ behavior: 'smooth' });
                 if (currentUser?.role === 'school') void profileUI?.refreshBranding();
@@ -10394,7 +10288,7 @@
 
     if ("serviceWorker" in navigator) {
         window.addEventListener("load", () => {
-                    navigator.serviceWorker.register("/sw-cache-v68.js", { scope: "/" })
+                    navigator.serviceWorker.register("/sw-cache-v69.js", { scope: "/" })
                 .then((registration) => console.log("[SW] registered", registration.scope))
                 .catch((error) => console.error("[SW] failed", error));
         }, { once: true });

@@ -117,7 +117,6 @@ export function initCommandCenterUI({ apiBase, getToken, getUser, notify, activa
       <button class="cc6-tab" role="tab" aria-selected="false" data-cc6-tab="analytics" data-i18n="cc_analytics"></button>
       <button class="cc6-tab" role="tab" aria-selected="false" data-cc6-tab="settings" data-i18n="cc_settings"></button>
       <button class="cc6-tab" role="tab" aria-selected="false" data-cc6-tab="team-applications">🎓 Team Applications</button>
-      <button class="cc6-tab" role="tab" aria-selected="false" data-cc6-tab="report-card-access">Report Card Access</button>
     </nav>
     <div id="aiControlQuickAccess" style="display:none;background:#fff;border:2px solid #4B2E9E;border-radius:16px;padding:16px;margin:16px 0;justify-content:space-between;align-items:center;gap:12px">
       <div><div style="font-weight:bold;color:#4B2E9E;font-size:16px">🤖 AI Credit Management</div><div style="color:#666;font-size:13px">Grant AI tiers to schools and users</div></div>
@@ -149,11 +148,6 @@ export function initCommandCenterUI({ apiBase, getToken, getUser, notify, activa
         <select class="cc6-select" id="ccTeamStatus" aria-label="Filter applications"><option value="">All statuses</option><option>pending</option><option>approved</option><option>rejected</option></select>
         <button class="cc6-button secondary" type="button" data-team-refresh>Refresh</button></div>
       <section class="cc6-panel"><div class="cc6-panel-body cc6-table-wrap" id="ccTeamApplications"></div></section>
-    </section>
-    <section class="cc6-view" id="cc6-report-card-access" role="tabpanel" hidden>
-      <div class="cc6-section-head"><div><h2>Report Card Access</h2><p>Manage school trials, waivers, and access periods.</p></div><button class="cc6-button secondary" type="button" data-ra-refresh>Refresh</button></div>
-      <div class="cc6-grid" id="ccRaStats"></div><form class="cc6-toolbar" data-form="ra-waiver"><select name="school_id" class="cc6-select" required><option value="">Choose school</option></select><select name="days" class="cc6-select"><option value="30">30 days</option><option value="90">90 days</option><option value="365">365 days</option></select><input name="custom_days" class="cc6-field" type="number" min="1" max="3650" placeholder="Custom days (optional)"><select name="discount_amount" class="cc6-select"><option value="">Full waiver</option><option value="50">50% discount</option><option value="25">25% discount</option></select><input name="reason" class="cc6-field" required minlength="3" maxlength="500" placeholder="Reason"><button class="cc6-button">Grant access</button></form>
-      <section class="cc6-panel"><div class="cc6-panel-body cc6-table-wrap" id="ccReportCardAccess"></div></section>
     </section>
     <section class="cc6-view" id="cc6-institutions" role="tabpanel" hidden>
       <div class="cc6-section-head"><div><h2 data-i18n="cc_institutions"></h2><p data-i18n="cc_institution_status_note"></p></div></div>
@@ -300,18 +294,7 @@ export function initCommandCenterUI({ apiBase, getToken, getUser, notify, activa
     if (name === "analytics") await loadAnalytics();
     if (name === "settings") await loadSettings();
     if (name === "team-applications") await loadTeamApplications();
-    if (name === "report-card-access") await loadReportCardAccess();
   };
-  async function loadReportCardAccess(){
-    const box=root.querySelector("#ccReportCardAccess"),select=root.querySelector('[data-form="ra-waiver"] [name="school_id"]');
-    box.textContent="Loading schools…";
-    const {schools=[]}=await api("/api/ra/schools");
-    select.innerHTML='<option value="">Choose school</option>'+schools.map(s=>`<option value="${esc(s.id)}">${esc(s.name)}</option>`).join("");
-    const rows=schools.map(s=>`<tr><td>${esc(s.name)}</td><td>${esc(s.status||"trial")}</td><td>${s.trial_used?"Used":"Available"}</td><td>${fmt(s.cards)}</td><td>${esc(dateText(s.paid_until||s.waived_until))}</td><td><button class="cc6-button secondary small" data-ra-school="${esc(s.id)}">Grant / extend</button> <button class="cc6-button secondary small" data-ra-revoke="${esc(s.id)}">Revoke</button></td></tr>`).join("");
-    const total=schools.length,paid=schools.filter(s=>s.status==="paid").length,trials=schools.filter(s=>s.status==="trial").length,waived=schools.filter(s=>s.status==="waived").length;
-    root.querySelector("#ccRaStats").innerHTML=[[`Schools`,total],[`Paid`,paid],[`Trials`,trials],[`Waived`,waived]].map(([n,v])=>`<article class="cc6-card"><div class="cc6-metric-label">${n}</div><div class="cc6-metric-value">${fmt(v)}</div></article>`).join("");
-    box.innerHTML=table(["School","Status","Trial","Cards generated","Access until","Actions"],rows||'<tr><td colspan="6">No schools found.</td></tr>');
-  }
   async function loadTeamApplications() {
     const target = root.querySelector("#ccTeamApplications");
     target.textContent = "Loading applications…";
@@ -823,9 +806,6 @@ export function initCommandCenterUI({ apiBase, getToken, getUser, notify, activa
     if (!button) return;
     try {
       if (button.dataset.cc6Tab) { await setTab(button.dataset.cc6Tab); return; }
-      if (button.hasAttribute("data-ra-refresh")) { await loadReportCardAccess(); return; }
-      if (button.dataset.raSchool) { root.querySelector('[data-form="ra-waiver"] [name="school_id"]').value=button.dataset.raSchool;root.querySelector('[data-form="ra-waiver"] [name="reason"]').focus();return; }
-      if (button.dataset.raRevoke) { const reason=prompt("Reason for revoking report-card access","Access review");if(!reason)return;await api("/api/ra/waiver/revoke",{method:"POST",body:{school_id:button.dataset.raRevoke,reason}});notify?.("Access revoked.","success");await loadReportCardAccess();return; }
       if (button.hasAttribute("data-team-refresh")) { await loadTeamApplications(); return; }
       if (button.dataset.copyCode) {
         await navigator.clipboard.writeText(button.dataset.copyCode);
@@ -972,7 +952,6 @@ export function initCommandCenterUI({ apiBase, getToken, getUser, notify, activa
       if (form.id === "cc6AuditFilters") { await loadAudit(); return; }
       if (form.id === "cc6ConsentFilters") { await loadConsents(); return; }
       if (form.id === "cc6DeletionFilters") { await loadDeletionRequests(); return; }
-      if(form.dataset.form==="ra-waiver"){await api("/api/ra/waiver",{method:"POST",body:{school_id:values.school_id,days:Number(values.custom_days||values.days),discount_amount:values.discount_amount||null,reason:values.reason}});notify?.("Report-card access updated.","success");form.reset();await loadReportCardAccess();return;}
       if (form.dataset.form === "ai-tier-grant") {
         const durationDays=Math.max(1,Math.min(365,Number(values.duration_days)||30));
         await api("/api/admin/ai-tiers/grant-user",{method:"POST",body:{user_id:values.user_id,tier:values.tier,duration_days:durationDays,reason:String(values.reason||"").trim()}});
