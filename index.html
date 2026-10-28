@@ -9139,11 +9139,16 @@
             try {
                 const result = await api("/api/report-cards/sso/ticket", { method: "POST", body: {} });
                 if (!reportFrame?.contentWindow || reportFrameWrap.hidden) return;
-                reportFrame.contentWindow.postMessage({
+                const authMessage = {
                     type: "AUTH_TICKET",
                     ticket: result.ticket,
-                    expiresIn: result.expires_in,
-                }, reportCardsOrigin);
+                };
+                console.log("[Report Cards SSO] Sending auth message", {
+                    type: authMessage.type,
+                    targetOrigin: reportCardsOrigin,
+                    ticketPresent: typeof authMessage.ticket === "string" && authMessage.ticket.length > 0,
+                });
+                reportFrame.contentWindow.postMessage(authMessage, reportCardsOrigin);
                 reportStatus.textContent = "Connected securely.";
             } catch (error) {
                 reportStatus.textContent = error?.message || "Secure sign-in could not be started.";
@@ -10289,7 +10294,7 @@
 
     if ("serviceWorker" in navigator) {
         window.addEventListener("load", () => {
-                    navigator.serviceWorker.register("/sw-cache-v78.js?v=78", { scope: "/" })
+                    navigator.serviceWorker.register("/sw-cache-v79.js?v=79", { scope: "/" })
                 .then((registration) => console.log("[SW] registered", registration.scope))
                 .catch((error) => console.error("[SW] failed", error));
         }, { once: true });
