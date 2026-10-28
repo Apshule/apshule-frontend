@@ -13,10 +13,10 @@ routes.post("/ticket", authMiddleware, async (c) => {
   if (!["school", "school_admin", "teacher"].includes(user.role)) {
     throw new ApiError(403, "FORBIDDEN", "Report Cards are available to school admins and teachers.");
   }
-  if (!user.schoolId || user.sector !== "education") {
-    throw new ApiError(403, "FORBIDDEN", "A school-linked Education account is required.");
+  const schoolId = user.schoolId ?? null;
+  if (user.sector !== "education" || (schoolId === null && user.role !== "teacher")) {
+    throw new ApiError(403, "FORBIDDEN", "A school-linked Education account or an independent teacher account is required.");
   }
-  const schoolId = user.schoolId;
 
   let stage = "secret validation";
   try {

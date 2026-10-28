@@ -1,7 +1,7 @@
 import { SignJWT } from "jose";
 
 export async function createReportCardsTicket(
-  user: { id: string; role: string; schoolId: string },
+  user: { id: string; role: string; schoolId: string | null },
   secret: Uint8Array,
 ): Promise<string> {
   return new SignJWT({
