@@ -1782,7 +1782,7 @@
                 <div id="externalReportCardsStatus" role="status" aria-live="polite"></div>
                 <div id="externalReportCardsFrameWrap" hidden>
                     <button type="button" id="closeExternalReportCards" class="admin-toggle">Close Report Cards</button>
-                    <iframe id="externalReportCardsFrame" title="Report Cards" src="about:blank"
+                    <iframe id="reportcards-iframe" title="Report Cards" src="about:blank"
                         referrerpolicy="no-referrer" sandbox="allow-scripts allow-forms allow-same-origin"
                         style="display:block;width:100%;height:min(78vh,900px);border:0;border-radius:12px;background:#fff"></iframe>
                 </div>
@@ -7144,7 +7144,7 @@
 
     async function showAppFor(user) {
         currentUser = user;
-        const reportFrame = document.getElementById("externalReportCardsFrame");
+        const reportFrame = document.getElementById("reportcards-iframe");
         if (reportFrame) reportFrame.src = "about:blank";
         document.getElementById("externalReportCardsFrameWrap").hidden = true;
         document.getElementById("externalReportCardsStatus").textContent = "";
@@ -9103,7 +9103,7 @@
             t: (key) => String(key).replace(/^lab_/, "").replaceAll("_", " "),
         });
         const reportCardsOrigin = "https://reportcards.appshule.com";
-        const reportFrame = document.getElementById("externalReportCardsFrame");
+        const reportFrame = document.getElementById("reportcards-iframe");
         const reportFrameWrap = document.getElementById("externalReportCardsFrameWrap");
         const reportStatus = document.getElementById("externalReportCardsStatus");
         let reportTicketRequestPending = false;
@@ -9116,8 +9116,7 @@
             reportFrameWrap.hidden = false;
             reportStatus.textContent = "Connecting securely to Report Cards…";
             reportTicketRequestPending = false;
-            if (reportFrame.src === "about:blank") reportFrame.src = reportCardsOrigin;
-            else reportFrame.contentWindow?.postMessage({ type: "APSHULE_SSO_INIT" }, reportCardsOrigin);
+            reportFrame.src = reportCardsOrigin;
         });
         document.getElementById("closeExternalReportCards")?.addEventListener("click", () => {
             reportFrame.src = "about:blank";
@@ -9128,7 +9127,7 @@
         window.addEventListener("message", async (event) => {
             if (event.origin !== reportCardsOrigin ||
                 event.source !== reportFrame?.contentWindow ||
-                event.data?.type !== "APSHULE_SSO_READY" ||
+                event.data?.type !== "READY" ||
                 reportTicketRequestPending) return;
             const role = String(currentUser?.role || "").toLowerCase();
             if (!["school", "school_admin", "teacher"].includes(role) ||
@@ -9139,7 +9138,7 @@
                 const result = await api("/api/report-cards/sso/ticket", { method: "POST", body: {} });
                 if (!reportFrame?.contentWindow || reportFrameWrap.hidden) return;
                 reportFrame.contentWindow.postMessage({
-                    type: "APSHULE_SSO_TICKET",
+                    type: "AUTH_TICKET",
                     ticket: result.ticket,
                     expiresIn: result.expires_in,
                 }, reportCardsOrigin);
@@ -10288,7 +10287,7 @@
 
     if ("serviceWorker" in navigator) {
         window.addEventListener("load", () => {
-                    navigator.serviceWorker.register("/sw-cache-v69.js", { scope: "/" })
+                    navigator.serviceWorker.register("/sw-cache-v70.js", { scope: "/" })
                 .then((registration) => console.log("[SW] registered", registration.scope))
                 .catch((error) => console.error("[SW] failed", error));
         }, { once: true });

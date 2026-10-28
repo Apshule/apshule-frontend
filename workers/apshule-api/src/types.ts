@@ -3,6 +3,7 @@ export interface Env {
   AI?: { run(model: string, input: Record<string, unknown>): Promise<any> };
   DOCS_BUCKET?: R2Bucket;
   JWT_SECRET?: string;
+  SSO_SHARED_SECRET?: string;
   RESEND_API_KEY?: string;
   RESEND_FROM_EMAIL?: string;
   RESEND_FROM_NAME?: string;
