@@ -17,21 +17,35 @@ routes.post("/ticket", authMiddleware, async (c) => {
     throw new ApiError(403, "FORBIDDEN", "A school-linked Education account is required.");
   }
 
-  const secret = encoder.encode(requireEnv(c.env.SSO_SHARED_SECRET, "SSO_SHARED_SECRET"));
-  if (secret.byteLength < 32) {
-    throw new ApiError(503, "INVALID_CONFIGURATION", "SSO_SHARED_SECRET must contain at least 32 bytes.");
+  let stage = "secret validation";
+  try {
+    const secret = encoder.encode(requireEnv(c.env.SSO_SHARED_SECRET, "SSO_SHARED_SECRET"));
+    if (secret.byteLength < 32) {
+      throw new ApiError(503, "INVALID_CONFIGURATION", "SSO_SHARED_SECRET must contain at least 32 bytes.");
+    }
+
+    stage = "JWT signing";
+    const ticket = await new SignJWT({ user_id: user.id })
+      .setProtectedHeader({ alg: "HS256", typ: "JWT" })
+      .setSubject(user.id)
+      .setIssuedAt()
+      .setExpirationTime("2m")
+      .sign(secret);
+
+    stage = "ticket insert";
+    const ticketId = crypto.randomUUID();
+    await getDb(c.env)`
+      INSERT INTO sso_tickets (id, ticket, user_id, expires_at)
+      VALUES (${ticketId}, ${ticket}, ${user.id}, NOW() + INTERVAL '2 minutes')
+    `;
+    return c.json({ ticket, expires_in: 120, audience: reportCardsOrigin });
+  } catch (error) {
+    console.error("[report-sso] ticket issuance failed", JSON.stringify({
+      stage,
+      name: error instanceof Error ? error.name : "UnknownError",
+    }));
+    throw error;
   }
-  const ticket = await new SignJWT({ user_id: user.id })
-    .setProtectedHeader({ alg: "HS256", typ: "JWT" })
-    .setSubject(user.id)
-    .setIssuedAt()
-    .setExpirationTime("2m")
-    .sign(secret);
-  await getDb(c.env)`
-    INSERT INTO sso_tickets (id, ticket, user_id, expires_at)
-    VALUES (gen_random_uuid(), ${ticket}, ${user.id}, NOW() + INTERVAL '2 minutes')
-  `;
-  return c.json({ ticket, expires_in: 120, audience: reportCardsOrigin });
 });
 
 export default routes;
