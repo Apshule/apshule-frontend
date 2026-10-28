@@ -209,9 +209,12 @@ export function initVirtualLabUI({ api, getCurrentUser, notify = () => {}, escap
     return String(currentUser?.role || currentUser?.user_type || "").toLowerCase() === "individual";
   }
 
+  function isSchoolAdmin() {
+    return ["school", "school_admin"].includes(String(currentUser?.role || currentUser?.user_type || "").toLowerCase());
+  }
+
   function canViewClassProgress() {
-    const role = String(currentUser?.role || currentUser?.user_type || "").toLowerCase();
-    return role === "teacher" || role === "school";
+    return isTeacher() || isSchoolAdmin();
   }
 
   function classProgressLevels() {
@@ -272,6 +275,21 @@ export function initVirtualLabUI({ api, getCurrentUser, notify = () => {}, escap
       addedLaunchers.push(card);
       card.addEventListener("click", openLab);
     }
+    if (home && !home.querySelector("[data-apshule-lab-launcher='school']")) {
+      const section = node("section", "vl-launcher vl-launcher-admin");
+      section.dataset.apshuleLabLauncher = "school";
+      section.setAttribute("aria-label", tr("title", "Virtual Science Lab"));
+      const ornament = node("span", "vl-launcher-mark");
+      ornament.append(icon("flask"));
+      const copy = node("span", "vl-launcher-copy");
+      copy.append(node("strong", "", tr("title", "Virtual Science Lab")));
+      copy.append(node("small", "", "Explore simulations and review school-wide learner progress."));
+      const open = button("Open Virtual Science Lab", "open", "arrow", "vl-button vl-button-accent");
+      section.append(ornament, copy, open);
+      home.append(section);
+      addedLaunchers.push(section);
+      open.addEventListener("click", openLab);
+    }
   }
 
   function showNotice(message, type = "error", parent = uiRoot?.querySelector(".vl-notice")) {
@@ -315,7 +333,7 @@ export function initVirtualLabUI({ api, getCurrentUser, notify = () => {}, escap
       notify(tr("sign_in_required", "Sign in to open the Virtual Lab."), "error");
       return;
     }
-    if (!isTeacher() && !isLearner()) {
+    if (!isTeacher() && !isLearner() && !isSchoolAdmin()) {
       notify(tr("access_denied", "This account cannot open the Virtual Lab."), "error");
       return;
     }
@@ -659,14 +677,18 @@ export function initVirtualLabUI({ api, getCurrentUser, notify = () => {}, escap
     if (!active || view !== "catalog") return;
     const { content } = renderShell();
     const intro = node("div", "vl-intro");
-    const eyebrow = node("p", "vl-eyebrow", isTeacher() ? tr("teacher_workspace", "Teacher workspace") : tr("student_workspace", "Your science workspace"));
+    const eyebrow = node("p", "vl-eyebrow", isTeacher()
+      ? tr("teacher_workspace", "Teacher workspace")
+      : isSchoolAdmin() ? "School administrator workspace" : tr("student_workspace", "Your science workspace"));
     intro.append(eyebrow, node("p", "vl-intro-copy", tr("catalog_intro", "Choose an experiment, change one variable and see what happens.")));
     {
       const tabs = node("div", "vl-tabs");
       tabs.setAttribute("role", "tablist");
       const tabDefs = isTeacher()
         ? [["my-assignments","📝 My Assignments"],["experiments","🔬 Browse Simulators"],["adopt","📚 Adopt"],["sessions",tr("live_sessions","Live sessions")],...(canViewClassProgress()?[["progress",tr("class_progress","Class progress")]]:[]),["ai-study","🤖 AI Study"]]
-        : [["experiments","📚 Catalogue"],["my-assignments","📝 My Assignments"],["join-code","🔗 Join by Code"],["free-practice","🎓 Free Practice"],["sessions",tr("live_sessions","Live sessions")],["ai-study","🤖 AI Study"]];
+        : isSchoolAdmin()
+          ? [["experiments","🔬 Browse Simulators"],["progress",tr("class_progress","Class progress")]]
+          : [["experiments","📚 Catalogue"],["my-assignments","📝 My Assignments"],["join-code","🔗 Join by Code"],["free-practice","🎓 Free Practice"],["sessions",tr("live_sessions","Live sessions")],["ai-study","🤖 AI Study"]];
       for (const [tab,label] of tabDefs) {
         const tabButton=button(label,"tab",null,`vl-tab ${currentTab===tab?"is-active":""}`);
         tabButton.dataset.tab=tab; tabButton.setAttribute("role","tab");
@@ -707,7 +729,7 @@ export function initVirtualLabUI({ api, getCurrentUser, notify = () => {}, escap
       levelSelect.append(option);
     });
     levelSelect.value = isTeacher() ? "" : userLevel();
-    if (!isTeacher()) levelSelect.disabled = true;
+    if (!isTeacher() && !isSchoolAdmin()) levelSelect.disabled = true;
     levelLabel.append(levelSelect);
     const subjectLabel = node("label", "vl-filter");
     subjectLabel.append(node("span", "", tr("subject_filter", "Subject")));
@@ -2101,6 +2123,8 @@ export function initVirtualLabUI({ api, getCurrentUser, notify = () => {}, escap
     if (studentLauncher) studentLauncher.hidden = !isLearner();
     const teacherLauncher = doc.querySelector("[data-apshule-lab-launcher='teacher']");
     if (teacherLauncher) teacherLauncher.hidden = !isTeacher();
+    const schoolLauncher = doc.querySelector("[data-apshule-lab-launcher='school']");
+    if (schoolLauncher) schoolLauncher.hidden = !isSchoolAdmin();
   }
 
   function destroy() {
