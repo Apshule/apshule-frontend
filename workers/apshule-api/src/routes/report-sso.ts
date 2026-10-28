@@ -1,7 +1,7 @@
 import { Hono } from "hono";
 import { authMiddleware } from "../auth.js";
 import { ApiError, getDb, requireEnv } from "../db.js";
-import { createReportCardsTicket } from "../report-sso-ticket.js";
+import { canUseReportCardsSSO, createReportCardsTicket } from "../report-sso-ticket.js";
 import type { AppEnv } from "../types.js";
 
 const routes = new Hono<AppEnv>();
@@ -10,12 +10,9 @@ const reportCardsOrigin = "https://reportcards.appshule.com";
 
 routes.post("/ticket", authMiddleware, async (c) => {
   const user = c.get("user");
-  if (!["school", "school_admin", "teacher"].includes(user.role)) {
-    throw new ApiError(403, "FORBIDDEN", "Report Cards are available to school admins and teachers.");
-  }
   const schoolId = user.schoolId ?? null;
-  if (user.sector !== "education" || (schoolId === null && user.role !== "teacher")) {
-    throw new ApiError(403, "FORBIDDEN", "A school-linked Education account or an independent teacher account is required.");
+  if (!canUseReportCardsSSO({ role: user.role, sector: user.sector, schoolId })) {
+    throw new ApiError(403, "FORBIDDEN", "Report Cards are available to school admins and teachers.");
   }
 
   let stage = "secret validation";

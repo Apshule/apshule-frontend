@@ -1,7 +1,30 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import { jwtVerify } from "jose";
-import { createReportCardsTicket } from "../src/report-sso-ticket.ts";
+import { canUseReportCardsSSO, createReportCardsTicket } from "../src/report-sso-ticket.ts";
+
+test("Report Cards SSO allows only school-linked Education accounts", () => {
+  assert.equal(canUseReportCardsSSO({
+    role: "teacher",
+    sector: "education",
+    schoolId: "00000000-0000-4000-8000-000000000456",
+  }), true);
+  assert.equal(canUseReportCardsSSO({
+    role: "teacher",
+    sector: "education",
+    schoolId: null,
+  }), false);
+  assert.equal(canUseReportCardsSSO({
+    role: "teacher",
+    sector: "mfi",
+    schoolId: "00000000-0000-4000-8000-000000000456",
+  }), false);
+  assert.equal(canUseReportCardsSSO({
+    role: "individual",
+    sector: "education",
+    schoolId: "00000000-0000-4000-8000-000000000456",
+  }), false);
+});
 
 test("Report Cards SSO ticket carries the shared user identity and school role claims", async () => {
   const secret = new TextEncoder().encode("test-only-report-cards-secret-32-bytes");

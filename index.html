@@ -7142,16 +7142,21 @@
         }
     }
 
+    function canAccessReportCards(user) {
+        const schoolLinked = [user?.schoolId, user?.school_id]
+            .some(id => id !== null && id !== undefined && String(id).trim() !== "");
+        return String(user?.role || "").toLowerCase() === "teacher" &&
+            user?.sector === "education" &&
+            schoolLinked;
+    }
+
     async function showAppFor(user) {
         currentUser = user;
         const reportFrame = document.getElementById("reportcards-iframe");
         if (reportFrame) reportFrame.src = "about:blank";
         document.getElementById("externalReportCardsFrameWrap").hidden = true;
         document.getElementById("externalReportCardsStatus").textContent = "";
-        const reportRole = user?.sector === "education" &&
-            ["school", "school_admin", "teacher"].includes(String(user?.role || "").toLowerCase()) &&
-            Boolean(user?.schoolId || user?.school_id);
-        document.getElementById("externalReportCards").hidden = !reportRole;
+        document.getElementById("externalReportCards").hidden = !canAccessReportCards(user);
         commandCenterUI?.setUser(user);
         schoolAdminAiAccessUI?.setUser(user);
         void Promise.resolve(virtualLabUI?.setUser(user)).catch(() => {});
@@ -9108,9 +9113,8 @@
         const reportStatus = document.getElementById("externalReportCardsStatus");
         let reportTicketRequestPending = false;
         document.getElementById("openExternalReportCards")?.addEventListener("click", () => {
-            if (!["school", "school_admin", "teacher"].includes(String(currentUser?.role || "").toLowerCase()) ||
-                currentUser?.sector !== "education" || !(currentUser?.schoolId || currentUser?.school_id)) {
-                showNotification("Report Cards are available to school admins and teachers.", "error");
+            if (!canAccessReportCards(currentUser)) {
+                showNotification("Report Cards are available to school-linked Education teachers.", "error");
                 return;
             }
             reportFrameWrap.hidden = false;
@@ -9129,9 +9133,7 @@
                 event.source !== reportFrame?.contentWindow ||
                 event.data?.type !== "READY" ||
                 reportTicketRequestPending) return;
-            const role = String(currentUser?.role || "").toLowerCase();
-            if (!["school", "school_admin", "teacher"].includes(role) ||
-                currentUser?.sector !== "education" || !(currentUser?.schoolId || currentUser?.school_id)) return;
+            if (!canAccessReportCards(currentUser)) return;
             reportTicketRequestPending = true;
             reportStatus.textContent = "Preparing your secure sign-in…";
             try {
@@ -10287,7 +10289,7 @@
 
     if ("serviceWorker" in navigator) {
         window.addEventListener("load", () => {
-                    navigator.serviceWorker.register("/sw-cache-v74.js?v=74", { scope: "/" })
+                    navigator.serviceWorker.register("/sw-cache-v75.js?v=75", { scope: "/" })
                 .then((registration) => console.log("[SW] registered", registration.scope))
                 .catch((error) => console.error("[SW] failed", error));
         }, { once: true });
