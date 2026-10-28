@@ -294,8 +294,33 @@ authRoutes.post("/signup", async (c) => {
 
 authRoutes.post("/login", async (c) => {
   const body = await readJson(c);
-  const email = requiredString(body, "email", { max: 254 }).toLowerCase();
   const password = requiredString(body, "password", { max: 128 });
+  let email = "";
+  if (typeof body.reg_no === "string") {
+    const regNo = requiredString(body, "reg_no", { max: 80 }).trim().toLowerCase().replace(/\s+/gu, "");
+    const schoolCode = requiredString(body, "school_code", { max: 32 }).trim().toLowerCase();
+    if (!/^[a-z0-9-]{2,32}$/u.test(schoolCode)) {
+      throw new ApiError(400, "VALIDATION_ERROR", "School code is invalid.");
+    }
+    const matches = await getDb(c.env)`
+      SELECT u.email
+      FROM learners l
+      JOIN users u ON u.id=l.user_id
+      JOIN schools s ON s.id=l.school_id
+      AND u.school_id=l.school_id
+      WHERE lower(regexp_replace(l.reg_no, '\\s+', '', 'g'))=${regNo}
+        AND l.active IS TRUE
+        AND u.role='individual'
+        AND u.sector='education'
+        AND lower(s.short_code)=${schoolCode}
+      LIMIT 2`;
+    if (matches.length !== 1) {
+      throw new ApiError(401, "INVALID_CREDENTIALS", "Registration number, school code, or password is incorrect.");
+    }
+    email = String(matches[0]!.email).toLowerCase();
+  } else {
+    email = requiredString(body, "email", { max: 254 }).toLowerCase();
+  }
   if (!validEmail(email)) {
     throw new ApiError(400, "VALIDATION_ERROR", "email must be a valid email address.");
   }
@@ -316,6 +341,10 @@ authRoutes.post("/login", async (c) => {
     | undefined;
 
   if (!row || !(await verifyPassword(password, row.password_hash))) {
+    throw new ApiError(401, "INVALID_CREDENTIALS", "Email or password is incorrect.");
+  }
+  if (row.role === "individual" && row.sector === "education" &&
+    (body.learner_mode !== "independent" || row.school_id !== null)) {
     throw new ApiError(401, "INVALID_CREDENTIALS", "Email or password is incorrect.");
   }
   if (
@@ -524,8 +553,8 @@ authRoutes.post("/login-regno", async (c) => {
   const body = await readJson(c);
   const regNo = requiredString(body, "reg_no", { max: 80 }).trim().toLowerCase().replace(/\s+/gu, "");
   const password = requiredString(body, "password", { max: 128 });
-  const schoolCode = typeof body.school_code === "string" ? body.school_code.trim().toLowerCase() : "";
-  if (schoolCode && !/^[a-z0-9-]{2,32}$/u.test(schoolCode)) {
+  const schoolCode = requiredString(body, "school_code", { max: 32 }).trim().toLowerCase();
+  if (!/^[a-z0-9-]{2,32}$/u.test(schoolCode)) {
     throw new ApiError(400, "VALIDATION_ERROR", "School code is invalid.");
   }
   const matches = await getDb(c.env)`
@@ -535,7 +564,7 @@ authRoutes.post("/login-regno", async (c) => {
     JOIN schools s ON s.id=l.school_id
     WHERE lower(regexp_replace(l.reg_no, '\\s+', '', 'g'))=${regNo}
       AND l.active IS TRUE AND u.role='individual'
-      AND (${schoolCode}='' OR lower(s.short_code)=${schoolCode})
+      AND lower(s.short_code)=${schoolCode}
     LIMIT 2`;
   if (matches.length !== 1) {
     throw new ApiError(401, "INVALID_CREDENTIALS", "Registration number or password is incorrect.");

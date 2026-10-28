@@ -70,8 +70,13 @@ auth2.post("/login-regno", async (c) => {
   const body = await readJson(c);
   const regNo = requiredString(body, "reg_no", { max: 80 }).trim().toLowerCase().replace(/\s+/gu, "");
   const password = requiredString(body, "password", { max: 128 });
-  const schoolCode = optionalString(body, "school_code", { max: 32 })?.trim().toLowerCase() ?? "";
   const roleHint = body.role_hint === "teacher" ? "teacher" : "student";
+  const schoolCode = roleHint === "student"
+    ? requiredString(body, "school_code", { max: 32 }).trim().toLowerCase()
+    : optionalString(body, "school_code", { max: 32 })?.trim().toLowerCase() ?? "";
+  if (schoolCode && !/^[a-z0-9-]{2,32}$/u.test(schoolCode)) {
+    throw new ApiError(400, "VALIDATION_ERROR", "School code is invalid.");
+  }
   const sql = getDb(c.env);
   let row: (UserRecord & { password_hash: string }) | undefined;
   if (roleHint === "student") {

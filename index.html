@@ -1139,13 +1139,18 @@
         </div>
         <div id="loginFormDiv" class="login-form">
             <button type="button" class="login-tab" data-auth-back="roles" style="margin-bottom:10px">← Choose another role</button>
+            <fieldset id="learnerLoginKind" hidden style="border:0;padding:0;margin:0 0 14px">
+                <legend style="font-weight:700;margin-bottom:8px">How do you study with APSHULE?</legend>
+                <label style="margin-right:16px"><input type="radio" name="learnerLoginKind" value="school" checked> I’m part of a school</label>
+                <label><input type="radio" name="learnerLoginKind" value="independent"> I’m independent</label>
+            </fieldset>
             <div class="login-tabs" style="margin:0 0 14px"><button type="button" class="login-tab active" data-login-identity="email">Email</button><button type="button" class="login-tab" data-login-identity="regno">Reg No</button></div>
             <input type="text" id="schoolAdminCode" placeholder="School code" class="login-input" hidden autocomplete="organization">
             <div id="teacherLoginMode" hidden style="margin:0 0 12px"><label><input type="radio" name="teacherLoginKind" value="school" checked> I’m part of a school</label><label style="margin-left:16px"><input type="radio" name="teacherLoginKind" value="independent"> I’m independent</label></div>
             <input type="text" id="teacherSchoolCode" placeholder="School code" class="login-input" hidden autocomplete="organization">
             <small id="teacherSchoolCodeHint" hidden></small>
             <div id="emailLoginIdentity"><input type="email" id="loginEmail" placeholder="Email" class="login-input"></div>
-            <div id="regNoLoginIdentity" hidden><input id="loginRegNo" placeholder="Registration number" class="login-input" autocomplete="username"><input id="loginSchoolCode" placeholder="School code (optional)" class="login-input" autocomplete="organization"></div>
+            <div id="regNoLoginIdentity" hidden><input id="loginRegNo" placeholder="Registration number" class="login-input" autocomplete="username"><input id="loginSchoolCode" placeholder="School code" class="login-input" autocomplete="organization"></div>
             <div style="position: relative;"><input type="password" id="loginPassword" placeholder="Password" class="login-input"><span onclick="togglePassword('loginPassword')" style=" position: absolute; right: 20px; top: 12px; cursor: pointer;">👁️</span></div>
             <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px;"><label style="display: flex; align-items: center; gap: 8px; color: #666; font-size: 14px;"><input type="checkbox" id="rememberMeCheckbox"> Remember Me</label><span id="forgotPasswordLink" style="color: #FF8C42; font-size: 14px; cursor: pointer;">Forgot Password?</span></div>
             <button id="loginBtn" class="login-btn">Login</button>
@@ -8959,8 +8964,10 @@
             document.getElementById('teacherLoginMode').hidden = flowRole !== 'teacher';
             document.getElementById('teacherSchoolCode').hidden = flowRole !== 'teacher' || document.querySelector('[name="teacherLoginKind"]:checked')?.value !== 'school';
             document.getElementById('teacherSchoolCodeHint').hidden = flowRole !== 'teacher' || document.getElementById('teacherSchoolCodeHint').hidden;
+            const learnerLoginKind = document.getElementById('learnerLoginKind');
+            learnerLoginKind.hidden = flowSector !== 'education' || flowRole !== 'individual';
             document.querySelectorAll('[data-login-identity]').forEach(tab => {
-                tab.hidden = flowSector !== 'education' || flowRole === 'school';
+                tab.hidden = flowSector !== 'education' || flowRole === 'school' || flowRole === 'individual';
             });
             const regNoIdentityTab = document.querySelector('[data-login-identity="regno"]');
             if (regNoIdentityTab) regNoIdentityTab.hidden = flowSector !== 'education' || flowRole === 'school' || flowRole === 'teacher';
@@ -8968,6 +8975,11 @@
                 loginMode = 'email';
                 document.getElementById('emailLoginIdentity').hidden = false;
                 document.getElementById('regNoLoginIdentity').hidden = true;
+            } else if (flowSector === 'education' && flowRole === 'individual') {
+                loginMode = 'regno';
+                document.getElementById('emailLoginIdentity').hidden = true;
+                document.getElementById('regNoLoginIdentity').hidden = false;
+                document.querySelectorAll('[name="learnerLoginKind"]').forEach(input => { input.checked = input.value === 'school'; });
             } else {
                 document.querySelector('[data-login-identity="email"]')?.click();
             }
@@ -8983,6 +8995,13 @@
             document.getElementById('teacherSchoolCode').hidden = flowRole !== 'teacher' || input.value !== 'school';
             document.getElementById('teacherSchoolCodeHint').hidden = flowRole !== 'teacher' || input.value !== 'school';
             if (input.value === 'school') restoreTeacherSchoolCode();
+        }));
+        document.querySelectorAll('[name="learnerLoginKind"]').forEach(input => input.addEventListener('change', () => {
+            const schoolLogin = input.value === 'school';
+            loginMode = schoolLogin ? 'regno' : 'email';
+            document.getElementById('emailLoginIdentity').hidden = schoolLogin;
+            document.getElementById('regNoLoginIdentity').hidden = !schoolLogin;
+            document.getElementById('loginError').style.display = 'none';
         }));
         document.querySelectorAll('[data-auth-back]').forEach(button => button.addEventListener('click', () => {
             const destination = button.dataset.authBack;
@@ -9942,6 +9961,8 @@
             const schoolCode = document.getElementById('loginSchoolCode').value.trim();
             const password = document.getElementById('loginPassword').value;
             const loginError = document.getElementById('loginError');
+            const independentLearnerLogin = flowSector === 'education' && flowRole === 'individual' &&
+                document.querySelector('[name="learnerLoginKind"]:checked')?.value === 'independent';
             const identity = loginMode === 'email' ? email : regNo;
             if (!identity || !password) {
                 loginError.className = 'error-message';
@@ -9950,6 +9971,12 @@
                 return;
             }
             if (flowRole === 'school' && !document.getElementById('schoolAdminCode').value.trim()) {
+                loginError.className = 'error-message';
+                loginError.style.display = 'block';
+                loginError.innerText = 'Please enter your school code';
+                return;
+            }
+            if (flowSector === 'education' && flowRole === 'individual' && !independentLearnerLogin && !schoolCode) {
                 loginError.className = 'error-message';
                 loginError.style.display = 'block';
                 loginError.innerText = 'Please enter your school code';
@@ -9966,15 +9993,15 @@
                 const teacherSchoolCode = document.getElementById('teacherSchoolCode').value.trim();
                 const teacherSchoolLogin = flowRole === 'teacher' && document.querySelector('[name="teacherLoginKind"]:checked')?.value === 'school';
                 const endpoint = flowRole === 'school' || teacherSchoolLogin ? '/api/auth2/login-school'
-                    : flowSector === 'education' && loginMode === 'regno' ? '/api/auth2/login-regno'
                     : '/api/auth/login';
                 const body = flowRole === 'school'
                     ? { school_code: document.getElementById('schoolAdminCode').value.trim(), email, password }
                     : teacherSchoolLogin
                         ? { school_code: teacherSchoolCode, email, password }
-                    : endpoint === '/api/auth2/login-regno'
-                        ? { reg_no: regNo, school_code: schoolCode || undefined, role_hint: flowRole === 'teacher' ? 'teacher' : 'student', password }
-                        : loginMode === 'email' ? { email, password } : { reg_no: regNo, school_code: schoolCode || undefined, password };
+                    : flowSector === 'education' && flowRole === 'individual' && !independentLearnerLogin
+                        ? { reg_no: regNo, school_code: schoolCode, role_hint: 'student', password }
+                    : loginMode === 'email' ? { email, password, ...(independentLearnerLogin ? { learner_mode: 'independent' } : {}) }
+                        : { reg_no: regNo, school_code: schoolCode || undefined, role_hint: flowRole === 'teacher' ? 'teacher' : 'student', password };
                 const data = await api(endpoint, {
                     method: 'POST',
                     body,
@@ -10294,7 +10321,7 @@
 
     if ("serviceWorker" in navigator) {
         window.addEventListener("load", () => {
-                    navigator.serviceWorker.register("/sw-cache-v80.js?v=80", { scope: "/" })
+                    navigator.serviceWorker.register("/sw-cache-v81.js?v=81", { scope: "/" })
                 .then((registration) => console.log("[SW] registered", registration.scope))
                 .catch((error) => console.error("[SW] failed", error));
         }, { once: true });
