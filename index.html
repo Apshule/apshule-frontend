@@ -1144,12 +1144,12 @@
                 <label style="margin-right:16px"><input type="radio" name="learnerLoginKind" value="school" checked> I’m part of a school</label>
                 <label><input type="radio" name="learnerLoginKind" value="independent"> I’m independent</label>
             </fieldset>
-            <div class="login-tabs" style="margin:0 0 14px"><button type="button" class="login-tab active" data-login-identity="email">Email</button><button type="button" class="login-tab" data-login-identity="regno">Reg No</button></div>
+            <div class="login-tabs" style="margin:0 0 14px"><button type="button" class="login-tab active" data-login-identity="email">Email or Phone Number</button><button type="button" class="login-tab" data-login-identity="regno">Reg No</button></div>
             <input type="text" id="schoolAdminCode" placeholder="School code" class="login-input" hidden autocomplete="organization">
             <div id="teacherLoginMode" hidden style="margin:0 0 12px"><label><input type="radio" name="teacherLoginKind" value="school" checked> I’m part of a school</label><label style="margin-left:16px"><input type="radio" name="teacherLoginKind" value="independent"> I’m independent</label></div>
             <input type="text" id="teacherSchoolCode" placeholder="School code" class="login-input" hidden autocomplete="organization">
             <small id="teacherSchoolCodeHint" hidden></small>
-            <div id="emailLoginIdentity"><input type="email" id="loginEmail" placeholder="Email" class="login-input"></div>
+            <div id="emailLoginIdentity"><input type="text" id="loginEmail" placeholder="Email or Phone Number" class="login-input" autocomplete="username"></div>
             <div id="regNoLoginIdentity" hidden><input id="loginRegNo" placeholder="Registration number" class="login-input" autocomplete="username"><input id="loginSchoolCode" placeholder="School code" class="login-input" autocomplete="organization"></div>
             <div style="position: relative;"><input type="password" id="loginPassword" placeholder="Password" class="login-input"><span onclick="togglePassword('loginPassword')" style=" position: absolute; right: 20px; top: 12px; cursor: pointer;">👁️</span></div>
             <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px;"><label style="display: flex; align-items: center; gap: 8px; color: #666; font-size: 14px;"><input type="checkbox" id="rememberMeCheckbox"> Remember Me</label><span id="forgotPasswordLink" style="color: #FF8C42; font-size: 14px; cursor: pointer;">Forgot Password?</span></div>
@@ -1169,7 +1169,7 @@
                 <option value="teacher">Teacher</option>
             </select>
             <input type="text" id="signupName" placeholder="Full Name" class="login-input">
-            <input type="email" id="signupEmail" placeholder="Email" class="login-input">
+            <input type="text" id="signupEmail" placeholder="Email or Phone Number" class="login-input" autocomplete="email">
             <input type="tel" id="signupPhone" placeholder="Phone Number" class="login-input">
             <input type="text" id="signupReferralCode" placeholder="Referral code (optional)" class="login-input" autocomplete="off">
             <div style="position: relative;"><input type="password" id="signupPassword" placeholder="Password (min 8 characters)" class="login-input"><span onclick="togglePassword('signupPassword')" style="position: absolute; right: 20px; top: 12px; cursor: pointer;">👁️</span></div>
@@ -1246,8 +1246,13 @@
         <div class="reset-section" id="resetSection">
             <h4><i class="fas fa-key"></i> Forgot Password?</h4>
             <div class="reset-step" id="resetStep1">
-                <label for="resetEmail">Email address</label>
-                <input type="email" id="resetEmail" placeholder="you@example.com" class="reset-input" autocomplete="email" required>
+                <fieldset id="resetDeliveryMethod" style="border:0;padding:0;margin:0 0 10px;text-align:left">
+                    <legend style="font-weight:700;margin-bottom:8px">Where should we send your OTP?</legend>
+                    <label style="margin-right:14px"><input type="radio" name="resetDeliveryMethod" value="email" checked> Receive OTP via Email</label>
+                    <label><input type="radio" name="resetDeliveryMethod" value="sms"> Receive OTP via SMS</label>
+                </fieldset>
+                <label for="resetIdentifier">Email or Phone Number</label>
+                <input type="text" id="resetIdentifier" placeholder="Email or Phone Number" class="reset-input" autocomplete="username" required>
                 <p id="resetRequestMessage" class="reset-status" role="status" aria-live="polite"></p>
                 <button type="button" id="sendResetEmailBtn" class="reset-btn">Send verification code</button>
             </div>
@@ -1260,7 +1265,7 @@
                 <button type="button" id="verifyResetOtpBtn" class="reset-btn" disabled>Verify code</button>
                 <button type="button" id="resetResendBtn" class="reset-secondary-btn" disabled>Resend in 30s</button>
                 <p id="resetResendLimitMessage" class="reset-status" role="status" hidden>You've reached the request limit for now. Try again later.</p>
-                <button type="button" id="resetChangeEmailBtn" class="reset-secondary-btn">← Change email</button>
+                <button type="button" id="resetChangeEmailBtn" class="reset-secondary-btn">← Change email or phone</button>
             </div>
             <div class="reset-step" id="resetStep3" hidden>
                 <h5>Choose a new password</h5>
@@ -10074,14 +10079,15 @@
             }
         });
         const resetSection = document.getElementById('resetSection');
-        const resetEmailInput = document.getElementById('resetEmail');
+        const resetIdentifierInput = document.getElementById('resetIdentifier');
         const resetOtpInput = document.getElementById('resetOtp');
         const verifyResetOtpBtn = document.getElementById('verifyResetOtpBtn');
         const resetResendBtn = document.getElementById('resetResendBtn');
         const resetStep1 = document.getElementById('resetStep1');
         const resetStep2 = document.getElementById('resetStep2');
         const resetStep3 = document.getElementById('resetStep3');
-        let resetEmailValue = '';
+        let resetIdentifierValue = '';
+        let resetDeliveryMethodValue = 'email';
         let resetTokenValue = '';
         let resetResendCount = 0;
         let resetOtpExpiresAt = 0;
@@ -10144,10 +10150,11 @@
             const requestMessage = document.getElementById('resetRequestMessage');
             const resendMessage = document.getElementById('resetVerifyMessage');
             if (!isResend) {
-                if (!resetEmailInput.reportValidity()) return;
-                resetEmailValue = resetEmailInput.value.trim();
+                if (!resetIdentifierInput.reportValidity()) return;
+                resetIdentifierValue = resetIdentifierInput.value.trim();
+                resetDeliveryMethodValue = document.querySelector('[name="resetDeliveryMethod"]:checked')?.value || 'email';
             }
-            if (!resetEmailValue) return;
+            if (!resetIdentifierValue) return;
             if (isResend) {
                 resetResendCount += 1;
                 resetOtpInput.value = '';
@@ -10159,14 +10166,17 @@
             try {
                 const response = await api('/api/auth/reset', {
                     method: 'POST',
-                    body: { email: resetEmailValue },
+                    body: {
+                        identifier: resetIdentifierValue,
+                        delivery_method: resetDeliveryMethodValue,
+                    },
                     auth: false,
                 });
                 requestMessage.textContent = response?.message || 'If an account is registered, a code has been sent.';
             } catch {
                 requestMessage.textContent = 'If an account is registered, a code has been sent.';
             }
-            document.getElementById('resetEmailLabel').textContent = resetEmailValue;
+            document.getElementById('resetEmailLabel').textContent = resetIdentifierValue;
             document.getElementById('resetResendLimitMessage').hidden = resetResendCount < 2;
             resetResendBtn.hidden = resetResendCount >= 2;
             if (!isResend) showResetStep(2);
@@ -10190,7 +10200,7 @@
             try {
                 const response = await api('/api/auth/verify-otp', {
                     method: 'POST',
-                    body: { email: resetEmailValue, otp: resetOtpInput.value },
+                    body: { identifier: resetIdentifierValue, otp: resetOtpInput.value },
                     auth: false,
                 });
                 if (!response?.reset_token) throw new Error('Invalid or expired code. Request a new one.');
@@ -10231,13 +10241,13 @@
             try {
                 await api('/api/auth/reset-confirm', {
                     method: 'POST',
-                    body: { email: resetEmailValue, reset_token: resetTokenValue, new_password: password },
+                    body: { identifier: resetIdentifierValue, reset_token: resetTokenValue, new_password: password },
                     auth: false,
                 });
                 clearResetTimers();
                 resetSection.style.display = 'none';
                 showResetStep(1);
-                document.getElementById('loginEmail').value = resetEmailValue;
+                document.getElementById('loginEmail').value = resetIdentifierValue;
                 document.getElementById('loginPassword').value = '';
                 const loginError = document.getElementById('loginError');
                 loginError.className = 'success-message';
@@ -10321,7 +10331,7 @@
 
     if ("serviceWorker" in navigator) {
         window.addEventListener("load", () => {
-                    navigator.serviceWorker.register("/sw-cache-v81.js?v=81", { scope: "/" })
+                    navigator.serviceWorker.register("/sw-cache-v82.js?v=82", { scope: "/" })
                 .then((registration) => console.log("[SW] registered", registration.scope))
                 .catch((error) => console.error("[SW] failed", error));
         }, { once: true });

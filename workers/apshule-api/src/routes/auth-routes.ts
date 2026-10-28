@@ -118,6 +118,31 @@ async function secretHashHex(value: string, secret?: string): Promise<string> {
   return bytesToHex(new Uint8Array(digest));
 }
 
+async function sendSmsOtp(env: AppEnv["Bindings"], phone: string, otp: string): Promise<void> {
+  if (!env.AFRICASTALKING_API_KEY || !env.AFRICASTALKING_USERNAME) {
+    throw new ApiError(500, "SERVER_CONFIG_ERROR", "SMS password reset is unavailable.");
+  }
+
+  const body = new URLSearchParams({
+    username: env.AFRICASTALKING_USERNAME,
+    to: phone,
+    message: `Your Apshule OTP is: ${otp}`,
+  });
+  const response = await fetch("https://api.africastalking.com/version1/messaging", {
+    method: "POST",
+    headers: {
+      apiKey: env.AFRICASTALKING_API_KEY,
+      Accept: "application/json",
+      "Content-Type": "application/x-www-form-urlencoded",
+    },
+    body,
+  });
+  if (!response.ok) {
+    console.error("Africa's Talking SMS request failed", response.status);
+    throw new Error("SMS delivery failed.");
+  }
+}
+
 function constantTimeEqual(left: string, right: string): boolean {
   if (left.length !== right.length) return false;
   let difference = 0;
@@ -321,10 +346,6 @@ authRoutes.post("/login", async (c) => {
   } else {
     email = requiredString(body, "email", { max: 254 }).toLowerCase();
   }
-  if (!validEmail(email)) {
-    throw new ApiError(400, "VALIDATION_ERROR", "email must be a valid email address.");
-  }
-
   const sql = getDb(c.env);
   const rows = await sql`
     SELECT id, name, email, phone, password_hash, role, sector, waitlist,
@@ -334,6 +355,7 @@ authRoutes.post("/login", async (c) => {
       last_login, detected_location, created_at
     FROM users
     WHERE lower(email) = ${email}
+      OR phone = ${email}
     LIMIT 1
   `;
   const row = rows[0] as
@@ -579,9 +601,12 @@ authRoutes.post("/login-regno", async (c) => {
 
 authRoutes.post("/reset", async (c) => {
   const body = await readJson(c);
-  const email = requiredString(body, "email", { max: 254 }).toLowerCase();
-  if (!validEmail(email)) {
-    throw new ApiError(400, "VALIDATION_ERROR", "email must be a valid email address.");
+  const identifier = requiredString(body, "identifier", { max: 254 }).trim();
+  const deliveryMethod = body.delivery_method === undefined
+    ? "email"
+    : requiredString(body, "delivery_method", { max: 10 });
+  if (deliveryMethod !== "email" && deliveryMethod !== "sms") {
+    throw new ApiError(400, "VALIDATION_ERROR", "delivery_method must be email or sms.");
   }
 
   const genericResponse = {
@@ -592,23 +617,31 @@ authRoutes.post("/reset", async (c) => {
   };
   const sql = getDb(c.env);
   const users = await sql`
-    SELECT id, name, email
+    SELECT id, name, email, phone
     FROM users
-    WHERE lower(email) = ${email}
-    LIMIT 1
+    WHERE lower(email) = ${identifier.toLowerCase()}
+      OR phone = ${identifier}
+    LIMIT 2
   `;
-  const user = users[0] as { id: string; name: string; email: string } | undefined;
-  if (!user) return c.json(genericResponse);
+  const user = users.length === 1
+    ? users[0] as { id: string; name: string; email: string; phone: string | null }
+    : undefined;
+  if (!user || (deliveryMethod === "sms" && !user.phone)) return c.json(genericResponse);
 
   const requestCounts = await sql`
     SELECT
       COUNT(*)::int AS request_count,
       COUNT(*) FILTER (
-        WHERE created_at >= NOW() - INTERVAL '30 seconds'
+        WHERE o.created_at >= NOW() - INTERVAL '30 seconds'
       )::int AS recent_request_count
-    FROM password_reset_otps
-    WHERE user_id = ${user.id}
-      AND created_at >= NOW() - INTERVAL '1 hour'
+    FROM password_reset_otps o
+    WHERE o.user_id IN (
+      SELECT u.id
+      FROM users u
+      WHERE u.id = ${user.id}
+        OR (${deliveryMethod === "sms"} AND u.phone = ${user.phone})
+    )
+      AND o.created_at >= NOW() - INTERVAL '1 hour'
   `;
   if (
     Number(requestCounts[0]?.request_count ?? 0) >= OTP_MAX_REQUESTS_PER_HOUR ||
@@ -641,10 +674,18 @@ authRoutes.post("/reset", async (c) => {
     )
   `;
   c.executionCtx.waitUntil(
-    sendEmail(c.env, {
-      to: user.email,
-      subject: "Your APSHULE password reset code",
-      html: otpEmailTemplate(user.name, otp),
+    (deliveryMethod === "sms"
+      ? sendSmsOtp(c.env, user.phone!, otp)
+      : sendEmail(c.env, {
+          to: user.email,
+          subject: "Your APSHULE password reset code",
+          html: otpEmailTemplate(user.name, otp),
+        })
+    ).catch((error) => {
+      console.error(
+        "Password reset code delivery failed",
+        error instanceof ApiError ? error.code : "DELIVERY_ERROR",
+      );
     }),
   );
   return c.json(genericResponse);
@@ -652,11 +693,8 @@ authRoutes.post("/reset", async (c) => {
 
 authRoutes.post("/verify-otp", async (c) => {
   const body = await readJson(c);
-  const email = requiredString(body, "email", { max: 254 }).toLowerCase();
+  const identifier = requiredString(body, "identifier", { max: 254 }).trim();
   const otp = requiredString(body, "otp", { min: 6, max: 6 });
-  if (!validEmail(email)) {
-    throw new ApiError(400, "VALIDATION_ERROR", "email must be a valid email address.");
-  }
   if (!/^\d{6}$/u.test(otp)) {
     throw new ApiError(400, "VALIDATION_ERROR", "otp must be a 6-digit code.");
   }
@@ -665,10 +703,11 @@ authRoutes.post("/verify-otp", async (c) => {
   const users = await sql`
     SELECT id
     FROM users
-    WHERE lower(email) = ${email}
-    LIMIT 1
+    WHERE lower(email) = ${identifier.toLowerCase()}
+      OR phone = ${identifier}
+    LIMIT 2
   `;
-  const user = users[0] as { id: string } | undefined;
+  const user = users.length === 1 ? users[0] as { id: string } : undefined;
   if (!user) throw new ApiError(400, "INVALID_CODE", INVALID_OTP_MESSAGE);
 
   const rows = await sql`
@@ -728,12 +767,9 @@ authRoutes.post("/verify-otp", async (c) => {
 
 authRoutes.post("/reset-confirm", async (c) => {
   const body = await readJson(c);
-  const email = requiredString(body, "email", { max: 254 }).toLowerCase();
+  const identifier = requiredString(body, "identifier", { max: 254 }).trim();
   const resetToken = requiredString(body, "reset_token", { min: 32, max: 32 });
   const newPassword = requiredString(body, "new_password", { min: 6, max: 128 });
-  if (!validEmail(email)) {
-    throw new ApiError(400, "VALIDATION_ERROR", "email must be a valid email address.");
-  }
   if (!/^[0-9a-f]{32}$/iu.test(resetToken)) {
     throw new ApiError(400, "VALIDATION_ERROR", "reset_token is invalid.");
   }
@@ -742,10 +778,11 @@ authRoutes.post("/reset-confirm", async (c) => {
   const users = await sql`
     SELECT id
     FROM users
-    WHERE lower(email) = ${email}
-    LIMIT 1
+    WHERE lower(email) = ${identifier.toLowerCase()}
+      OR phone = ${identifier}
+    LIMIT 2
   `;
-  const user = users[0] as { id: string } | undefined;
+  const user = users.length === 1 ? users[0] as { id: string } : undefined;
   if (!user) throw new ApiError(400, "RESET_SESSION_EXPIRED", RESET_CONFIRM_ERROR);
 
   const resetTokenHash = await secretHashHex(resetToken, c.env.JWT_SECRET);

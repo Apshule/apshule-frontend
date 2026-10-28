@@ -7,6 +7,8 @@ export interface Env {
   RESEND_API_KEY?: string;
   RESEND_FROM_EMAIL?: string;
   RESEND_FROM_NAME?: string;
+  AFRICASTALKING_API_KEY?: string;
+  AFRICASTALKING_USERNAME?: string;
   APP_URL?: string;
   PIXABAY_API_KEY?: string;
   GEMINI_API_KEY?: string;
