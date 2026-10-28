@@ -1,7 +1,7 @@
 import { Hono } from "hono";
-import { SignJWT } from "jose";
 import { authMiddleware } from "../auth.js";
 import { ApiError, getDb, requireEnv } from "../db.js";
+import { createReportCardsTicket } from "../report-sso-ticket.js";
 import type { AppEnv } from "../types.js";
 
 const routes = new Hono<AppEnv>();
@@ -16,6 +16,7 @@ routes.post("/ticket", authMiddleware, async (c) => {
   if (!user.schoolId || user.sector !== "education") {
     throw new ApiError(403, "FORBIDDEN", "A school-linked Education account is required.");
   }
+  const schoolId = user.schoolId;
 
   let stage = "secret validation";
   try {
@@ -25,12 +26,7 @@ routes.post("/ticket", authMiddleware, async (c) => {
     }
 
     stage = "JWT signing";
-    const ticket = await new SignJWT({ user_id: user.id })
-      .setProtectedHeader({ alg: "HS256", typ: "JWT" })
-      .setSubject(user.id)
-      .setIssuedAt()
-      .setExpirationTime("2m")
-      .sign(secret);
+    const ticket = await createReportCardsTicket({ id: user.id, role: user.role, schoolId }, secret);
 
     stage = "ticket insert";
     const ticketId = crypto.randomUUID();

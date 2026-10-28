@@ -58,8 +58,8 @@ schools.post("/", authMiddleware, requireRole("superadmin"), async (c) => {
 
   try {
     await sql`
-      INSERT INTO users (name, email, phone, password_hash, role, school_id)
-      VALUES (${name}, ${loginEmail}, ${phone}, ${passwordHash}, 'school', ${school.id})
+      INSERT INTO users (name, email, phone, password_hash, role, sector, school_id, is_active)
+      VALUES (${name}, ${loginEmail}, ${phone}, ${passwordHash}, 'school', 'education', ${school.id}, TRUE)
     `;
   } catch (error) {
     await sql`DELETE FROM schools WHERE id = ${school.id}`;

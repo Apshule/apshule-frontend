@@ -238,17 +238,31 @@ cc.post("/users", async (c) => {
   const role = requiredString(body, "role", { max: 30 });
   const sector = requiredString(body, "sector", { max: 30 });
   const phone = optionalString(body, "phone", { max: 40 }) ?? null;
+  const schoolId = optionalString(body, "school_id", { max: 36 }) ?? null;
   if (!validEmail(email) || !(roles as readonly string[]).includes(role) || !(sectors as readonly string[]).includes(sector)) {
     throw new ApiError(400, "VALIDATION_ERROR", "Provide a valid email, role, and sector.");
   }
+  if (schoolId && sector !== "education") {
+    throw new ApiError(400, "VALIDATION_ERROR", "Only Education users can be linked to a school.");
+  }
+  if (sector === "education" && ["teacher", "school"].includes(role) && !schoolId) {
+    throw new ApiError(400, "SCHOOL_REQUIRED", "Choose a school for a teacher or school admin account.");
+  }
+  if (schoolId) {
+    if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/iu.test(schoolId)) {
+      throw new ApiError(400, "VALIDATION_ERROR", "Choose a valid school.");
+    }
+    const school = await getDb(c.env)`SELECT id FROM schools WHERE id = ${schoolId}::uuid LIMIT 1`;
+    if (!school[0]) throw new ApiError(404, "SCHOOL_NOT_FOUND", "The selected school was not found.");
+  }
   const passwordHash = await hashPassword(crypto.randomUUID());
   const rows = await getDb(c.env)`
-    INSERT INTO users (name, email, phone, password_hash, role, sector, is_active, waitlist)
-    VALUES (${name}, ${email}, ${phone}, ${passwordHash}, ${role}, ${sector}, TRUE, FALSE)
-    RETURNING id, name, email, phone, role, sector, is_active, created_at
+    INSERT INTO users (name, email, phone, password_hash, role, sector, school_id, is_active, waitlist)
+    VALUES (${name}, ${email}, ${phone}, ${passwordHash}, ${role}, ${sector}, ${schoolId}::uuid, TRUE, FALSE)
+    RETURNING id, name, email, phone, role, sector, school_id, is_active, created_at
   `;
   const user = rows[0] as Record<string, unknown>;
-  await audit(c, "cc.user.create", "users", String(user.id), { role, sector });
+  await audit(c, "cc.user.create", "users", String(user.id), { role, sector, school_id: schoolId });
   c.executionCtx.waitUntil(sendEmail(c.env, {
     to: email,
     subject: "Your APSHULE account is ready",
