@@ -457,12 +457,16 @@ export function initCommandCenterUI({ apiBase, getToken, getUser, notify, activa
     }
     const schoolOptions = `<option value="">Select a school</option>${schools.map((school) =>
       `<option value="${esc(school.id)}">${esc(school.name)}</option>`).join("")}`;
+    const roleOptions = ROLE_OPTIONS.map((value) => value === "school"
+      ? { value: "school_admin", label: "School Admin" }
+      : value);
+    const selectedRole = target.role === "school" ? "school_admin" : target.role || "individual";
     const form = `<form data-form="${isNew ? "user-create" : "user-edit"}" data-id="${esc(target.id)}">
       <div class="cc6-form-grid">
         <label class="cc6-label">${esc(t("cc_name"))}<input class="cc6-field" name="name" maxlength="120" required value="${esc(target.name)}"></label>
         <label class="cc6-label">${esc(t("cc_email"))}<input class="cc6-field" type="email" name="email" maxlength="254" required value="${esc(target.email)}"></label>
         <label class="cc6-label">${esc(t("cc_phone"))}<input class="cc6-field" name="phone" maxlength="40" value="${esc(target.phone)}"></label>
-        <label class="cc6-label">${esc(t("cc_role"))}<select class="cc6-select" name="role" required>${optionList(ROLE_OPTIONS, target.role || "individual")}</select></label>
+        <label class="cc6-label">${esc(t("cc_role"))}<select class="cc6-select" name="role" required>${optionList(roleOptions, selectedRole)}</select></label>
         <label class="cc6-label">${esc(t("cc_sector"))}<select class="cc6-select" name="sector" required>${optionList(SECTOR_OPTIONS, target.sector || "education")}</select></label>
         ${isNew ? `<label class="cc6-label" data-school-field>School affiliation<select class="cc6-select" name="school_id">${schoolOptions}</select></label>` : ""}
       </div><p class="cc6-hint">${isNew ? "The user will receive an email to set a password." : "Deactivation revokes active sessions. Account deletion requires an approved PDPO request."}</p>
@@ -475,7 +479,7 @@ export function initCommandCenterUI({ apiBase, getToken, getUser, notify, activa
       const schoolSelect = userForm?.elements.namedItem("school_id");
       const updateSchoolRequirement = () => {
         const needsSchool = userForm?.elements.namedItem("sector")?.value === "education" &&
-          ["teacher", "school"].includes(userForm?.elements.namedItem("role")?.value);
+          ["teacher", "school", "school_admin"].includes(userForm?.elements.namedItem("role")?.value);
         if (schoolField) schoolField.hidden = !needsSchool && userForm?.elements.namedItem("sector")?.value !== "education";
         if (schoolSelect instanceof HTMLSelectElement) schoolSelect.required = Boolean(needsSchool);
       };

@@ -7145,7 +7145,7 @@
     function canAccessReportCards(user) {
         const schoolLinked = [user?.schoolId, user?.school_id]
             .some(id => id !== null && id !== undefined && String(id).trim() !== "");
-        return String(user?.role || "").toLowerCase() === "teacher" &&
+        return ["teacher", "school", "school_admin"].includes(String(user?.role || "").toLowerCase()) &&
             user?.sector === "education" &&
             schoolLinked;
     }
@@ -10289,7 +10289,7 @@
 
     if ("serviceWorker" in navigator) {
         window.addEventListener("load", () => {
-                    navigator.serviceWorker.register("/sw-cache-v77.js?v=77", { scope: "/" })
+                    navigator.serviceWorker.register("/sw-cache-v78.js?v=78", { scope: "/" })
                 .then((registration) => console.log("[SW] registered", registration.scope))
                 .catch((error) => console.error("[SW] failed", error));
         }, { once: true });
