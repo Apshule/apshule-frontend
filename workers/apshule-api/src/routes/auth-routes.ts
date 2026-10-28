@@ -9,6 +9,7 @@ import {
   validEmail,
 } from "../http.js";
 import { otpEmailTemplate, sendEmail, welcomeEmailTemplate } from "../email.js";
+import { sendSmsOtp } from "../sms.js";
 import type { AppEnv, UserRecord, UserRole } from "../types.js";
 
 const authRoutes = new Hono<AppEnv>();
@@ -116,31 +117,6 @@ async function secretHashHex(value: string, secret?: string): Promise<string> {
   );
   const digest = await crypto.subtle.sign("HMAC", key, encoder.encode(value));
   return bytesToHex(new Uint8Array(digest));
-}
-
-async function sendSmsOtp(env: AppEnv["Bindings"], phone: string, otp: string): Promise<void> {
-  if (!env.AFRICASTALKING_API_KEY || !env.AFRICASTALKING_USERNAME) {
-    throw new ApiError(500, "SERVER_CONFIG_ERROR", "SMS password reset is unavailable.");
-  }
-
-  const body = new URLSearchParams({
-    username: env.AFRICASTALKING_USERNAME,
-    to: phone,
-    message: `Your Apshule OTP is: ${otp}`,
-  });
-  const response = await fetch("https://api.africastalking.com/version1/messaging", {
-    method: "POST",
-    headers: {
-      apiKey: env.AFRICASTALKING_API_KEY,
-      Accept: "application/json",
-      "Content-Type": "application/x-www-form-urlencoded",
-    },
-    body,
-  });
-  if (!response.ok) {
-    console.error("Africa's Talking SMS request failed", response.status);
-    throw new Error("SMS delivery failed.");
-  }
 }
 
 function constantTimeEqual(left: string, right: string): boolean {
