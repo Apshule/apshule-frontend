@@ -1,0 +1,6 @@
+CREATE TABLE IF NOT EXISTS sso_tickets (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  ticket TEXT NOT NULL UNIQUE,
+  user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  expires_at TIMESTAMPTZ NOT NULL
+);
