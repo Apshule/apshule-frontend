@@ -4,17 +4,17 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=yes, viewport-fit=cover">
     <title>APSHULE | Learning and practical software for Uganda</title>
-    <meta name="description" content="APSHULE offers online lessons for Uganda's curriculum, school management and report cards, MFI and farm software, custom software, and short-course training.">
+    <meta name="description" content="APSHULE offers Ugandan curriculum lessons, school and report-card tools, MFI and farm software, low-cost bulk SMS, custom software and short-course training.">
     <meta name="robots" content="index, follow">
     <link rel="canonical" href="https://appshule.com/">
     <meta property="og:type" content="website">
     <meta property="og:title" content="APSHULE | Learn, manage and grow">
-    <meta property="og:description" content="Online curriculum learning and practical tools for Ugandan schools, farms and microfinance teams — plus custom software and hands-on training.">
+    <meta property="og:description" content="Learning, management software and low-cost bulk SMS for Ugandan learners, schools, farms and microfinance teams — plus custom software and training.">
     <meta property="og:image" content="https://i.ibb.co/YFrCtRW8/IMG-20260328-WA0041-9.jpg">
     <meta property="og:url" content="https://appshule.com/">
     <meta name="twitter:card" content="summary">
     <meta name="twitter:title" content="APSHULE | Learning and practical software for Uganda">
-    <meta name="twitter:description" content="Learning and practical management software for Uganda's learners, schools, farms and microfinance teams.">
+    <meta name="twitter:description" content="Learning, management software and low-cost bulk SMS for Uganda's learners, schools, farms and microfinance teams.">
     <meta name="twitter:image" content="https://i.ibb.co/YFrCtRW8/IMG-20260328-WA0041-9.jpg">
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -25,10 +25,10 @@
       "@type": "Organization",
       "name": "APSHULE",
       "url": "https://appshule.com/",
-      "description": "Online curriculum learning and practical management software for learners, schools, farms and microfinance teams, with custom software and hands-on short-course training.",
+      "description": "Online curriculum learning, practical management software and low-cost bulk SMS for learners, schools, farms and microfinance teams, with custom software and short-course training.",
       "email": "support@appshule.com",
       "logo": "https://i.ibb.co/YFrCtRW8/IMG-20260328-WA0041-9.jpg",
-      "knowsAbout": ["Online curriculum learning", "School management", "Farm management", "Microfinance management", "Custom software", "Short-course training"]
+      "knowsAbout": ["Online curriculum learning", "School management", "Farm management", "Microfinance management", "Bulk SMS messaging", "Custom software", "Short-course training"]
     }
     </script>
     <link rel="manifest" href="/manifest.webmanifest?v=2">
@@ -1390,6 +1390,12 @@
                     </article>
                     <article class="service-card">
                         <span class="service-icon" aria-hidden="true">05</span>
+                        <h3>Bulk SMS</h3>
+                        <p>Send bulk text messages at low prices. Register with APSHULE to get started.</p>
+                        <a class="service-link" href="mailto:support@appshule.com?subject=Bulk%20SMS%20registration">Register for bulk SMS <span aria-hidden="true">→</span></a>
+                    </article>
+                    <article class="service-card">
+                        <span class="service-icon" aria-hidden="true">06</span>
                         <h3>Custom software and short courses</h3>
                         <p>Need a software solution shaped around your work, or practical hands-on training? Tell us what you have in mind.</p>
                         <a class="service-link" href="mailto:support@appshule.com?subject=APSHULE%20software%20or%20training%20enquiry">Ask about working together <span aria-hidden="true">→</span></a>
@@ -1466,6 +1472,7 @@
             <nav class="footer-links" aria-label="Footer navigation">
                 <a href="#what-we-do">Services</a>
                 <a href="https://reportcards.appshule.com" target="_blank" rel="noopener noreferrer">Automatic report cards</a>
+                <a href="mailto:support@appshule.com?subject=Bulk%20SMS%20registration">Bulk SMS registration</a>
                 <a href="mailto:support@appshule.com">Software and training enquiries</a>
                 <a href="#sign-in" data-home-entry>Sign in</a>
             </nav>
@@ -10723,7 +10730,7 @@
 
     if ("serviceWorker" in navigator) {
         window.addEventListener("load", () => {
-                    navigator.serviceWorker.register("/sw-cache-v85.js?v=85", { scope: "/" })
+                    navigator.serviceWorker.register("/sw-cache-v86.js?v=86", { scope: "/" })
                 .then((registration) => console.log("[SW] registered", registration.scope))
                 .catch((error) => console.error("[SW] failed", error));
         }, { once: true });
