@@ -2165,6 +2165,7 @@
         } catch (_) {}
     }
     let currentUser = null;
+    let passwordResetAutoLoginPending = false;
     let aiMode = 'chat';
     let aiConversation = [];
     let aiCurrentSolution = null;
@@ -9959,6 +9960,8 @@
         });
         document.getElementById('loginBtn').addEventListener('click', async e => {
             e.preventDefault();
+            const wasPasswordResetAutoLogin = passwordResetAutoLoginPending;
+            passwordResetAutoLoginPending = false;
             document.getElementById('sessionMessage').style.display = 'none';
             document.getElementById('loginError').style.display = 'none';
             const email = document.getElementById('loginEmail').value.trim();
@@ -10073,6 +10076,8 @@
                 loginError.style.display = 'block';
                 loginError.innerText = err.code === 'OFFLINE_WRITE_BLOCKED'
                     ? 'Connect to the internet to sign in. Previously saved sessions can be restored offline automatically.'
+                    : wasPasswordResetAutoLogin
+                        ? 'Password reset succeeded, but automatic sign-in could not complete. Please sign in with your usual account details.'
                     : flowRole === 'superadmin' && err.message === 'Not authorized as super admin'
                         ? err.message
                         : "Invalid email/password";
@@ -10252,12 +10257,20 @@
                 resetSection.style.display = 'none';
                 showResetStep(1);
                 document.getElementById('loginEmail').value = resetIdentifierValue;
-                document.getElementById('loginPassword').value = '';
                 const loginError = document.getElementById('loginError');
                 loginError.className = 'success-message';
                 loginError.style.display = 'block';
-                loginError.textContent = 'Password reset. Please log in.';
+                loginError.textContent = 'Password reset. Signing you in…';
+                document.getElementById('loginPassword').value = password;
                 resetTokenValue = '';
+                if (loginMode === 'email') {
+                    passwordResetAutoLoginPending = true;
+                    document.getElementById('loginBtn').click();
+                } else {
+                    loginError.textContent =
+                        'Password reset. Please sign in with your usual school registration details.';
+                    document.getElementById('loginPassword').value = '';
+                }
             } catch (error) {
                 message.textContent = error.message || 'Unable to reset password. Start over.';
             } finally {
