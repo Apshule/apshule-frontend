@@ -10111,11 +10111,11 @@
             const remainder = seconds % 60;
             return `${minutes}:${String(remainder).padStart(2, '0')}`;
         }
-        function startResetTimers(expiresInSeconds = 600) {
+        function startResetTimers(expiresInSeconds = 180) {
             clearResetTimers();
             const expirySeconds = Number.isFinite(Number(expiresInSeconds)) && Number(expiresInSeconds) > 0
                 ? Number(expiresInSeconds)
-                : 600;
+                : 180;
             resetOtpExpiresAt = Date.now() + expirySeconds * 1000;
             resetResendAvailableAt = Date.now() + 30_000;
             const updateExpiry = () => {
@@ -10335,7 +10335,7 @@
 
     if ("serviceWorker" in navigator) {
         window.addEventListener("load", () => {
-                    navigator.serviceWorker.register("/sw-cache-v83.js?v=83", { scope: "/" })
+                    navigator.serviceWorker.register("/sw-cache-v84.js?v=84", { scope: "/" })
                 .then((registration) => console.log("[SW] registered", registration.scope))
                 .catch((error) => console.error("[SW] failed", error));
         }, { once: true });

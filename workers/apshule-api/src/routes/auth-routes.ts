@@ -13,7 +13,7 @@ import { sendSmsOtp } from "../sms.js";
 import type { AppEnv, UserRecord, UserRole } from "../types.js";
 
 const authRoutes = new Hono<AppEnv>();
-const OTP_LIFETIME_SECONDS = 600;
+const OTP_LIFETIME_SECONDS = 180;
 const OTP_RESEND_AFTER_SECONDS = 30;
 const OTP_MAX_ATTEMPTS = 5;
 const OTP_MAX_REQUESTS_PER_HOUR = 3;
