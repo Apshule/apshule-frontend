@@ -2561,7 +2561,6 @@
         } catch (_) {}
     }
     let currentUser = null;
-    let passwordResetAutoLoginPending = false;
     let aiMode = 'chat';
     let aiConversation = [];
     let aiCurrentSolution = null;
@@ -10358,8 +10357,6 @@
         });
         document.getElementById('loginBtn').addEventListener('click', async e => {
             e.preventDefault();
-            const wasPasswordResetAutoLogin = passwordResetAutoLoginPending;
-            passwordResetAutoLoginPending = false;
             document.getElementById('sessionMessage').style.display = 'none';
             document.getElementById('loginError').style.display = 'none';
             const email = document.getElementById('loginEmail').value.trim();
@@ -10474,8 +10471,6 @@
                 loginError.style.display = 'block';
                 loginError.innerText = err.code === 'OFFLINE_WRITE_BLOCKED'
                     ? 'Connect to the internet to sign in. Previously saved sessions can be restored offline automatically.'
-                    : wasPasswordResetAutoLogin
-                        ? 'Password reset succeeded, but automatic sign-in could not complete. Please sign in with your usual account details.'
                     : flowRole === 'superadmin' && err.message === 'Not authorized as super admin'
                         ? err.message
                         : "Invalid email/password";
@@ -10646,7 +10641,7 @@
             }
             button.disabled = true;
             try {
-                await api('/api/auth/reset-confirm', {
+                const resetResult = await api('/api/auth/reset-confirm', {
                     method: 'POST',
                     body: { identifier: resetIdentifierValue, reset_token: resetTokenValue, new_password: password },
                     auth: false,
@@ -10654,20 +10649,25 @@
                 clearResetTimers();
                 resetSection.style.display = 'none';
                 showResetStep(1);
+                resetTokenValue = '';
+                if (resetResult?.token && resetResult?.user) {
+                    clearStoredPdfResolverCache();
+                    AUTH_TOKEN = resetResult.token;
+                    localStorage.setItem('apshule_token', AUTH_TOKEN);
+                    showNotification('Password reset. Welcome to APSHULE.');
+                    await showAppFor(resetResult.user);
+                    startPolling();
+                    refreshAllData();
+                    return;
+                }
                 document.getElementById('loginEmail').value = resetIdentifierValue;
                 const loginError = document.getElementById('loginError');
                 loginError.className = 'success-message';
                 loginError.style.display = 'block';
-                loginError.textContent = 'Password reset. Signing you in…';
-                document.getElementById('loginPassword').value = password;
-                resetTokenValue = '';
+                loginError.textContent = 'Password reset. Please sign in with your usual account details.';
+                document.getElementById('loginPassword').value = '';
                 if (loginMode === 'email') {
-                    passwordResetAutoLoginPending = true;
-                    document.getElementById('loginBtn').click();
-                } else {
-                    loginError.textContent =
-                        'Password reset. Please sign in with your usual school registration details.';
-                    document.getElementById('loginPassword').value = '';
+                    document.getElementById('loginPassword').value = password;
                 }
             } catch (error) {
                 message.textContent = error.message || 'Unable to reset password. Start over.';
@@ -10746,7 +10746,7 @@
 
     if ("serviceWorker" in navigator) {
         window.addEventListener("load", () => {
-                    navigator.serviceWorker.register("/sw-cache-v90.js?v=90", { scope: "/" })
+                    navigator.serviceWorker.register("/sw-cache-v91.js?v=91", { scope: "/" })
                 .then((registration) => console.log("[SW] registered", registration.scope))
                 .catch((error) => console.error("[SW] failed", error));
         }, { once: true });

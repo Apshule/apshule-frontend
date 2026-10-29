@@ -10,10 +10,11 @@ import {
 } from "../http.js";
 import { otpEmailTemplate, sendEmail, welcomeEmailTemplate } from "../email.js";
 import { sendSmsOtp } from "../sms.js";
+import { OTP_LIFETIME_SECONDS } from "../auth-constants.js";
+import { phoneIdentifierCandidates } from "../phone-identifier.js";
 import type { AppEnv, UserRecord, UserRole } from "../types.js";
 
 const authRoutes = new Hono<AppEnv>();
-const OTP_LIFETIME_SECONDS = 180;
 const OTP_RESEND_AFTER_SECONDS = 30;
 const OTP_MAX_ATTEMPTS = 5;
 const OTP_MAX_REQUESTS_PER_HOUR = 3;
@@ -322,6 +323,7 @@ authRoutes.post("/login", async (c) => {
   } else {
     email = requiredString(body, "email", { max: 254 }).toLowerCase();
   }
+  const phoneCandidates = phoneIdentifierCandidates(email);
   const sql = getDb(c.env);
   const rows = await sql`
     SELECT id, name, email, phone, password_hash, role, sector, waitlist,
@@ -331,7 +333,14 @@ authRoutes.post("/login", async (c) => {
       last_login, detected_location, created_at
     FROM users
     WHERE lower(email) = ${email}
-      OR phone = ${email}
+      OR (
+        ${phoneCandidates !== null}
+        AND regexp_replace(COALESCE(phone, ''), '[^0-9]', '', 'g') IN (
+          ${phoneCandidates?.internationalDigits ?? ""},
+          ${phoneCandidates?.localDigits ?? ""},
+          ${phoneCandidates?.nationalDigits ?? ""}
+        )
+      )
     LIMIT 1
   `;
   const row = rows[0] as
@@ -578,6 +587,7 @@ authRoutes.post("/login-regno", async (c) => {
 authRoutes.post("/reset", async (c) => {
   const body = await readJson(c);
   const identifier = requiredString(body, "identifier", { max: 254 }).trim();
+  const phoneCandidates = phoneIdentifierCandidates(identifier);
   const deliveryMethod = body.delivery_method === undefined
     ? "email"
     : requiredString(body, "delivery_method", { max: 10 });
@@ -596,7 +606,14 @@ authRoutes.post("/reset", async (c) => {
     SELECT id, name, email, phone
     FROM users
     WHERE lower(email) = ${identifier.toLowerCase()}
-      OR phone = ${identifier}
+      OR (
+        ${phoneCandidates !== null}
+        AND regexp_replace(COALESCE(phone, ''), '[^0-9]', '', 'g') IN (
+          ${phoneCandidates?.internationalDigits ?? ""},
+          ${phoneCandidates?.localDigits ?? ""},
+          ${phoneCandidates?.nationalDigits ?? ""}
+        )
+      )
     LIMIT 2
   `;
   const user = users.length === 1
@@ -651,7 +668,31 @@ authRoutes.post("/reset", async (c) => {
   `;
   c.executionCtx.waitUntil(
     (deliveryMethod === "sms"
-      ? sendSmsOtp(c.env, user.phone!, otp)
+      ? sendSmsOtp(c.env, user.phone!, otp).then((receipt) => sql`
+          INSERT INTO sms_delivery_reports (
+            provider_message_id,
+            user_id,
+            app_owner,
+            recipient_e164,
+            send_status,
+            send_status_code
+          )
+          VALUES (
+            ${receipt.providerMessageId},
+            ${user.id},
+            'apshule',
+            ${receipt.recipient},
+            ${receipt.providerStatus},
+            ${receipt.providerStatusCode}
+          )
+          ON CONFLICT (provider_message_id) DO UPDATE SET
+            user_id = EXCLUDED.user_id,
+            app_owner = EXCLUDED.app_owner,
+            recipient_e164 = EXCLUDED.recipient_e164,
+            send_status = EXCLUDED.send_status,
+            send_status_code = EXCLUDED.send_status_code,
+            updated_at = NOW()
+        `)
       : sendEmail(c.env, {
           to: user.email,
           subject: "Your APSHULE password reset code",
@@ -671,6 +712,7 @@ authRoutes.post("/verify-otp", async (c) => {
   const body = await readJson(c);
   const identifier = requiredString(body, "identifier", { max: 254 }).trim();
   const otp = requiredString(body, "otp", { min: 6, max: 6 });
+  const phoneCandidates = phoneIdentifierCandidates(identifier);
   if (!/^\d{6}$/u.test(otp)) {
     throw new ApiError(400, "VALIDATION_ERROR", "otp must be a 6-digit code.");
   }
@@ -680,7 +722,14 @@ authRoutes.post("/verify-otp", async (c) => {
     SELECT id
     FROM users
     WHERE lower(email) = ${identifier.toLowerCase()}
-      OR phone = ${identifier}
+      OR (
+        ${phoneCandidates !== null}
+        AND regexp_replace(COALESCE(phone, ''), '[^0-9]', '', 'g') IN (
+          ${phoneCandidates?.internationalDigits ?? ""},
+          ${phoneCandidates?.localDigits ?? ""},
+          ${phoneCandidates?.nationalDigits ?? ""}
+        )
+      )
     LIMIT 2
   `;
   const user = users.length === 1 ? users[0] as { id: string } : undefined;
@@ -746,6 +795,7 @@ authRoutes.post("/reset-confirm", async (c) => {
   const identifier = requiredString(body, "identifier", { max: 254 }).trim();
   const resetToken = requiredString(body, "reset_token", { min: 32, max: 32 });
   const newPassword = requiredString(body, "new_password", { min: 6, max: 128 });
+  const phoneCandidates = phoneIdentifierCandidates(identifier);
   if (!/^[0-9a-f]{32}$/iu.test(resetToken)) {
     throw new ApiError(400, "VALIDATION_ERROR", "reset_token is invalid.");
   }
@@ -755,7 +805,14 @@ authRoutes.post("/reset-confirm", async (c) => {
     SELECT id
     FROM users
     WHERE lower(email) = ${identifier.toLowerCase()}
-      OR phone = ${identifier}
+      OR (
+        ${phoneCandidates !== null}
+        AND regexp_replace(COALESCE(phone, ''), '[^0-9]', '', 'g') IN (
+          ${phoneCandidates?.internationalDigits ?? ""},
+          ${phoneCandidates?.localDigits ?? ""},
+          ${phoneCandidates?.nationalDigits ?? ""}
+        )
+      )
     LIMIT 2
   `;
   const user = users.length === 1 ? users[0] as { id: string } : undefined;
@@ -810,7 +867,47 @@ authRoutes.post("/reset-confirm", async (c) => {
     throw new ApiError(400, "RESET_SESSION_EXPIRED", RESET_CONFIRM_ERROR);
   }
 
-  return c.json({ ok: true, message: "Password reset successful" });
+  const sessionUsers = await sql`
+    SELECT email, role, sector, school_id
+    FROM users
+    WHERE id = ${user.id}
+    LIMIT 1
+  `;
+  const sessionUser = sessionUsers[0] as Pick<UserRecord, "email" | "role" | "sector" | "school_id"> | undefined;
+  if (!sessionUser) {
+    throw new ApiError(500, "SESSION_CREATION_FAILED", "Password reset succeeded, but sign-in could not be started.");
+  }
+  const loginResponse = await authRoutes.request(
+    new Request(new URL("/login", c.req.url), {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        email: sessionUser.email,
+        password: newPassword,
+        ...(sessionUser.role === "individual" &&
+          sessionUser.sector === "education" &&
+          sessionUser.school_id === null
+          ? { learner_mode: "independent" }
+          : {}),
+      }),
+    }),
+    undefined,
+    c.env,
+    c.executionCtx,
+  );
+  if (!loginResponse.ok) {
+    return c.json({ ok: true, message: "Password reset successful" });
+  }
+  const loginResult = await loginResponse.json() as { token?: string; user?: Record<string, unknown> };
+  if (!loginResult.token || !loginResult.user) {
+    return c.json({ ok: true, message: "Password reset successful" });
+  }
+  return c.json({
+    ok: true,
+    message: "Password reset successful",
+    token: loginResult.token,
+    user: loginResult.user,
+  });
 });
 
 authRoutes.post("/logout", authMiddleware, async (c) => {
