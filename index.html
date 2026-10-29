@@ -3,7 +3,34 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=yes, viewport-fit=cover">
-    <title>APSHULE - Learn With Ease</title>
+    <title>APSHULE | Learning and practical software for Uganda</title>
+    <meta name="description" content="APSHULE offers online lessons for Uganda's curriculum, school management and report cards, MFI and farm software, custom software, and short-course training.">
+    <meta name="robots" content="index, follow">
+    <link rel="canonical" href="https://appshule.com/">
+    <meta property="og:type" content="website">
+    <meta property="og:title" content="APSHULE | Learn, manage and grow">
+    <meta property="og:description" content="Online curriculum learning and practical tools for Ugandan schools, farms and microfinance teams — plus custom software and hands-on training.">
+    <meta property="og:image" content="https://i.ibb.co/YFrCtRW8/IMG-20260328-WA0041-9.jpg">
+    <meta property="og:url" content="https://appshule.com/">
+    <meta name="twitter:card" content="summary">
+    <meta name="twitter:title" content="APSHULE | Learning and practical software for Uganda">
+    <meta name="twitter:description" content="Learning and practical management software for Uganda's learners, schools, farms and microfinance teams.">
+    <meta name="twitter:image" content="https://i.ibb.co/YFrCtRW8/IMG-20260328-WA0041-9.jpg">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=Manrope:wght@500;600;700;800&display=swap" rel="stylesheet">
+    <script type="application/ld+json">
+    {
+      "@context": "https://schema.org",
+      "@type": "Organization",
+      "name": "APSHULE",
+      "url": "https://appshule.com/",
+      "description": "Online curriculum learning and practical management software for learners, schools, farms and microfinance teams, with custom software and hands-on short-course training.",
+      "email": "support@appshule.com",
+      "logo": "https://i.ibb.co/YFrCtRW8/IMG-20260328-WA0041-9.jpg",
+      "knowsAbout": ["Online curriculum learning", "School management", "Farm management", "Microfinance management", "Custom software", "Short-course training"]
+    }
+    </script>
     <link rel="manifest" href="/manifest.webmanifest?v=2">
     <meta name="theme-color" content="#4B2E9E">
     <meta name="apple-mobile-web-app-capable" content="yes">
@@ -1087,6 +1114,182 @@
             .cc-retooling-module { align-items:flex-start; }
             .teacher-certificate-preview iframe { min-height:42vh; }
         }
+        /* APSHULE public introduction — an editorial, locally grounded welcome */
+        #publicHome {
+            --home-ink: #241b3d; --home-muted: #716b7c; --home-purple: #4B2E9E;
+            --home-purple-deep: #35206f; --home-orange: #ed8a45; --home-cream: #f8f5ef;
+            --home-line: #e8e1d6; --home-mint: #dfeee5;
+            color: var(--home-ink); background: var(--home-cream);
+            font-family: 'DM Sans', sans-serif; overflow: hidden;
+        }
+        #publicHome *, #publicHome *::before, #publicHome *::after { box-sizing: border-box; }
+        #publicHome a { color: inherit; }
+        #publicHome button, #publicHome a { -webkit-tap-highlight-color: transparent; }
+        #publicHome .home-wrap { width: min(1160px, calc(100% - 48px)); margin: auto; }
+        #publicHome .home-header { height: 86px; display: flex; align-items: center; justify-content: space-between; gap: 24px; }
+        #publicHome .home-brand { display: inline-flex; align-items: center; text-decoration: none; }
+        #publicHome .home-brand img { display: block; width: 138px; height: auto; }
+        #publicHome .home-nav { display: flex; align-items: center; gap: 34px; }
+        #publicHome .home-nav a { font-size: 13px; font-weight: 700; color: #514961; text-decoration: none; transition: color .2s; }
+        #publicHome .home-nav a:hover { color: var(--home-purple); }
+        #publicHome .home-nav .home-login { border: 1px solid #d8cee9; border-radius: 999px; padding: 11px 19px; color: var(--home-purple); }
+        #publicHome .home-login:hover { background: #f0eaf8; }
+        #publicHome .home-menu-button { display: none; }
+        #publicHome .home-hero { position: relative; padding: 73px 0 80px; }
+        #publicHome .hero-grid { display: grid; grid-template-columns: 1fr .92fr; align-items: center; gap: 48px; }
+        #publicHome .eyebrow { display: inline-flex; align-items: center; gap: 10px; color: var(--home-purple); font-size: 11px; font-weight: 800; letter-spacing: .15em; text-transform: uppercase; }
+        #publicHome .eyebrow::before { content: ''; width: 24px; height: 2px; background: var(--home-orange); }
+        #publicHome h1, #publicHome h2, #publicHome h3 { font-family: 'Manrope', sans-serif; }
+        #publicHome h1 { max-width: 660px; margin: 20px 0 20px; font-size: clamp(46px, 6.5vw, 78px); font-weight: 800; letter-spacing: -.075em; line-height: .99; }
+        #publicHome h1 em { color: var(--home-purple); font-style: normal; position: relative; white-space: nowrap; }
+        #publicHome h1 em::after { content: ''; position: absolute; height: 9px; left: 2px; right: 0; bottom: -6px; background: var(--home-orange); opacity: .72; border-radius: 50%; transform: rotate(-2deg); z-index: -1; }
+        #publicHome .hero-copy { max-width: 520px; color: #625c6c; font-size: 17px; line-height: 1.75; }
+        #publicHome .hero-actions { display: flex; align-items: center; flex-wrap: wrap; gap: 13px; margin-top: 30px; }
+        #publicHome .home-cta { display: inline-flex; min-height: 52px; padding: 0 22px; align-items: center; justify-content: center; gap: 11px; border-radius: 999px; background: var(--home-purple); color: #fff !important; text-decoration: none; font-size: 14px; font-weight: 800; box-shadow: 0 10px 22px rgba(75,46,158,.16); transition: transform .2s, background .2s; }
+        #publicHome .home-cta:hover { background: var(--home-purple-deep); transform: translateY(-2px); }
+        #publicHome .home-cta .arrow { font-size: 19px; line-height: 1; }
+        #publicHome .text-link { color: var(--home-purple); text-decoration: none; font-weight: 800; font-size: 14px; padding: 12px 8px; }
+        #publicHome .text-link:hover { text-decoration: underline; text-underline-offset: 4px; }
+        #publicHome .hero-art { position: relative; min-height: 460px; display: grid; place-items: center; }
+        #publicHome .hero-art::before { content: ''; width: 410px; height: 410px; border-radius: 50%; position: absolute; background: #eee8f6; }
+        #publicHome .hero-art::after { content: ''; position: absolute; width: 280px; height: 280px; border: 1px solid #d9cde9; border-radius: 50%; transform: translate(25px, -10px); }
+        #publicHome .landscape { position: absolute; z-index: 1; width: min(100%, 475px); height: 390px; }
+        #publicHome .floating-note { z-index: 3; position: absolute; display: flex; align-items: center; gap: 12px; padding: 14px 16px; border: 1px solid #eee8f0; border-radius: 17px; background: rgba(255,255,255,.94); box-shadow: 0 15px 40px rgba(41,30,69,.12); }
+        #publicHome .floating-note strong { display: block; font-family: 'Manrope',sans-serif; font-size: 13px; }
+        #publicHome .floating-note small { display: block; margin-top: 3px; color: var(--home-muted); font-size: 11px; }
+        #publicHome .note-mark { width: 35px; height: 35px; display: grid; place-items: center; border-radius: 12px; color: var(--home-purple); background: #efe9f8; font-size: 17px; font-weight: 800; }
+        #publicHome .note-top { top: 82px; left: -3px; animation: homeFloat 6s ease-in-out infinite; }
+        #publicHome .note-bottom { right: -5px; bottom: 50px; animation: homeFloat 6s ease-in-out -2.8s infinite; }
+        #publicHome .home-strip { border-top: 1px solid var(--home-line); border-bottom: 1px solid var(--home-line); }
+        #publicHome .strip-inner { min-height: 78px; display: flex; align-items: center; justify-content: space-between; gap: 20px; }
+        #publicHome .strip-label { color: var(--home-muted); font-size: 12px; font-weight: 700; letter-spacing: .03em; }
+        #publicHome .strip-items { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: 28px; color: #514961; font-size: 13px; font-weight: 800; }
+        #publicHome .strip-items span::before { content: ''; display: inline-block; width: 7px; height: 7px; margin: 0 9px 1px 0; border-radius: 50%; background: var(--home-orange); }
+        #publicHome .home-section { padding: 105px 0; }
+        #publicHome .section-intro { max-width: 660px; }
+        #publicHome .section-intro h2 { margin: 16px 0 15px; font-size: clamp(34px, 4.5vw, 52px); line-height: 1.08; letter-spacing: -.06em; }
+        #publicHome .section-intro p { color: var(--home-muted); font-size: 16px; line-height: 1.75; }
+        #publicHome .services-grid { display: grid; grid-template-columns: 1.2fr 1fr 1fr; gap: 15px; margin-top: 44px; }
+        #publicHome .service-card { position: relative; min-height: 283px; padding: 27px; border: 1px solid var(--home-line); border-radius: 22px; background: #fffdfa; overflow: hidden; transition: transform .25s, box-shadow .25s, border-color .25s; }
+        #publicHome .service-card:hover { transform: translateY(-5px); box-shadow: 0 18px 42px rgba(52,32,111,.09); border-color: #d3c6e4; }
+        #publicHome .service-card:first-child { grid-row: span 2; min-height: 581px; background: var(--home-purple); color: white; border-color: var(--home-purple); }
+        #publicHome .service-card:first-child p { color: #e1d9f0; }
+        #publicHome .service-card:first-child .service-icon { color: var(--home-purple); background: #f5a45e; }
+        #publicHome .service-icon { display: grid; place-items: center; width: 46px; height: 46px; margin-bottom: 25px; border-radius: 15px; background: #eee8f6; color: var(--home-purple); font-family: 'Manrope', sans-serif; font-size: 18px; font-weight: 800; }
+        #publicHome .service-card h3 { max-width: 290px; margin-bottom: 12px; font-size: 23px; line-height: 1.2; letter-spacing: -.04em; }
+        #publicHome .service-card p { color: var(--home-muted); font-size: 14px; line-height: 1.7; }
+        #publicHome .service-link { position: absolute; bottom: 25px; left: 27px; display: inline-flex; align-items: center; gap: 8px; text-decoration: none; font-size: 13px; font-weight: 800; }
+        #publicHome .service-link:hover { text-decoration: underline; text-underline-offset: 4px; }
+        #publicHome .service-card:first-child .service-link { color: white; }
+        #publicHome .service-card:not(:first-child) .service-link { color: var(--home-purple); }
+        #publicHome .service-ornament { position: absolute; right: 22px; bottom: 18px; width: 94px; opacity: .42; }
+        #publicHome .service-card:first-child .service-ornament { width: 150px; opacity: .2; }
+        #publicHome .learning-feature { display: grid; grid-template-columns: .95fr 1.05fr; align-items: center; gap: 80px; }
+        #publicHome .feature-visual { min-height: 400px; padding: 38px; position: relative; border-radius: 28px; background: #e6eee7; overflow: hidden; }
+        #publicHome .feature-visual::after { content: ''; position: absolute; width: 265px; height: 265px; right: -50px; bottom: -60px; border: 1px solid rgba(75,46,158,.19); border-radius: 50%; box-shadow: 0 0 0 26px rgba(75,46,158,.035), 0 0 0 53px rgba(75,46,158,.035); }
+        #publicHome .visual-kicker { color: #547661; font-size: 11px; font-weight: 800; letter-spacing: .12em; text-transform: uppercase; }
+        #publicHome .visual-title { max-width: 265px; margin-top: 13px; font: 800 34px/1.08 'Manrope',sans-serif; letter-spacing: -.06em; color: #263e31; }
+        #publicHome .lesson-sheet { position: absolute; left: 38px; right: 75px; bottom: 36px; padding: 19px 21px; border-radius: 16px; background: white; box-shadow: 0 14px 35px rgba(39,65,48,.11); }
+        #publicHome .lesson-line { height: 8px; margin: 9px 0; border-radius: 8px; background: #eeeaf2; }
+        #publicHome .lesson-line:first-child { width: 55%; background: #d7c9ed; }
+        #publicHome .lesson-line:nth-child(2) { width: 84%; }
+        #publicHome .lesson-line:nth-child(3) { width: 67%; }
+        #publicHome .lesson-chip { display: inline-block; margin-top: 8px; padding: 7px 10px; border-radius: 7px; background: #f9e7d7; color: #8b5128; font-size: 10px; font-weight: 800; }
+        #publicHome .feature-copy h2 { margin: 17px 0; font-size: clamp(33px,4.5vw,48px); line-height: 1.09; letter-spacing: -.06em; }
+        #publicHome .feature-copy p { color: var(--home-muted); font-size: 15px; line-height: 1.8; }
+        #publicHome .feature-points { list-style: none; display: grid; gap: 13px; margin: 23px 0 28px; padding: 0; }
+        #publicHome .feature-points li { display: flex; gap: 12px; align-items: flex-start; color: #514961; font-size: 14px; line-height: 1.55; }
+        #publicHome .check-dot { flex: 0 0 21px; width: 21px; height: 21px; display: grid; place-items: center; margin-top: 1px; border-radius: 50%; background: #e5f0e7; color: #46745a; font-size: 12px; font-weight: 900; }
+        #publicHome .impact-section { background: #f0eaf7; }
+        #publicHome .impact-layout { display: grid; grid-template-columns: .8fr 1.2fr; gap: 70px; align-items: start; }
+        #publicHome .impact-layout .section-intro h2 { max-width: 420px; }
+        #publicHome .impact-quote { margin-top: 22px; padding: 22px 24px; border-left: 3px solid var(--home-orange); color: #514961; font-family: 'Manrope',sans-serif; font-size: 17px; font-weight: 700; line-height: 1.55; }
+        #publicHome .impact-list { display: grid; gap: 0; }
+        #publicHome .impact-row { display: grid; grid-template-columns: 56px 1fr; gap: 18px; padding: 24px 0; border-bottom: 1px solid #dcd2e7; }
+        #publicHome .impact-row:first-child { padding-top: 0; }
+        #publicHome .impact-number { color: var(--home-purple); font: 800 13px 'Manrope',sans-serif; }
+        #publicHome .impact-row h3 { margin: 0 0 6px; font-size: 18px; letter-spacing: -.035em; }
+        #publicHome .impact-row p { color: var(--home-muted); font-size: 14px; line-height: 1.7; }
+        #publicHome .report-section { padding: 75px 0; }
+        #publicHome .report-banner { display: flex; align-items: center; justify-content: space-between; gap: 40px; padding: 36px 43px; border-radius: 23px; background: #f7e8d9; }
+        #publicHome .report-copy { max-width: 600px; }
+        #publicHome .report-copy .eyebrow { color: #965b32; }
+        #publicHome .report-copy h2 { margin: 12px 0 8px; font-size: clamp(26px,3vw,36px); letter-spacing: -.05em; }
+        #publicHome .report-copy p { color: #6a5c50; font-size: 14px; line-height: 1.65; }
+        #publicHome .report-cta { flex: 0 0 auto; display: inline-flex; align-items: center; gap: 11px; padding: 14px 19px; border-radius: 999px; background: #fffaf4; color: #753f1e; text-decoration: none; font-size: 13px; font-weight: 800; }
+        #publicHome .report-cta:hover { background: white; }
+        #publicHome .closing-section { padding: 76px 0 83px; background: var(--home-purple-deep); color: white; }
+        #publicHome .closing-layout { display: flex; justify-content: space-between; align-items: center; gap: 36px; }
+        #publicHome .closing-layout h2 { max-width: 630px; margin: 14px 0 12px; font-size: clamp(36px,5vw,58px); line-height: 1.05; letter-spacing: -.065em; }
+        #publicHome .closing-layout p { color: #d7cde8; font-size: 15px; line-height: 1.7; }
+        #publicHome .closing-section .eyebrow { color: #ffb175; }
+        #publicHome .closing-section .home-cta { background: #f4a061; color: #2d1d4d !important; box-shadow: none; }
+        #publicHome .closing-section .home-cta:hover { background: #ffb47b; }
+        #publicHome .home-footer { background: #2b1b59; color: #d7cde8; }
+        #publicHome .footer-inner { min-height: 91px; display: flex; align-items: center; justify-content: space-between; gap: 20px; }
+        #publicHome .footer-inner img { width: 105px; height: auto; filter: grayscale(1) brightness(0) invert(1); opacity: .92; }
+        #publicHome .footer-links { display: flex; gap: 22px; flex-wrap: wrap; }
+        #publicHome .footer-links a { color: #e3d9f0; text-decoration: none; font-size: 12px; }
+        #publicHome .footer-links a:hover { text-decoration: underline; }
+        #publicHome .footer-note { font-size: 11px; color: #b8a9d0; }
+        @keyframes homeFloat { 0%,100% { transform: translateY(0); } 50% { transform: translateY(-9px); } }
+        @keyframes homeRise { from { opacity: 0; transform: translateY(14px); } to { opacity: 1; transform: translateY(0); } }
+        #publicHome .hero-grid > * { animation: homeRise .7s both; }
+        #publicHome .hero-grid > :nth-child(2) { animation-delay: .12s; }
+        @media (prefers-reduced-motion: reduce) {
+            #publicHome *, #publicHome *::before, #publicHome *::after { animation-duration: .01ms !important; animation-iteration-count: 1 !important; scroll-behavior: auto !important; transition-duration: .01ms !important; }
+        }
+        @media (max-width: 900px) {
+            #publicHome .hero-grid { gap: 20px; grid-template-columns: 1fr .85fr; }
+            #publicHome h1 { font-size: clamp(44px,7vw,65px); }
+            #publicHome .hero-art { min-height: 390px; }
+            #publicHome .hero-art::before { width: 330px; height: 330px; }
+            #publicHome .landscape { height: 330px; }
+            #publicHome .services-grid { grid-template-columns: 1fr 1fr; }
+            #publicHome .service-card:first-child { grid-row: span 2; }
+            #publicHome .learning-feature { gap: 42px; }
+            #publicHome .impact-layout { gap: 38px; }
+        }
+        @media (max-width: 680px) {
+            #publicHome .home-wrap { width: min(100% - 36px, 520px); }
+            #publicHome .home-header { height: 70px; }
+            #publicHome .home-brand img { width: 122px; }
+            #publicHome .home-nav { gap: 14px; }
+            #publicHome .home-nav a:not(.home-login) { display: none; }
+            #publicHome .home-nav .home-login { padding: 9px 14px; font-size: 12px; }
+            #publicHome .home-hero { padding: 50px 0 43px; }
+            #publicHome .hero-grid { display: flex; flex-direction: column; align-items: stretch; gap: 20px; }
+            #publicHome h1 { max-width: 530px; font-size: clamp(43px,12vw,65px); }
+            #publicHome .hero-copy { font-size: 15px; }
+            #publicHome .hero-art { min-height: 325px; margin: 0 -14px; }
+            #publicHome .hero-art::before { width: 280px; height: 280px; }
+            #publicHome .hero-art::after { width: 232px; height: 232px; }
+            #publicHome .landscape { height: 300px; }
+            #publicHome .note-top { top: 38px; left: 8px; }
+            #publicHome .note-bottom { right: 4px; bottom: 18px; }
+            #publicHome .floating-note { padding: 10px 12px; }
+            #publicHome .strip-inner { min-height: auto; padding: 20px 0; align-items: flex-start; flex-direction: column; }
+            #publicHome .strip-items { justify-content: flex-start; gap: 11px 18px; }
+            #publicHome .home-section { padding: 72px 0; }
+            #publicHome .services-grid { grid-template-columns: 1fr; gap: 12px; margin-top: 30px; }
+            #publicHome .service-card, #publicHome .service-card:first-child { min-height: 242px; grid-row: auto; }
+            #publicHome .service-card:first-child { min-height: 315px; }
+            #publicHome .learning-feature { grid-template-columns: 1fr; gap: 32px; }
+            #publicHome .feature-visual { min-height: 340px; padding: 28px; }
+            #publicHome .lesson-sheet { left: 26px; right: 48px; bottom: 26px; }
+            #publicHome .impact-layout { grid-template-columns: 1fr; gap: 38px; }
+            #publicHome .report-section { padding: 46px 0; }
+            #publicHome .report-banner { align-items: flex-start; flex-direction: column; padding: 27px 24px; gap: 22px; }
+            #publicHome .closing-layout { align-items: flex-start; flex-direction: column; }
+            #publicHome .closing-section { padding: 61px 0; }
+            #publicHome .footer-inner { align-items: flex-start; flex-direction: column; padding: 25px 0; }
+            #publicHome .footer-links { gap: 13px 19px; }
+        }
+        @media (max-width: 380px) {
+            #publicHome .hero-actions { align-items: stretch; flex-direction: column; }
+            #publicHome .hero-actions > * { justify-content: center; }
+            #publicHome .note-bottom { right: -2px; }
+        }
 </style>
 </head>
 <body>
@@ -1102,8 +1305,178 @@
     🖥️ Desktop | 🖥️ Tablet | 📱 Phone
 </div>
 
+<div id="publicHome">
+    <header class="home-header home-wrap">
+        <a class="home-brand" href="#home-top" aria-label="APSHULE home">
+            <img src="https://i.ibb.co/YFrCtRW8/IMG-20260328-WA0041-9.jpg" alt="APSHULE — Learn with ease" width="280" height="100">
+        </a>
+        <nav class="home-nav" aria-label="Main navigation">
+            <a href="#what-we-do">What we do</a>
+            <a href="#learning">Learning</a>
+            <a href="#about-apshule">Our approach</a>
+            <a class="home-login" href="#sign-in" data-home-entry>Sign in</a>
+        </nav>
+    </header>
+
+    <main id="home-top">
+        <section class="home-hero" aria-labelledby="home-title">
+            <div class="home-wrap hero-grid">
+                <div>
+                    <span class="eyebrow">Learning and tools for everyday progress</span>
+                    <h1 id="home-title">Good ideas deserve room to <em>grow.</em></h1>
+                    <p class="hero-copy">APSHULE brings online curriculum learning and practical management software together for Uganda’s learners, schools, farms and microfinance teams.</p>
+                    <div class="hero-actions">
+                        <a class="home-cta" href="#what-we-do">Find your way with APSHULE <span class="arrow" aria-hidden="true">→</span></a>
+                        <a class="text-link" href="#about-apshule">Get to know us</a>
+                    </div>
+                </div>
+                <div class="hero-art" role="img" aria-label="Illustration of a Ugandan hillside landscape with learning and work taking place">
+                    <svg class="landscape" viewBox="0 0 500 410" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+                        <circle cx="355" cy="97" r="47" fill="#F1A35F"/>
+                        <path d="M29 253C73 196 121 163 174 176c55 14 81 68 139 58 42-7 70-41 112-33 23 5 44 22 65 50v159H29V253Z" fill="#CABCE0"/>
+                        <path d="M0 282c50-41 98-51 145-28 54 26 84 45 139 21 59-26 94-37 143-7 26 16 48 36 73 44v98H0v-128Z" fill="#8A72B6"/>
+                        <path d="M0 334c66-39 125-40 178-4 47 32 87 37 135 8 58-35 107-31 187 11v61H0v-76Z" fill="#5B4489"/>
+                        <path d="M0 374c57-27 102-17 149 3 49 21 90 18 130-4 60-32 128-23 221 19v18H0v-36Z" fill="#342565"/>
+                        <path d="M75 268c21-14 47-17 73-9M224 292c30 10 56 7 84-8M353 279c29-10 53-7 80 7" stroke="#EEE8F5" stroke-width="3" stroke-linecap="round" opacity=".85"/>
+                        <path d="M112 311v-43m-14 43 14-26 14 26m118 14v-47m-14 47 14-27 14 27m145-11v-39m-13 39 13-24 13 24" stroke="#F6A15F" stroke-width="4" stroke-linecap="round" stroke-linejoin="round"/>
+                        <path d="M108 253v-19l14 19m119 5v-18l13 18m143-18v-18l12 18" stroke="#4B2E9E" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/>
+                        <path d="M53 213c12-12 25-12 37 0m24-25c12-12 25-12 37 0m173-31c12-12 25-12 37 0" stroke="#745A9F" stroke-width="3" stroke-linecap="round"/>
+                    </svg>
+                    <div class="floating-note note-top"><span class="note-mark" aria-hidden="true">A</span><span><strong>Learn at your pace</strong><small>Online curriculum learning</small></span></div>
+                    <div class="floating-note note-bottom"><span class="note-mark" aria-hidden="true">+</span><span><strong>Built for real work</strong><small>Tools for teams and institutions</small></span></div>
+                </div>
+            </div>
+        </section>
+
+        <div class="home-strip" aria-label="Who APSHULE serves">
+            <div class="home-wrap strip-inner">
+                <span class="strip-label">One connected idea. Different everyday needs.</span>
+                <div class="strip-items"><span>Learners</span><span>Schools</span><span>Farms</span><span>Microfinance teams</span></div>
+            </div>
+        </div>
+
+        <section class="home-section" id="what-we-do" aria-labelledby="services-title">
+            <div class="home-wrap">
+                <div class="section-intro">
+                    <span class="eyebrow">What APSHULE does</span>
+                    <h2 id="services-title">Useful support for learning, organising and moving forward.</h2>
+                    <p>Start with what you need today. Explore our learning and management tools, or talk with us about practical skills and software built around your work.</p>
+                </div>
+                <div class="services-grid">
+                    <article class="service-card">
+                        <span class="service-icon" aria-hidden="true">01</span>
+                        <h3>Online curriculum learning</h3>
+                        <p>Learning support for Ugandan students, independent learners and schools. Find a place to study, practise and keep building understanding.</p>
+                        <a class="service-link" href="#sign-in" data-home-sector="education">Explore education <span aria-hidden="true">→</span></a>
+                        <svg class="service-ornament" viewBox="0 0 170 120" fill="none" aria-hidden="true"><path d="M16 88h138M27 73h112M42 58h82M57 43h52M71 28h23" stroke="white" stroke-width="3" stroke-linecap="round"/><path d="M84 13v94M30 107V77m110 30V77" stroke="white" stroke-width="2" opacity=".8"/><path d="m30 77 54-64 56 64" stroke="white" stroke-width="2" opacity=".8"/></svg>
+                    </article>
+                    <article class="service-card">
+                        <span class="service-icon" aria-hidden="true">02</span>
+                        <h3>School management</h3>
+                        <p>Practical software to help school teams organise important day-to-day work.</p>
+                        <a class="service-link" href="#sign-in" data-home-sector="education">For schools <span aria-hidden="true">→</span></a>
+                    </article>
+                    <article class="service-card">
+                        <span class="service-icon" aria-hidden="true">03</span>
+                        <h3>Microfinance management</h3>
+                        <p>Software for microfinance teams to manage the work that supports their communities.</p>
+                        <a class="service-link" href="#sign-in" data-home-sector="mfi">For MFI teams <span aria-hidden="true">→</span></a>
+                    </article>
+                    <article class="service-card">
+                        <span class="service-icon" aria-hidden="true">04</span>
+                        <h3>Farm management</h3>
+                        <p>Tools to support the practical organisation and management of farm operations.</p>
+                        <a class="service-link" href="#sign-in" data-home-sector="farm">For farms <span aria-hidden="true">→</span></a>
+                    </article>
+                    <article class="service-card">
+                        <span class="service-icon" aria-hidden="true">05</span>
+                        <h3>Custom software and short courses</h3>
+                        <p>Need a software solution shaped around your work, or practical hands-on training? Tell us what you have in mind.</p>
+                        <a class="service-link" href="mailto:support@appshule.com?subject=APSHULE%20software%20or%20training%20enquiry">Ask about working together <span aria-hidden="true">→</span></a>
+                    </article>
+                </div>
+            </div>
+        </section>
+
+        <section class="home-section" id="learning" aria-labelledby="learning-title">
+            <div class="home-wrap learning-feature">
+                <div class="feature-visual" aria-hidden="true">
+                    <span class="visual-kicker">A space to keep learning</span>
+                    <div class="visual-title">Make the next lesson yours.</div>
+                    <div class="lesson-sheet">
+                        <div class="lesson-line"></div><div class="lesson-line"></div><div class="lesson-line"></div>
+                        <span class="lesson-chip">Study, practise, return</span>
+                    </div>
+                </div>
+                <div class="feature-copy">
+                    <span class="eyebrow">For learners and schools</span>
+                    <h2 id="learning-title">Learning that meets you where you are.</h2>
+                    <p>APSHULE makes online curriculum learning available alongside tools for school communities. Whether you learn independently or as part of a school, you can begin with the path that fits.</p>
+                    <ul class="feature-points">
+                        <li><span class="check-dot" aria-hidden="true">✓</span><span>Explore curriculum learning online, at a pace that works for you.</span></li>
+                        <li><span class="check-dot" aria-hidden="true">✓</span><span>Choose a learner, teacher or school route when you enter education.</span></li>
+                        <li><span class="check-dot" aria-hidden="true">✓</span><span>Looking for automatic report cards? Visit the dedicated report card service.</span></li>
+                    </ul>
+                    <a class="home-cta" href="#sign-in" data-home-sector="education">Choose education <span class="arrow" aria-hidden="true">→</span></a>
+                </div>
+            </div>
+        </section>
+
+        <section class="home-section impact-section" id="about-apshule" aria-labelledby="approach-title">
+            <div class="home-wrap impact-layout">
+                <div class="section-intro">
+                    <span class="eyebrow">Our approach</span>
+                    <h2 id="approach-title">Technology should feel close to the work.</h2>
+                    <p>Good tools start with the people who use them. APSHULE brings learning and practical software into one place, with room for different sectors and different needs.</p>
+                    <blockquote class="impact-quote">“Useful, understandable, and made to support the next step.”</blockquote>
+                </div>
+                <div class="impact-list">
+                    <article class="impact-row"><span class="impact-number">01 / Learn</span><div><h3>Keep knowledge in reach</h3><p>Online curriculum learning gives learners another way to engage with their studies.</p></div></article>
+                    <article class="impact-row"><span class="impact-number">02 / Organise</span><div><h3>Make everyday work clearer</h3><p>Management software supports schools, farms and microfinance teams with practical digital tools.</p></div></article>
+                    <article class="impact-row"><span class="impact-number">03 / Build</span><div><h3>Grow skills and ideas</h3><p>Short-course training and custom software work offer a way to explore a specific need with the APSHULE team.</p></div></article>
+                </div>
+            </div>
+        </section>
+
+        <section class="report-section" aria-labelledby="report-title">
+            <div class="home-wrap report-banner">
+                <div class="report-copy">
+                    <span class="eyebrow">A dedicated service</span>
+                    <h2 id="report-title">Automatic report cards</h2>
+                    <p>For automatic report cards, go straight to the APSHULE report card service.</p>
+                </div>
+                <a class="report-cta" href="https://reportcards.appshule.com" target="_blank" rel="noopener noreferrer">Visit reportcards.appshule.com <span aria-hidden="true">↗</span></a>
+            </div>
+        </section>
+
+        <section class="closing-section" aria-labelledby="closing-title">
+            <div class="home-wrap closing-layout">
+                <div>
+                    <span class="eyebrow">Your next step starts here</span>
+                    <h2 id="closing-title">Find the APSHULE path that fits.</h2>
+                    <p>Choose a service to continue to its existing sign-in and selection flow.</p>
+                </div>
+                <a class="home-cta" href="#sign-in" data-home-entry>Enter APSHULE <span class="arrow" aria-hidden="true">→</span></a>
+            </div>
+        </section>
+    </main>
+    <footer class="home-footer">
+        <div class="home-wrap footer-inner">
+            <a class="home-brand" href="#home-top" aria-label="APSHULE home"><img src="https://i.ibb.co/YFrCtRW8/IMG-20260328-WA0041-9.jpg" alt="APSHULE" width="280" height="100"></a>
+            <nav class="footer-links" aria-label="Footer navigation">
+                <a href="#what-we-do">Services</a>
+                <a href="https://reportcards.appshule.com" target="_blank" rel="noopener noreferrer">Automatic report cards</a>
+                <a href="mailto:support@appshule.com">Software and training enquiries</a>
+                <a href="#sign-in" data-home-entry>Sign in</a>
+            </nav>
+            <span class="footer-note">Learning and practical software for Uganda.</span>
+        </div>
+    </footer>
+</div>
+
 <!-- LOGIN SCREEN -->
-<div id="loginScreen" class="login-screen">
+<span id="sign-in" class="home-sign-in-anchor" aria-hidden="true"></span>
+<div id="loginScreen" class="login-screen hidden">
     <div class="login-card">
         <img class="login-logo-img logo--responsive logo--desktop logo--tablet logo--mobile"
              src="https://i.ibb.co/YFrCtRW8/IMG-20260328-WA0041-9.jpg"
@@ -7162,6 +7535,8 @@
     }
 
     async function showAppFor(user) {
+        const publicHome = document.getElementById('publicHome');
+        if (publicHome) publicHome.hidden = true;
         currentUser = user;
         const reportFrame = document.getElementById("reportcards-iframe");
         if (reportFrame) reportFrame.src = "about:blank";
@@ -10348,7 +10723,7 @@
 
     if ("serviceWorker" in navigator) {
         window.addEventListener("load", () => {
-                    navigator.serviceWorker.register("/sw-cache-v84.js?v=84", { scope: "/" })
+                    navigator.serviceWorker.register("/sw-cache-v85.js?v=85", { scope: "/" })
                 .then((registration) => console.log("[SW] registered", registration.scope))
                 .catch((error) => console.error("[SW] failed", error));
         }, { once: true });
@@ -10455,6 +10830,49 @@
         sessionStorage.setItem('demoNoticeDismissed', 'true');
       }, 1600);
     }, 30000);
+  })();
+</script>
+<script>
+  (function () {
+    const home = document.getElementById('publicHome');
+    const login = document.getElementById('loginScreen');
+    const app = document.getElementById('appScreen');
+    if (!home || !login) return;
+
+    function enterAppFlow(sector) {
+      home.hidden = true;
+      login.classList.remove('hidden');
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+      if (sector) {
+        window.setTimeout(() => {
+          const option = document.querySelector(`[data-auth-sector="${sector}"]`);
+          if (option) option.click();
+          else document.querySelector('#authSectorStep h2')?.focus();
+        }, 80);
+      } else {
+        window.setTimeout(() => {
+          const heading = document.querySelector('#authSectorStep h2');
+          if (heading) {
+            heading.setAttribute('tabindex', '-1');
+            heading.focus();
+          }
+        }, 40);
+      }
+    }
+
+    home.addEventListener('click', (event) => {
+      const sectorAction = event.target.closest('[data-home-sector]');
+      const entryAction = event.target.closest('[data-home-entry]');
+      if (!sectorAction && !entryAction) return;
+      event.preventDefault();
+      enterAppFlow(sectorAction?.dataset.homeSector || '');
+    });
+
+    if (app && !app.classList.contains('hidden')) home.hidden = true;
+    if (new URLSearchParams(location.search).has('ref')) {
+      home.hidden = true;
+      login.classList.remove('hidden');
+    }
   })();
 </script>
 </body>
