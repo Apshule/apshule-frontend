@@ -10111,9 +10111,12 @@
             const remainder = seconds % 60;
             return `${minutes}:${String(remainder).padStart(2, '0')}`;
         }
-        function startResetTimers() {
+        function startResetTimers(expiresInSeconds = 600) {
             clearResetTimers();
-            resetOtpExpiresAt = Date.now() + 120_000;
+            const expirySeconds = Number.isFinite(Number(expiresInSeconds)) && Number(expiresInSeconds) > 0
+                ? Number(expiresInSeconds)
+                : 600;
+            resetOtpExpiresAt = Date.now() + expirySeconds * 1000;
             resetResendAvailableAt = Date.now() + 30_000;
             const updateExpiry = () => {
                 const seconds = Math.max(0, Math.ceil((resetOtpExpiresAt - Date.now()) / 1000));
@@ -10149,6 +10152,7 @@
         async function requestResetCode(isResend = false) {
             const requestMessage = document.getElementById('resetRequestMessage');
             const resendMessage = document.getElementById('resetVerifyMessage');
+            let resetResponse = null;
             if (!isResend) {
                 if (!resetIdentifierInput.reportValidity()) return;
                 resetIdentifierValue = resetIdentifierInput.value.trim();
@@ -10164,7 +10168,7 @@
             button.disabled = true;
             if (!isResend) requestMessage.textContent = 'If an account is registered, a code will be sent.';
             try {
-                const response = await api('/api/auth/reset', {
+                resetResponse = await api('/api/auth/reset', {
                     method: 'POST',
                     body: {
                         identifier: resetIdentifierValue,
@@ -10172,7 +10176,7 @@
                     },
                     auth: false,
                 });
-                requestMessage.textContent = response?.message || 'If an account is registered, a code has been sent.';
+                requestMessage.textContent = resetResponse?.message || 'If an account is registered, a code has been sent.';
             } catch {
                 requestMessage.textContent = 'If an account is registered, a code has been sent.';
             }
@@ -10180,7 +10184,7 @@
             document.getElementById('resetResendLimitMessage').hidden = resetResendCount < 2;
             resetResendBtn.hidden = resetResendCount >= 2;
             if (!isResend) showResetStep(2);
-            startResetTimers();
+            startResetTimers(resetResponse?.expiresInSeconds);
             if (!isResend) button.disabled = false;
         }
         document.getElementById('sendResetEmailBtn').addEventListener('click', () => {
@@ -10331,7 +10335,7 @@
 
     if ("serviceWorker" in navigator) {
         window.addEventListener("load", () => {
-                    navigator.serviceWorker.register("/sw-cache-v82.js?v=82", { scope: "/" })
+                    navigator.serviceWorker.register("/sw-cache-v83.js?v=83", { scope: "/" })
                 .then((registration) => console.log("[SW] registered", registration.scope))
                 .catch((error) => console.error("[SW] failed", error));
         }, { once: true });

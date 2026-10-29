@@ -15,7 +15,8 @@ test("formats Ugandan local numbers as +256 international numbers", () => {
   assert.equal(formatUgandanPhoneNumber("755546291"), "+256755546291");
   assert.equal(formatUgandanPhoneNumber("256755546291"), "+256755546291");
   assert.equal(formatUgandanPhoneNumber("+256 755 546 291"), "+256755546291");
-  assert.equal(formatUgandanPhoneNumber("+254712345678"), "+254712345678");
+  assert.throws(() => formatUgandanPhoneNumber("+254712345678"), /valid Ugandan number/);
+  assert.throws(() => formatUgandanPhoneNumber("12345"), /valid Ugandan number/);
 });
 
 test("sends SMS to the live endpoint with the formatted number", async () => {
@@ -44,7 +45,7 @@ test("sends SMS to the live endpoint with the formatted number", async () => {
     assert.equal(request.options.headers.apiKey, "test-api-key");
     assert.equal(new URLSearchParams(request.options.body).get("username"), "reportcards");
     assert.equal(new URLSearchParams(request.options.body).get("to"), "+256755546291");
-    assert.equal(new URLSearchParams(request.options.body).get("message"), "Your Apshule OTP is: 123456");
+    assert.equal(new URLSearchParams(request.options.body).get("message"), "Your OTP is: 123456");
     assert.match(logged, /ATXid-test/);
     assert.match(logged, /statusCode\\":101/);
     assert.doesNotMatch(logged, /0755546291|\+256755546291/);
