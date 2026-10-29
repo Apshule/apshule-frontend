@@ -20,24 +20,37 @@ test("formats Ugandan local numbers as +256 international numbers", () => {
 
 test("sends SMS to the live endpoint with the formatted number", async () => {
   const originalFetch = globalThis.fetch;
+  const originalConsoleInfo = console.info;
   let request;
+  let logged = "";
   globalThis.fetch = async (url, options) => {
     request = { url: String(url), options };
     return new Response(JSON.stringify({
       SMSMessageData: {
-        Recipients: [{ statusCode: 101, status: "Success" }],
+        Recipients: [{
+          statusCode: 101,
+          status: "Success",
+          messageId: "ATXid-test",
+          number: "+256755546291",
+        }],
       },
     }), { status: 201 });
   };
+  console.info = (...args) => { logged = args.join(" "); };
 
   try {
     await sendSmsOtp(env, "0755546291", "123456");
     assert.equal(request.url, "https://api.africastalking.com/version1/messaging");
     assert.equal(request.options.headers.apiKey, "test-api-key");
+    assert.equal(new URLSearchParams(request.options.body).get("username"), "reportcards");
     assert.equal(new URLSearchParams(request.options.body).get("to"), "+256755546291");
     assert.equal(new URLSearchParams(request.options.body).get("message"), "Your Apshule OTP is: 123456");
+    assert.match(logged, /ATXid-test/);
+    assert.match(logged, /statusCode\\":101/);
+    assert.doesNotMatch(logged, /0755546291|\+256755546291/);
   } finally {
     globalThis.fetch = originalFetch;
+    console.info = originalConsoleInfo;
   }
 });
 

@@ -40,14 +40,13 @@ function redactProviderResponse(
 
 export async function sendSmsOtp(env: Env, phone: string, otp: string): Promise<void> {
   const apiKey = env.AFRICASTALKING_API_KEY;
-  const username = env.AFRICASTALKING_USERNAME;
-  if (!apiKey || !username) {
+  if (!apiKey) {
     throw new Error("Africa's Talking SMS is not configured.");
   }
 
   const formattedPhone = formatUgandanPhoneNumber(phone);
   const body = new URLSearchParams({
-    username,
+    username: "reportcards",
     to: formattedPhone,
     message: `Your Apshule OTP is: ${otp}`,
   });
@@ -68,17 +67,21 @@ export async function sendSmsOtp(env: Env, phone: string, otp: string): Promise<
     parsedBody = null;
   }
 
+  const safeResponseBody = redactProviderResponse(responseBody, [
+    apiKey,
+    phone,
+    formattedPhone,
+    otp,
+  ]);
+  const logDetails = JSON.stringify({
+    httpStatus: response.status,
+    response: safeResponseBody,
+  });
+
   if (!response.ok || providerRejected(parsedBody)) {
-    const safeResponseBody = redactProviderResponse(responseBody, [
-      apiKey,
-      phone,
-      formattedPhone,
-      otp,
-    ]);
-    console.error(
-      "Africa's Talking SMS provider error",
-      JSON.stringify({ httpStatus: response.status, response: safeResponseBody }),
-    );
+    console.error("Africa's Talking SMS provider response", logDetails);
     throw new Error("SMS delivery failed.");
   }
+
+  console.info("Africa's Talking SMS provider response", logDetails);
 }
