@@ -14,6 +14,7 @@ test("formats Ugandan local numbers as +256 international numbers", () => {
   assert.equal(formatUgandanPhoneNumber("0755546291"), "+256755546291");
   assert.equal(formatUgandanPhoneNumber("755546291"), "+256755546291");
   assert.equal(formatUgandanPhoneNumber("256755546291"), "+256755546291");
+  assert.equal(formatUgandanPhoneNumber("+256755546291"), "+256755546291");
   assert.equal(formatUgandanPhoneNumber("+256 755 546 291"), "+256755546291");
   assert.throws(() => formatUgandanPhoneNumber("+254712345678"), /valid Ugandan number/);
   assert.throws(() => formatUgandanPhoneNumber("12345"), /valid Ugandan number/);
@@ -46,12 +47,45 @@ test("sends SMS to the live endpoint with the formatted number", async () => {
     assert.equal(new URLSearchParams(request.options.body).get("username"), "reportcards");
     assert.equal(new URLSearchParams(request.options.body).get("to"), "+256755546291");
     assert.equal(new URLSearchParams(request.options.body).get("message"), "Your OTP is: 123456");
+    assert.deepEqual(
+      [...new URLSearchParams(request.options.body).keys()].sort(),
+      ["message", "to", "username"],
+    );
+    assert.equal(request.options.headers.Authorization, undefined);
     assert.match(logged, /ATXid-test/);
     assert.match(logged, /statusCode\\":101/);
     assert.doesNotMatch(logged, /0755546291|\+256755546291/);
   } finally {
     globalThis.fetch = originalFetch;
     console.info = originalConsoleInfo;
+  }
+});
+
+test("warns immediately when Africa's Talking queues or buffers an SMS", async () => {
+  const originalFetch = globalThis.fetch;
+  const originalConsoleWarn = console.warn;
+  let logged = "";
+  globalThis.fetch = async () => new Response(JSON.stringify({
+    SMSMessageData: {
+      Recipients: [{
+        statusCode: 102,
+        status: "Queued",
+        messageId: "ATXid-queued-test",
+        number: "+256755546291",
+      }],
+    },
+  }), { status: 201 });
+  console.warn = (...args) => { logged = args.join(" "); };
+
+  try {
+    await sendSmsOtp(env, "0755546291", "123456");
+    assert.match(logged, /queued or buffered/);
+    assert.match(logged, /statusCode\\":102/);
+    assert.match(logged, /Queued/);
+    assert.match(logged, /ATXid-queued-test/);
+  } finally {
+    globalThis.fetch = originalFetch;
+    console.warn = originalConsoleWarn;
   }
 });
 

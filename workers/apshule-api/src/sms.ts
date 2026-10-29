@@ -22,9 +22,28 @@ function providerRejected(responseBody: unknown): boolean {
   return recipients.some((recipient) => {
     if (!recipient || typeof recipient !== "object") return true;
     const entry = recipient as Record<string, unknown>;
-    const code = Number(entry.statusCode);
+    const rawCode = entry.statusCode;
+    const code = rawCode === undefined || rawCode === null || rawCode === ""
+      ? Number.NaN
+      : Number(rawCode);
     if (Number.isFinite(code)) return !ACCEPTED_STATUS_CODES.has(code);
-    return typeof entry.status !== "string" || entry.status.toLowerCase() !== "success";
+    const status = typeof entry.status === "string" ? entry.status.toLowerCase() : "";
+    return !["success", "queued", "buffered"].includes(status);
+  });
+}
+
+function providerQueuedOrBuffered(responseBody: unknown): boolean {
+  if (!responseBody || typeof responseBody !== "object") return false;
+  const smsData = (responseBody as Record<string, unknown>).SMSMessageData;
+  if (!smsData || typeof smsData !== "object") return false;
+  const recipients = (smsData as Record<string, unknown>).Recipients;
+  if (!Array.isArray(recipients)) return false;
+
+  return recipients.some((recipient) => {
+    if (!recipient || typeof recipient !== "object") return false;
+    const entry = recipient as Record<string, unknown>;
+    const status = typeof entry.status === "string" ? entry.status.toLowerCase() : "";
+    return Number(entry.statusCode) === 102 || status === "queued" || status === "buffered";
   });
 }
 
@@ -94,6 +113,11 @@ export async function sendSmsOtp(env: Env, phone: string, otp: string): Promise<
   if (!response.ok || providerRejected(parsedBody)) {
     console.error("Africa's Talking SMS provider response", logDetails);
     throw new Error("SMS delivery failed.");
+  }
+
+  if (providerQueuedOrBuffered(parsedBody)) {
+    console.warn("Africa's Talking SMS queued or buffered", logDetails);
+    return;
   }
 
   console.info("Africa's Talking SMS provider response", logDetails);
