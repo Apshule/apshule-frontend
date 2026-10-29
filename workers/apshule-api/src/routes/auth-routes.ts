@@ -18,7 +18,8 @@ const authRoutes = new Hono<AppEnv>();
 const OTP_RESEND_AFTER_SECONDS = 30;
 const OTP_MAX_ATTEMPTS = 5;
 const OTP_MAX_REQUESTS_PER_HOUR = 3;
-const OTP_REQUEST_MESSAGE = "If registered, an OTP has been sent";
+const OTP_REQUEST_MESSAGE =
+  "If registered, a code will be sent. If you requested several codes recently, wait before trying again.";
 const INVALID_OTP_MESSAGE = "Invalid or expired code. Request a new one.";
 const RESET_CONFIRM_ERROR = "Reset session expired. Start over.";
 const encoder = new TextEncoder();
@@ -594,6 +595,7 @@ authRoutes.post("/reset", async (c) => {
   if (deliveryMethod !== "email" && deliveryMethod !== "sms") {
     throw new ApiError(400, "VALIDATION_ERROR", "delivery_method must be email or sms.");
   }
+  console.info("Password reset OTP request received", { deliveryMethod });
 
   const genericResponse = {
     ok: true,
@@ -619,7 +621,10 @@ authRoutes.post("/reset", async (c) => {
   const user = users.length === 1
     ? users[0] as { id: string; name: string; email: string; phone: string | null }
     : undefined;
-  if (!user || (deliveryMethod === "sms" && !user.phone)) return c.json(genericResponse);
+  if (!user || (deliveryMethod === "sms" && !user.phone)) {
+    console.info("Password reset OTP request not eligible for delivery", { deliveryMethod });
+    return c.json(genericResponse);
+  }
 
   const requestCounts = await sql`
     SELECT
@@ -640,6 +645,11 @@ authRoutes.post("/reset", async (c) => {
     Number(requestCounts[0]?.request_count ?? 0) >= OTP_MAX_REQUESTS_PER_HOUR ||
     Number(requestCounts[0]?.recent_request_count ?? 0) > 0
   ) {
+    console.warn("Password reset OTP request rate-limited", {
+      deliveryMethod,
+      requestCount: Number(requestCounts[0]?.request_count ?? 0),
+      hourlyLimit: OTP_MAX_REQUESTS_PER_HOUR,
+    });
     return c.json(genericResponse);
   }
 

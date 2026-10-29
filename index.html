@@ -10486,12 +10486,30 @@
         const resetStep3 = document.getElementById('resetStep3');
         let resetIdentifierValue = '';
         let resetDeliveryMethodValue = 'email';
+        let resetDeliveryMethodTouched = false;
         let resetTokenValue = '';
         let resetResendCount = 0;
         let resetOtpExpiresAt = 0;
         let resetResendAvailableAt = 0;
         let resetExpiryTimer = null;
         let resetResendTimer = null;
+
+        const resetDeliveryMethodRadios = Array.from(
+            document.querySelectorAll('input[name="resetDeliveryMethod"]')
+        );
+        resetDeliveryMethodRadios.forEach(radio => {
+            radio.addEventListener('change', () => {
+                resetDeliveryMethodTouched = true;
+            });
+        });
+        resetIdentifierInput.addEventListener('input', () => {
+            if (resetDeliveryMethodTouched) return;
+            const value = resetIdentifierInput.value.trim();
+            const isPhone = value.length >= 7 && /^[+()\d\s.-]+$/.test(value);
+            const preferredMethod = isPhone ? 'sms' : 'email';
+            const preferredRadio = resetDeliveryMethodRadios.find(radio => radio.value === preferredMethod);
+            if (preferredRadio) preferredRadio.checked = true;
+        });
 
         function clearResetTimers() {
             if (resetExpiryTimer !== null) clearInterval(resetExpiryTimer);
@@ -10746,7 +10764,7 @@
 
     if ("serviceWorker" in navigator) {
         window.addEventListener("load", () => {
-                    navigator.serviceWorker.register("/sw-cache-v91.js?v=91", { scope: "/" })
+                    navigator.serviceWorker.register("/sw-cache-v92.js?v=92", { scope: "/" })
                 .then((registration) => console.log("[SW] registered", registration.scope))
                 .catch((error) => console.error("[SW] failed", error));
         }, { once: true });
