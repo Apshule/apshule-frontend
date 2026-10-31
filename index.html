@@ -1565,7 +1565,7 @@
                 <option value="teacher">Teacher</option>
             </select>
             <input type="text" id="signupName" placeholder="Full Name" class="login-input">
-            <input type="text" id="signupEmail" placeholder="Email or Phone Number" class="login-input" autocomplete="email">
+            <input type="email" id="signupEmail" placeholder="Email address (required)" class="login-input" autocomplete="email" required>
             <input type="tel" id="signupPhone" placeholder="Phone Number" class="login-input">
             <input type="text" id="signupReferralCode" placeholder="Referral code (optional)" class="login-input" autocomplete="off">
             <div style="position: relative;"><input type="password" id="signupPassword" placeholder="Password (min 8 characters)" class="login-input"><span onclick="togglePassword('signupPassword')" style="position: absolute; right: 20px; top: 12px; cursor: pointer;">👁️</span></div>
@@ -10332,12 +10332,31 @@
             const subjectsTaught = [...document.querySelectorAll('input[name="subjectsTaught"]:checked')].map(input => input.value);
             const assignedClasses = [...document.querySelectorAll('input[name="assignedClasses"]:checked')].map(input => input.value);
             const errorBox = document.getElementById('loginError');
-            errorBox.className = 'error-message';
-            if (!sector || !name || !email || !phone || !password) { errorBox.innerText = "Fill all required fields"; return; }
+            const showSignupError = message => {
+                errorBox.className = 'error-message';
+                errorBox.innerText = message;
+                errorBox.style.display = 'block';
+            };
+            errorBox.style.display = 'none';
+            errorBox.innerText = '';
+            if (!sector || !name || !email || !phone || !password) {
+                showSignupError("Fill all required fields");
+                return;
+            }
+            if (!document.getElementById('signupEmail').validity.valid) {
+                showSignupError("Enter a valid email address. Use your phone in the Phone Number field.");
+                return;
+            }
             const termsAccepted = document.getElementById('signupTermsAccepted').checked;
             const privacyAccepted = document.getElementById('signupPrivacyAccepted').checked;
-            if (!termsAccepted || !privacyAccepted) { errorBox.innerText = "Please accept the Terms of Service and Privacy Policy."; return; }
-            if (password.length < 8) { errorBox.innerText = "Password min 8 chars"; return; }
+            if (!termsAccepted || !privacyAccepted) {
+                showSignupError("Please accept the Terms of Service and Privacy Policy.");
+                return;
+            }
+            if (password.length < 8) {
+                showSignupError("Password min 8 chars");
+                return;
+            }
             try {
                 const data = await api('/api/auth2/signup-independent', { method: 'POST', auth: false, body: {
                     name, email, phone, password, role, sector, termsAccepted, privacyAccepted,
@@ -10353,7 +10372,7 @@
                 showNotification("Account created!");
                 await showAppFor(data.user);
                 startPolling(); refreshAllData();
-            } catch(err) { errorBox.className = 'error-message'; errorBox.innerText = err.message; }
+            } catch(err) { showSignupError(err.message); }
         });
         document.getElementById('loginBtn').addEventListener('click', async e => {
             e.preventDefault();
@@ -10764,7 +10783,7 @@
 
     if ("serviceWorker" in navigator) {
         window.addEventListener("load", () => {
-                    navigator.serviceWorker.register("/sw-cache-v92.js?v=92", { scope: "/" })
+                    navigator.serviceWorker.register("/sw-cache-v93.js?v=93", { scope: "/" })
                 .then((registration) => console.log("[SW] registered", registration.scope))
                 .catch((error) => console.error("[SW] failed", error));
         }, { once: true });
