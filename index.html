@@ -748,6 +748,9 @@
         .teacher-workspace-heading h2 { margin:0; color:#302942; font-size:20px; }
         .teacher-workspace-heading p { margin:5px 0 0; color:#777184; font-size:12px; line-height:1.45; }
         .teacher-eyebrow { margin:0 0 4px !important; color:#6a5a9b !important; font-size:10px !important; font-weight:800; letter-spacing:.1em; text-transform:uppercase; }
+        .teacher-library-upload { display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:12px; margin:0 0 14px; padding:13px 15px; border:1px solid #e8e1ef; border-radius:14px; background:#fff; }
+        .teacher-library-upload strong, .teacher-library-upload small { display:block; }
+        .teacher-library-upload small { margin-top:4px; color:#777184; font-size:12px; line-height:1.45; }
         .teacher-refresh, .teacher-back, .teacher-secondary, .teacher-primary, .teacher-danger {
             min-height:40px; display:inline-flex; align-items:center; justify-content:center; gap:7px;
             padding:9px 13px; border:1px solid #ded7eb; border-radius:10px; background:#fff;
@@ -1941,6 +1944,10 @@
                         <button type="button" id="teacherDashboardRefresh" class="teacher-refresh" aria-label="Refresh teacher dashboard">
                             <i class="fas fa-rotate" aria-hidden="true"></i> Refresh
                         </button>
+                    </div>
+                    <div class="teacher-library-upload">
+                        <div><strong>Share a learning document</strong><small>Upload lesson notes, past papers, holiday packages, schemes of work, revision or topical materials.</small></div>
+                        <button type="button" id="teacherOpenPdfUploadBtn" class="teacher-refresh">📤 Upload material</button>
                     </div>
                     <div class="teacher-dashboard-grid">
                         <button type="button" class="teacher-tool-card" data-teacher-open="caRecordsScreen">
@@ -4876,7 +4883,7 @@
     let activeReaderObjectUrl = null;
     const pendingPdfLinkPrefetches = new Map();
     const pdfResolverCache = new Map();
-    const PDF_RESOLVER_CACHE_KEY = 'apshule_pdf_resolver_cache_v3';
+    const PDF_RESOLVER_CACHE_KEY = 'apshule_pdf_resolver_cache_v4';
     const PDF_PREFETCH_MAX_CONCURRENT = 3;
     const PDF_PREFETCH_START_INTERVAL_MS = 500;
     let pdfResolverCacheGeneration = 0;
@@ -5111,9 +5118,6 @@
     }
     async function prefetchPdfLink(sourceUrl, options = {}) {
         const safeSourceUrl = safeReaderDocumentUrl(sourceUrl);
-        if (isPdfToLinkViewerUrl(safeSourceUrl)) {
-            return { status: 'viewer', directUrl: safeSourceUrl };
-        }
         const canResolvePdf = options.viewer ||
             isKnownUnsupportedPdfViewerUrl(safeSourceUrl) ||
             isDirectPdfUrl(safeSourceUrl);
@@ -5828,11 +5832,8 @@
             if (!directUrl) throw new Error('This document does not have a valid HTTP or HTTPS link.');
             let kind = pdf?.doc_kind;
             const resolverSourceUrl = originalUrl || directUrl;
-            const isPdfToLinkViewer = isPdfToLinkViewerUrl(resolverSourceUrl);
-            const shouldResolvePdf = !isPdfToLinkViewer && isPdfResolverViewerUrl(resolverSourceUrl, kind);
-            if (isPdfToLinkViewer) {
-                kind = 'viewer';
-            } else if (shouldResolvePdf) {
+            const shouldResolvePdf = isPdfResolverViewerUrl(resolverSourceUrl, kind);
+            if (shouldResolvePdf) {
                 kind = 'viewer';
             } else if (isDirectPdfUrl(directUrl)) {
                 kind = 'pdf';
@@ -6348,6 +6349,7 @@
         const modal = document.getElementById('r2UploadModal');
         const form = document.getElementById('r2UploadForm');
         if (!modal || !form) return;
+        if (modal.parentElement !== document.body) document.body.appendChild(modal);
         form.reset();
         pdfUploadReplacingId = replacePdf?.id ? String(replacePdf.id) : null;
         document.getElementById('r2UploadTitle').textContent = replacePdf
@@ -10157,6 +10159,10 @@
         const pdfUrlInput = document.getElementById('pdfUrl');
         const pdfUrlBadge = document.getElementById('pdfUrlResolutionBadge');
         document.getElementById('openPdfUploadBtn')?.addEventListener('click', () => openR2UploadModal());
+        document.getElementById('teacherOpenPdfUploadBtn')?.addEventListener('click', () => {
+            if (currentUser?.role !== 'teacher') return;
+            openR2UploadModal();
+        });
         document.getElementById('toggleAddPdfUrlBtn')?.addEventListener('click', event => {
             const form = document.getElementById('pdfUrlAddForm');
             const button = event.currentTarget;
@@ -10834,7 +10840,7 @@
 
     if ("serviceWorker" in navigator) {
         window.addEventListener("load", () => {
-                    navigator.serviceWorker.register("/sw-cache-v97.js?v=97", { scope: "/" })
+                    navigator.serviceWorker.register("/sw-cache-v98.js?v=98", { scope: "/" })
                 .then((registration) => console.log("[SW] registered", registration.scope))
                 .catch((error) => console.error("[SW] failed", error));
         }, { once: true });
