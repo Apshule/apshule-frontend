@@ -1546,7 +1546,7 @@
             <input type="text" id="teacherSchoolCode" placeholder="School code" class="login-input" hidden autocomplete="organization">
             <small id="teacherSchoolCodeHint" hidden></small>
             <div id="emailLoginIdentity"><input type="text" id="loginEmail" placeholder="Email or Phone Number" class="login-input" autocomplete="username"></div>
-            <div id="regNoLoginIdentity" hidden><input id="loginRegNo" placeholder="Registration number" class="login-input" autocomplete="username"><input id="loginSchoolCode" placeholder="School code" class="login-input" autocomplete="organization"></div>
+            <div id="regNoLoginIdentity" hidden><input id="loginRegNo" placeholder="Registration number" class="login-input" autocomplete="off"><input id="loginSchoolCode" placeholder="School code" class="login-input" autocomplete="off"></div>
             <div style="position: relative;"><input type="password" id="loginPassword" placeholder="Password" class="login-input"><span onclick="togglePassword('loginPassword')" style=" position: absolute; right: 20px; top: 12px; cursor: pointer;">👁️</span></div>
             <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px;"><label style="display: flex; align-items: center; gap: 8px; color: #666; font-size: 14px;"><input type="checkbox" id="rememberMeCheckbox"> Remember Me</label><span id="forgotPasswordLink" style="color: #FF8C42; font-size: 14px; cursor: pointer;">Forgot Password?</span></div>
             <button id="loginBtn" class="login-btn">Login</button>
@@ -9324,6 +9324,8 @@
             document.querySelectorAll('[data-login-identity]').forEach(tab => { tab.hidden = true; });
             document.getElementById('emailLoginIdentity').hidden = false;
             document.getElementById('regNoLoginIdentity').hidden = true;
+            document.getElementById('loginRegNo').value = '';
+            document.getElementById('loginSchoolCode').value = '';
             loginMode = 'email';
             document.getElementById('schoolAdminCode').hidden = true;
             document.getElementById('teacherSchoolCode').hidden = true;
@@ -9382,8 +9384,13 @@
                 loginMode = 'regno';
                 document.getElementById('emailLoginIdentity').hidden = true;
                 document.getElementById('regNoLoginIdentity').hidden = false;
+                document.getElementById('loginRegNo').value = '';
+                document.getElementById('loginSchoolCode').value = '';
                 document.querySelectorAll('[name="learnerLoginKind"]').forEach(input => { input.checked = input.value === 'school'; });
             } else {
+                document.getElementById('loginRegNo').value = '';
+                document.getElementById('loginSchoolCode').value = '';
+                document.getElementById('regNoLoginIdentity').hidden = true;
                 document.querySelector('[data-login-identity="email"]')?.click();
             }
             if (flowRole === 'teacher') restoreTeacherSchoolCode();
@@ -9404,6 +9411,10 @@
             loginMode = schoolLogin ? 'regno' : 'email';
             document.getElementById('emailLoginIdentity').hidden = schoolLogin;
             document.getElementById('regNoLoginIdentity').hidden = !schoolLogin;
+            if (!schoolLogin) {
+                document.getElementById('loginRegNo').value = '';
+                document.getElementById('loginSchoolCode').value = '';
+            }
             document.getElementById('loginError').style.display = 'none';
         }));
         document.querySelectorAll('[data-auth-back]').forEach(button => button.addEventListener('click', () => {
@@ -10546,6 +10557,12 @@
             const remainder = seconds % 60;
             return `${minutes}:${String(remainder).padStart(2, '0')}`;
         }
+        function isValidResetIdentifier(value, deliveryMethod) {
+            if (deliveryMethod === 'email') return /^[^\s@]+@[^\s@]+\.[^\s@]+$/u.test(value);
+            if (deliveryMethod !== 'sms' || !/^[+()\d\s.-]+$/u.test(value)) return false;
+            const digits = value.replace(/\D/gu, '');
+            return /^\d{9}$/u.test(digits) || /^0\d{9}$/u.test(digits) || /^256\d{9}$/u.test(digits);
+        }
         function startResetTimers(expiresInSeconds = 180) {
             clearResetTimers();
             const expirySeconds = Number.isFinite(Number(expiresInSeconds)) && Number(expiresInSeconds) > 0
@@ -10587,35 +10604,43 @@
         async function requestResetCode(isResend = false) {
             const requestMessage = document.getElementById('resetRequestMessage');
             const resendMessage = document.getElementById('resetVerifyMessage');
-            let resetResponse = null;
-            if (!isResend) {
-                if (!resetIdentifierInput.reportValidity()) return;
-                resetIdentifierValue = resetIdentifierInput.value.trim();
-                resetDeliveryMethodValue = document.querySelector('[name="resetDeliveryMethod"]:checked')?.value || 'email';
+            const enteredIdentifier = resetIdentifierInput.value.trim();
+            const selectedMethod = isResend ? resetDeliveryMethodValue : document.querySelector('[name="resetDeliveryMethod"]:checked')?.value || 'email';
+            if (!isValidResetIdentifier(enteredIdentifier, selectedMethod)) {
+                const message = selectedMethod === 'sms' ? 'Enter a valid Ugandan phone number for SMS.' : 'Enter a valid email address for email delivery.';
+                if (isResend) resendMessage.textContent = message;
+                else requestMessage.textContent = message;
+                return;
             }
-            if (!resetIdentifierValue) return;
-            if (isResend) {
-                resetResendCount += 1;
-                resetOtpInput.value = '';
-                resendMessage.textContent = '';
-            }
+            resetIdentifierValue = enteredIdentifier;
+            resetDeliveryMethodValue = selectedMethod;
+            resetTokenValue = '';
+            clearResetTimers();
+            resetOtpExpiresAt = 0;
+            resetOtpInput.value = '';
+            document.getElementById('resetCountdown').textContent = 'Requesting a new code…';
+            verifyResetOtpBtn.disabled = true;
             const button = isResend ? resetResendBtn : document.getElementById('sendResetEmailBtn');
             button.disabled = true;
-            if (!isResend) requestMessage.textContent = 'If an account is registered, a code will be sent.';
+            if (!isResend) requestMessage.textContent = 'Requesting code…';
+            else resendMessage.textContent = 'Requesting a new code…';
+            let resetResponse;
             try {
                 resetResponse = await api('/api/auth/reset', {
                     method: 'POST',
-                    body: {
-                        identifier: resetIdentifierValue,
-                        delivery_method: resetDeliveryMethodValue,
-                    },
+                    body: { identifier: enteredIdentifier, delivery_method: resetDeliveryMethodValue },
                     auth: false,
                 });
-                requestMessage.textContent = resetResponse?.message || 'If an account is registered, a code has been sent.';
             } catch {
-                requestMessage.textContent = 'If an account is registered, a code has been sent.';
+                const message = 'Could not request a code right now. Check your connection and try again.';
+                if (isResend) { resendMessage.textContent = message; button.textContent = 'Resend code'; }
+                else requestMessage.textContent = message;
+                button.disabled = false;
+                return;
             }
-            document.getElementById('resetEmailLabel').textContent = resetIdentifierValue;
+            if (isResend) resetResendCount += 1;
+            requestMessage.textContent = resetResponse?.message || 'If an account is registered, a code has been sent.';
+            document.getElementById('resetEmailLabel').textContent = enteredIdentifier;
             document.getElementById('resetResendLimitMessage').hidden = resetResendCount < 2;
             resetResendBtn.hidden = resetResendCount >= 2;
             if (!isResend) showResetStep(2);
@@ -10655,6 +10680,11 @@
         document.getElementById('resetChangeEmailBtn').addEventListener('click', () => {
             clearResetTimers();
             resetTokenValue = '';
+            resetIdentifierValue = '';
+            resetIdentifierInput.value = '';
+            resetDeliveryMethodValue = 'email';
+            resetDeliveryMethodTouched = false;
+            resetDeliveryMethodRadios.forEach(radio => { radio.checked = radio.value === 'email'; });
             resetResendCount = 0;
             resetOtpInput.value = '';
             resetResendBtn.hidden = false;
@@ -10716,6 +10746,11 @@
         document.getElementById('forgotPasswordLink').addEventListener('click', () => {
             clearResetTimers();
             resetTokenValue = '';
+            resetIdentifierValue = '';
+            resetIdentifierInput.value = '';
+            resetDeliveryMethodValue = 'email';
+            resetDeliveryMethodTouched = false;
+            resetDeliveryMethodRadios.forEach(radio => { radio.checked = radio.value === 'email'; });
             resetResendCount = 0;
             resetOtpInput.value = '';
             resetResendBtn.hidden = false;
@@ -10783,7 +10818,7 @@
 
     if ("serviceWorker" in navigator) {
         window.addEventListener("load", () => {
-                    navigator.serviceWorker.register("/sw-cache-v93.js?v=93", { scope: "/" })
+                    navigator.serviceWorker.register("/sw-cache-v94.js?v=94", { scope: "/" })
                 .then((registration) => console.log("[SW] registered", registration.scope))
                 .catch((error) => console.error("[SW] failed", error));
         }, { once: true });
