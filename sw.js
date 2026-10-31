@@ -1,5 +1,5 @@
 // Preserve offline snapshots; activation deletes every other apshule-cache-* namespace.
-const CACHE_NAME = "apshule-cache-v99";
+const CACHE_NAME = "apshule-cache-v100";
 const APP_SHELL_URLS = [
     "/",
     "/index.html",

@@ -2352,7 +2352,8 @@
                     <div id="schoolEventsList"></div>
                 </div>
                 <div class="admin-section" id="globalEventsSection" style="display:none;">
-                    <h4>📅 Manage Global Events (Super Admin)</h4>
+                    <h4>📅 Upcoming Seminars &amp; Events</h4>
+                    <p>Add, edit, or remove announcements shown in the scrolling events ticker.</p>
                     <div class="add-pdf-form"><input type="text" id="eventTitle" placeholder="Event Title"><input type="text" id="eventDate" placeholder="Date"><input type="text" id="eventFee" placeholder="Fee"><button id="addEventBtn" class="admin-toggle">➕ Add Event</button></div>
                     <div id="eventsAdminList"></div>
                 </div>
@@ -7673,6 +7674,11 @@
         if (isSuper) {
             document.getElementById('appScreen').classList.add('is-command-center');
             commandCenter.classList.remove('hidden');
+            const globalEventsSection = document.getElementById('globalEventsSection');
+            const educationMount = document.getElementById('ccEducationMount');
+            if (globalEventsSection && educationMount?.parentElement) {
+                educationMount.parentElement.insertBefore(globalEventsSection, educationMount);
+            }
             document.getElementById('ccEducationMount').appendChild(adminPanel);
             adminPanel.classList.add('show');
             activateCommandTab('education');
@@ -7680,6 +7686,10 @@
         } else {
             document.getElementById('appScreen').classList.remove('is-command-center');
             commandCenter.classList.add('hidden');
+            const globalEventsSection = document.getElementById('globalEventsSection');
+            if (globalEventsSection?.parentElement !== adminPanel) {
+                adminPanel.insertBefore(globalEventsSection, document.getElementById('addSubjectSection'));
+            }
             if (adminPanel.parentElement !== document.getElementById('homePage')) {
                 document.getElementById('homePage').appendChild(adminPanel);
             }
@@ -10840,7 +10850,7 @@
 
     if ("serviceWorker" in navigator) {
         window.addEventListener("load", () => {
-                    navigator.serviceWorker.register("/sw-cache-v99.js?v=99", { scope: "/" })
+                    navigator.serviceWorker.register("/sw-cache-v100.js?v=100", { scope: "/" })
                 .then((registration) => console.log("[SW] registered", registration.scope))
                 .catch((error) => console.error("[SW] failed", error));
         }, { once: true });
