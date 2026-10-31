@@ -1649,6 +1649,7 @@
                 </fieldset>
                 <label for="resetIdentifier">Email or Phone Number</label>
                 <input type="text" id="resetIdentifier" placeholder="Email or Phone Number" class="reset-input" autocomplete="username" required>
+                <p class="reset-status">If your phone number doesn’t identify one account, enter your account email and choose SMS. The code will go to the phone saved on that account.</p>
                 <p id="resetRequestMessage" class="reset-status" role="status" aria-live="polite"></p>
                 <button type="button" id="sendResetEmailBtn" class="reset-btn">Send verification code</button>
             </div>
@@ -10818,7 +10819,7 @@
 
     if ("serviceWorker" in navigator) {
         window.addEventListener("load", () => {
-                    navigator.serviceWorker.register("/sw-cache-v94.js?v=94", { scope: "/" })
+                    navigator.serviceWorker.register("/sw-cache-v95.js?v=95", { scope: "/" })
                 .then((registration) => console.log("[SW] registered", registration.scope))
                 .catch((error) => console.error("[SW] failed", error));
         }, { once: true });
