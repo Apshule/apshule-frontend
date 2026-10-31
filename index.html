@@ -3544,8 +3544,9 @@
         container.innerHTML = currentLibraryPdfs.map(pdf => {
             const color = /^#[0-9a-f]{6}$/iu.test(pdf.cover_color || '') ? pdf.cover_color : '#FF8C42';
             const source = pdf.storage_type === 'r2' ? 'R2' : 'Source';
+            const linkViewer = isPdfToLinkViewerUrl(pdf.url);
             const paid = pdf.is_paid === true || Number(pdf.price || 0) > 0 || Number(pdf.fee || 0) > 0;
-            return `<div class="elibrary-pdf-row"><button type="button" data-library-pdf-id="${escapeHtml(pdf.id)}"><span class="elibrary-pdf-cover" style="background:${color}" aria-hidden="true">${escapeHtml(pdf.category_icon || '📄')}</span><span><strong>${escapeHtml(pdf.title)}</strong><small>${paid ? 'Paid' : 'Free'} · ${source}</small></span><span>View</span></button><button type="button" class="elibrary-download-button" data-library-download-id="${escapeHtml(pdf.id)}">Download</button></div>`;
+            return `<div class="elibrary-pdf-row"><button type="button" data-library-pdf-id="${escapeHtml(pdf.id)}"><span class="elibrary-pdf-cover" style="background:${color}" aria-hidden="true">${escapeHtml(pdf.category_icon || '📄')}</span><span><strong>${escapeHtml(pdf.title)}</strong><small>${paid ? 'Paid' : 'Free'} · ${source}</small></span><span>View</span></button><button type="button" class="elibrary-download-button" data-library-download-id="${escapeHtml(pdf.id)}">${linkViewer ? 'Open viewer' : 'Download'}</button></div>`;
         }).join('');
         prefetchVisiblePdfLinks(container, currentLibraryPdfs);
     }
@@ -3553,6 +3554,10 @@
         const pdf = currentLibraryPdfs.find(item => String(item.id) === String(pdfId));
         const url = safeReaderDocumentUrl(pdf?.url);
         if (!pdf || !url) return showNotification('The document URL is unavailable.', 'error');
+        if (isPdfToLinkViewerUrl(url)) {
+            void openBookReader(pdf);
+            return;
+        }
         try {
             const response = await fetch(url, { headers: AUTH_TOKEN ? { Authorization: `Bearer ${AUTH_TOKEN}` } : {} });
             if (!response.ok) throw new Error(`Download failed (HTTP ${response.status}).`);
@@ -4871,7 +4876,7 @@
     let activeReaderObjectUrl = null;
     const pendingPdfLinkPrefetches = new Map();
     const pdfResolverCache = new Map();
-    const PDF_RESOLVER_CACHE_KEY = 'apshule_pdf_resolver_cache_v2';
+    const PDF_RESOLVER_CACHE_KEY = 'apshule_pdf_resolver_cache_v3';
     const PDF_PREFETCH_MAX_CONCURRENT = 3;
     const PDF_PREFETCH_START_INTERVAL_MS = 500;
     let pdfResolverCacheGeneration = 0;
@@ -5106,8 +5111,10 @@
     }
     async function prefetchPdfLink(sourceUrl, options = {}) {
         const safeSourceUrl = safeReaderDocumentUrl(sourceUrl);
+        if (isPdfToLinkViewerUrl(safeSourceUrl)) {
+            return { status: 'viewer', directUrl: safeSourceUrl };
+        }
         const canResolvePdf = options.viewer ||
-            isPdfToLinkViewerUrl(safeSourceUrl) ||
             isKnownUnsupportedPdfViewerUrl(safeSourceUrl) ||
             isDirectPdfUrl(safeSourceUrl);
         if (!safeSourceUrl || !canResolvePdf) {
@@ -5778,8 +5785,10 @@
             direct.rel = 'noopener noreferrer';
             direct.textContent = 'Open Original';
             actions.appendChild(direct);
-            const downloadAction = createReaderDownloadAction(originalLink, pdf.title || 'document');
-            actions.append(downloadAction.download, downloadAction.status);
+            if (!isPdfToLinkViewerUrl(originalLink)) {
+                const downloadAction = createReaderDownloadAction(originalLink, pdf.title || 'document');
+                actions.append(downloadAction.download, downloadAction.status);
+            }
         }
         addAction('Page Overview', () => void openReaderPageOverview());
         addAction('Bookmark this page', () => {
@@ -5819,8 +5828,11 @@
             if (!directUrl) throw new Error('This document does not have a valid HTTP or HTTPS link.');
             let kind = pdf?.doc_kind;
             const resolverSourceUrl = originalUrl || directUrl;
-            const shouldResolvePdf = isPdfResolverViewerUrl(resolverSourceUrl, kind);
-            if (shouldResolvePdf) {
+            const isPdfToLinkViewer = isPdfToLinkViewerUrl(resolverSourceUrl);
+            const shouldResolvePdf = !isPdfToLinkViewer && isPdfResolverViewerUrl(resolverSourceUrl, kind);
+            if (isPdfToLinkViewer) {
+                kind = 'viewer';
+            } else if (shouldResolvePdf) {
                 kind = 'viewer';
             } else if (isDirectPdfUrl(directUrl)) {
                 kind = 'pdf';
@@ -5860,7 +5872,7 @@
                 loading.hidden = true;
                 media.hidden = false;
                 const viewerSourceUrl = readerViewerSourceUrl(directUrl);
-                if (viewerSourceUrl) {
+                if (viewerSourceUrl && !isPdfToLinkViewerUrl(viewerSourceUrl)) {
                     appendReaderFileActions(actions, viewerSourceUrl, pdf.title || kindInfo.label);
                 }
                 renderViewerWithFallback(media, directUrl, pdf.title || kindInfo.label);
@@ -10822,7 +10834,7 @@
 
     if ("serviceWorker" in navigator) {
         window.addEventListener("load", () => {
-                    navigator.serviceWorker.register("/sw-cache-v96.js?v=96", { scope: "/" })
+                    navigator.serviceWorker.register("/sw-cache-v97.js?v=97", { scope: "/" })
                 .then((registration) => console.log("[SW] registered", registration.scope))
                 .catch((error) => console.error("[SW] failed", error));
         }, { once: true });
