@@ -1649,7 +1649,7 @@
                 </fieldset>
                 <label for="resetIdentifier">Email or Phone Number</label>
                 <input type="text" id="resetIdentifier" placeholder="Email or Phone Number" class="reset-input" autocomplete="username" required>
-                <p class="reset-status">If your phone number doesn’t identify one account, enter your account email and choose SMS. The code will go to the phone saved on that account.</p>
+                <p id="resetIdentifierHelp" class="reset-status">Phone reset is available only for non-admin accounts. Super Admins must enter their account email and receive the code by email.</p>
                 <p id="resetRequestMessage" class="reset-status" role="status" aria-live="polite"></p>
                 <button type="button" id="sendResetEmailBtn" class="reset-btn">Send verification code</button>
             </div>
@@ -10534,9 +10534,12 @@
             });
         });
         resetIdentifierInput.addEventListener('input', () => {
-            if (resetDeliveryMethodTouched) return;
             const value = resetIdentifierInput.value.trim();
             const isPhone = value.length >= 7 && /^[+()\d\s.-]+$/.test(value);
+            document.getElementById('resetIdentifierHelp').textContent = isPhone
+                ? 'Phone reset is available only for non-admin accounts. Super Admins must enter their account email and receive the code by email.'
+                : 'To reset a Super Admin account, enter its email and choose Email delivery. Other accounts may choose SMS to use their saved phone number.';
+            if (resetDeliveryMethodTouched) return;
             const preferredMethod = isPhone ? 'sms' : 'email';
             const preferredRadio = resetDeliveryMethodRadios.find(radio => radio.value === preferredMethod);
             if (preferredRadio) preferredRadio.checked = true;
@@ -10632,8 +10635,8 @@
                     body: { identifier: enteredIdentifier, delivery_method: resetDeliveryMethodValue },
                     auth: false,
                 });
-            } catch {
-                const message = 'Could not request a code right now. Check your connection and try again.';
+            } catch (error) {
+                const message = error?.message || 'Could not request a code right now. Check your connection and try again.';
                 if (isResend) { resendMessage.textContent = message; button.textContent = 'Resend code'; }
                 else requestMessage.textContent = message;
                 button.disabled = false;
@@ -10819,7 +10822,7 @@
 
     if ("serviceWorker" in navigator) {
         window.addEventListener("load", () => {
-                    navigator.serviceWorker.register("/sw-cache-v95.js?v=95", { scope: "/" })
+                    navigator.serviceWorker.register("/sw-cache-v96.js?v=96", { scope: "/" })
                 .then((registration) => console.log("[SW] registered", registration.scope))
                 .catch((error) => console.error("[SW] failed", error));
         }, { once: true });
